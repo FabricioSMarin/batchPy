@@ -1,6 +1,7 @@
 from PyQt6 import QtCore, QtGui, QtWidgets
 import batch_gui
 import sys
+import numpy as np
 
 class Launcher(object):
     def __init__(self):
@@ -11,16 +12,6 @@ class Launcher(object):
         self.gui.openAction.triggered.connect(self.open_session)
         self.gui.saveAction.triggered.connect(self.save_session)
         sys.exit(app.exec())
-
-    def toggle_tomoview(self):
-        #TODO: for lines, set line[x].tomo.setVisible(True) if isVisible() is False
-        #TODO: for lines, set line[x].tomo.setVisible(False) if isVisible() is True
-        pass
-
-    def toggle_savedata_message(self):
-        #TODO: for lines, set line[x].message.setVisible(True) if isVisible() is False
-        #TODO: for lines, set line[x].message.setVisible(False) if isVisible() is True
-        pass
 
     def screenshot_window(self):
         # date = datetime.now()
@@ -39,9 +30,7 @@ class Launcher(object):
 
 
 
-
-    def line_changed(self):
-        #TODO: uncheck all other lines
+    def line_param_changed(self):
         #TODO: calculate and update x&y step size for that line
         #TODO:  note: custom, lissa, and snake all use x_points as the TOTAL numbe of points.
         pass
@@ -159,7 +148,6 @@ class Launcher(object):
 
     def calculate_all_points_clicked(self):
         pass
-
 
     def custom_draw(self):
         #TODO: create interactive draw windwo but put it under gui

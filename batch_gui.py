@@ -1,14 +1,14 @@
 import matplotlib.figure
 
 try:
-    from PyQt6 import QtCore, QtGui, QtWidgets, Qt
+    from PyQt6 import QtCore, QtGui, QtWidgets
 except:
     print("pyqt6 not installed, trying pyqt5...")
-    from PyQt5 import QtCore, QtGui, QtWidgets
+    # from PyQt5 import QtCore, QtGui, QtWidgets
 
 import pyqtgraph
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
-import matplotlib.pyplot as plt
+# from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
+# import matplotlib.pyplot as plt
 
 class BatchScanGui(QtWidgets.QMainWindow):
     def __init__(self,app):
@@ -52,9 +52,7 @@ class BatchScanGui(QtWidgets.QMainWindow):
         wid.setStyleSheet("background: white")
         self.show()
 
-        #view >> toggle tomography view
-        #view >>  parameter log window
-
+        self.line_0.current_line.setChecked(True)
 
         #check motor limit violation
 
@@ -65,6 +63,11 @@ class BatchScanGui(QtWidgets.QMainWindow):
         self.openAction.setShortcut(' Ctrl+O')
         self.saveAction = QtGui.QAction(' &save config', self)
         self.saveAction.setShortcut(' Ctrl+S')
+
+        self.tomoAction = QtGui.QAction(' tomo view', self, checkable=True)
+        self.tomoAction.triggered.connect(self.tomoview_changed)
+        self.miscviewAction = QtGui.QAction(' misc view', self, checkable=True)
+        self.miscviewAction.triggered.connect(self.miscview_changed)
 
         show_lines = QtWidgets.QMenu("show N lines", self)
         show_lines.setStyleSheet("background-color: rgb(49,49,49); color: rgb(255,255,255); border: 1px solid #000;")
@@ -89,6 +92,9 @@ class BatchScanGui(QtWidgets.QMainWindow):
             self.__dict__["interval_{}".format(i)].triggered.connect(self.update_interval_changed)
         self.update_interval_changed()
 
+        for i in range(self.num_lines):
+            self.__dict__["line_{}".format(i)].current_line.clicked.connect(self.line_changed)
+
         menubar = self.menuBar()
         menubar.setStyleSheet("background-color: rgb(49,49,49); color: rgb(255,255,255); border: 1px solid #000;")
         menubar.setNativeMenuBar(False)
@@ -102,16 +108,59 @@ class BatchScanGui(QtWidgets.QMainWindow):
         settingsMenu.addMenu(show_lines)
         settingsMenu.addMenu(update_interval)
 
+        viewMenu = menubar.addMenu('&View')
+        viewMenu.addAction(self.tomoAction)
+        viewMenu.addAction(self.miscviewAction)
+
+    def tomoview_changed(self):
+        for line in range(self.num_lines):
+            self.__dict__[self.line_names[line]].r_center.setVisible(False)
+            self.__dict__[self.line_names[line]].r_points.setVisible(False)
+            self.__dict__[self.line_names[line]].r_width.setVisible(False)
+        if self.tomoAction.isChecked():
+            for line in range(self.show_lines):
+                self.__dict__[self.line_names[line]].r_center.setVisible(True)
+                self.__dict__[self.line_names[line]].r_points.setVisible(True)
+                self.__dict__[self.line_names[line]].r_width.setVisible(True)
+
+    def miscview_changed(self):
+        for line in range(self.num_lines):
+            self.__dict__[self.line_names[line]].save_message.setVisible(False)
+            self.__dict__[self.line_names[line]].start_time.setVisible(False)
+            self.__dict__[self.line_names[line]].finish_time.setVisible(False)
+        if self.miscviewAction.isChecked():
+            for line in range(self.show_lines):
+                self.__dict__[self.line_names[line]].save_message.setVisible(True)
+                self.__dict__[self.line_names[line]].start_time.setVisible(True)
+                self.__dict__[self.line_names[line]].finish_time.setVisible(True)
+
+    def line_changed(self):
+        checked_lines = []
+        for line in range(self.show_lines):
+            checked_lines.append(self.__dict__[self.line_names[line]].current_line.isChecked())
+        last_clicked = self.sender()
+
+        for line in range(self.show_lines):
+            self.__dict__[self.line_names[line]].current_line.setChecked(False)
+
+        last_clicked.setChecked(True)
+
     def num_lines_changed(self):
         for i in range(self.num_lines):
             if self.__dict__["N_line_{}".format(i)].isChecked():
                 self.show_lines = i
                 break
         for i in range(self.num_lines):
+            if self.__dict__[self.line_names[i]].current_line.isChecked():
+                last_checked = i
             self.__dict__[self.line_names[i]].setVisible(False)
         for i in range(self.show_lines):
             self.__dict__[self.line_names[i]].setVisible(True)
-        #TODO: if currently selected line is > number available lines. set the active line to the last available line
+
+        if last_checked > self.show_lines:
+            self.__dict__[self.line_names[last_checked]].current_line.setChecked(False)
+            self.__dict__[self.line_names[self.show_lines-1]].current_line.setChecked(True)
+        return
 
     def update_interval_changed(self):
         intervals = [10,30,60]
@@ -135,7 +184,7 @@ class Controls(QtWidgets.QWidget):
         size4 = 200
         size5 = 500
 
-        exlude = set(locals())
+        exclude = set(locals())
         eta_lbl = QtWidgets.QLabel("ETA")
         eta_lbl.setFixedWidth(size1)
         self.eta = QtWidgets.QLabel("Hours min seconds")
@@ -274,15 +323,22 @@ class Controls(QtWidgets.QWidget):
         combined.addWidget(controlframe)
         combined.addWidget(self.messge_window)
 
-        # self.view_box = ImageView()
-        self.view_box = MplCanvas(self, width=5, height=4, dpi=100)
-        self.view_box.axes.plot([0, 1, 2, 3, 4], [10, 1, 20, 3, 40])
+
 
         combined2 = QtWidgets.QHBoxLayout()
         combined2.addLayout(combined)
+        # try:
+            # self.view_box = MplCanvas(self, width=5, height=4, dpi=100)
+            # self.view_box.axes.plot([0, 1, 2, 3, 4], [10, 1, 20, 3, 40])
+            # combined2.addWidget(self.view_box)
+        # except:
+        #     self.view_box = ImageView()
+        #     combined2.addWidget(self.view_box)
+
+        self.view_box = ImageView()
         combined2.addWidget(self.view_box)
 
-        include = list(set(locals())-exlude)
+        include = list(set(locals())-exclude)
         for key in include:
             item = locals()[key]
             if isinstance(item,QtWidgets.QLabel):
@@ -330,7 +386,7 @@ class Header(QtWidgets.QWidget):
         self.trajectory.setFixedWidth(size2)
         self.line_action = QtWidgets.QLabel("action")
         self.line_action.setFixedWidth(size2)
-        self.dwell_time = QtWidgets.QLabel("dwell \ntime")
+        self.dwell_time = QtWidgets.QLabel("dwell \n(ms)")
         self.dwell_time.setFixedWidth(size1)
         self.x_center = QtWidgets.QLabel("x center")
         self.x_center.setFixedWidth(size2)
@@ -496,13 +552,13 @@ class ImageView(pyqtgraph.GraphicsLayoutWidget):
         #empty function, but leave it as it overrides some other unwanted functionality.
         pass
 
-class MplCanvas(FigureCanvasQTAgg):
-
-    def __init__(self, parent=None, width=5, height=4, dpi=100):
-        fig = plt.figure(figsize=(width, height), dpi=dpi, tight_layout=True)
-        # fig = Figure(figsize=(width, height), dpi=dpi, tight_layout=True)
-        self.axes = fig.add_subplot(111)
-        self.axes.set_title("scan trajectory")
-        #self.axes.set_legend() #scanned points, trajectory
-        #self.axes.add_image()
-        super(MplCanvas, self).__init__(fig)
+# class MplCanvas(FigureCanvasQTAgg):
+#
+#     def __init__(self, parent=None, width=5, height=4, dpi=100):
+#         fig = plt.figure(figsize=(width, height), dpi=dpi, tight_layout=True)
+#         # fig = Figure(figsize=(width, height), dpi=dpi, tight_layout=True)
+#         self.axes = fig.add_subplot(111)
+#         self.axes.set_title("scan trajectory")
+#         #self.axes.set_legend() #scanned points, trajectory
+#         #self.axes.add_image()
+#         super(MplCanvas, self).__init__(fig)
