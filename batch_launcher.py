@@ -31,9 +31,11 @@ class Launcher(object):
 
 
     def line_param_changed(self):
-        #TODO: calculate and update x&y step size for that line
-        #TODO:  note: custom, lissa, and snake all use x_points as the TOTAL numbe of points.
-        pass
+
+        global_eta = self.calculate_global_eta()
+        return
+
+
 
     def scan_settings_changed(self):
         #TODO: check if settings violate motor limits, if all good. calculate ETAs

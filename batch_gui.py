@@ -7,8 +7,12 @@ except:
     # from PyQt5 import QtCore, QtGui, QtWidgets
 
 import pyqtgraph
-# from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
-# import matplotlib.pyplot as plt
+
+#GUI structure:
+#   Header()
+#   Lines()
+#   Controls()
+#   ImageView()
 
 class BatchScanGui(QtWidgets.QMainWindow):
     def __init__(self,app):
@@ -187,15 +191,15 @@ class Controls(QtWidgets.QWidget):
         exclude = set(locals())
         eta_lbl = QtWidgets.QLabel("ETA")
         eta_lbl.setFixedWidth(size1)
-        self.eta = QtWidgets.QLabel("Hours min seconds")
+        self.eta = QtWidgets.QLabel("0")
         self.eta.setFixedWidth(size4)
         self.points = QtWidgets.QPushButton("pts")
         self.points.setFixedWidth(size1)
         self.points_all = QtWidgets.QPushButton("all")
         self.points_all.setFixedWidth(size1)
-        self.x_step = QtWidgets.QLineEdit("xstep")
+        self.x_step = QtWidgets.QLineEdit("0")
         self.x_step.setFixedWidth(size2)
-        self.y_step = QtWidgets.QLineEdit("xstep")
+        self.y_step = QtWidgets.QLineEdit("0")
         self.y_step.setFixedWidth(size2)
         points_lbl = QtWidgets.QLabel("calculate points for selected scan line")
         points_lbl.setFixedWidth(size4)
@@ -378,8 +382,8 @@ class Header(QtWidgets.QWidget):
         size2 = 75
         size3 = 200
         line = QtWidgets.QHBoxLayout()
-        self.current_line = QtWidgets.QLabel("line")
-        self.current_line.setFixedWidth(size1)
+        self.line = QtWidgets.QLabel("line")
+        self.line.setFixedWidth(size1)
         self.scan_type = QtWidgets.QLabel("scan \ntype")
         self.scan_type.setFixedWidth(size1)
         self.trajectory = QtWidgets.QLabel("trajectory")
@@ -451,6 +455,7 @@ class Line(QtWidgets.QWidget):
         super(Line, self).__init__()
         self.setupUi()
         self.make_pretty()
+        self.trajectory_arr = []
 
     def setupUi(self):
         size1 = 30
@@ -460,7 +465,7 @@ class Line(QtWidgets.QWidget):
         self.setStyleSheet("background: white")
         self.current_line = QtWidgets.QRadioButton()
         self.current_line.setFixedWidth(size1)
-        self.scan_type = QtWidgets.QPushButton("fly")
+        self.scan_type = QtWidgets.QPushButton("step", checkable = True)
         self.scan_type.setFixedWidth(size1)
         self.trajectory = QtWidgets.QComboBox()
         trajectories = ["raster","snake","spiral","lissajous","custom"]
@@ -470,38 +475,38 @@ class Line(QtWidgets.QWidget):
         actions = ["skip","normal", "pause"]
         self.line_action.addItems(actions)
         self.line_action.setFixedWidth(size2)
-        self.dwell_time = QtWidgets.QLineEdit("dwell")
+        self.dwell_time = QtWidgets.QLineEdit("0")
         self.dwell_time.setFixedWidth(size1)
-        self.x_center = QtWidgets.QLineEdit("x center")
+        self.x_center = QtWidgets.QLineEdit("0")
         self.x_center.setFixedWidth(size2)
-        self.x_points = QtWidgets.QLineEdit("x points")
+        self.x_points = QtWidgets.QLineEdit("0")
         self.x_points.setFixedWidth(size2)
-        self.x_width = QtWidgets.QLineEdit("x width")
+        self.x_width = QtWidgets.QLineEdit("0")
         self.x_width.setFixedWidth(size2)
-        self.y_center = QtWidgets.QLineEdit("y center")
+        self.y_center = QtWidgets.QLineEdit("0")
         self.y_center.setFixedWidth(size2)
-        self.y_points = QtWidgets.QLineEdit("y points")
+        self.y_points = QtWidgets.QLineEdit("0")
         self.y_points.setFixedWidth(size2)
-        self.y_width = QtWidgets.QLineEdit("y width")
+        self.y_width = QtWidgets.QLineEdit("0")
         self.y_width.setFixedWidth(size2)
-        self.comments = QtWidgets.QLineEdit("comments")
+        self.comments = QtWidgets.QLineEdit("")
         self.comments.setFixedWidth(size3)
-        self.save_message = QtWidgets.QLabel("save message")
+        self.save_message = QtWidgets.QLabel("")
         self.save_message.setFixedWidth(size3)
         self.save_message.setVisible(False)
-        self.start_time = QtWidgets.QLabel("start time")
+        self.start_time = QtWidgets.QLabel("")
         self.start_time.setFixedWidth(size2)
         self.start_time.setVisible(False)
-        self.finish_time = QtWidgets.QLabel("finish time")
+        self.finish_time = QtWidgets.QLabel("")
         self.finish_time.setFixedWidth(size2)
         self.finish_time.setVisible(False)
-        self.r_center = QtWidgets.QLineEdit("r center")
+        self.r_center = QtWidgets.QLineEdit("0")
         self.r_center.setFixedWidth(size2)
         self.r_center.setVisible(False)
-        self.r_points = QtWidgets.QLineEdit("r points")
+        self.r_points = QtWidgets.QLineEdit("0")
         self.r_points.setFixedWidth(size2)
         self.r_points.setVisible(False)
-        self.r_width = QtWidgets.QLineEdit("r width")
+        self.r_width = QtWidgets.QLineEdit("0")
         self.r_width.setFixedWidth(size2)
         self.r_width.setVisible(False)
         self.line_eta = QtWidgets.QLabel("eta: hours-minues-seconds")
@@ -509,12 +514,97 @@ class Line(QtWidgets.QWidget):
 
         for key in self.__dict__:
             item = getattr(self,key)
+            if key == "trajectory":
+                item.currentIndexChanged.connect(self.trajector_changed)
+            if isinstance(item, QtWidgets.QLineEdit):
+                item.textChanged.connect(self.validate_params)
+            elif isinstance(item,QtWidgets.QPushButton):
+                item.clicked.connect(self.scan_type_clicked)
             if isinstance(item, QtWidgets.QHBoxLayout):
                 pass
             else:
                 line.addWidget(item)
         line.setContentsMargins(0,0,0,0)
         self.setLayout(line)
+    def trajector_changed(self):
+        trajectory = self.sender()
+        if trajectory.currentText() == "raster" or trajectory.currentText() == "snake" :
+            self.x_center.setEnabled(True)
+            self.x_points.setEnabled(True)
+            self.x_width.setEnabled(True)
+            self.y_center.setEnabled(True)
+            self.y_points.setEnabled(True)
+            self.y_width.setEnabled(True)
+        elif self.trajectory.currentText() == "spiral":
+            self.x_center.setEnabled(True)
+            self.x_points.setEnabled(True)
+            self.x_width.setEnabled(True)
+            self.y_center.setEnabled(False)
+            self.y_points.setEnabled(False)
+            self.y_width.setEnabled(False)
+        elif self.trajectory.currentText() == "lissajous":
+            self.x_center.setEnabled(True)
+            self.x_points.setEnabled(True)
+            self.x_width.setEnabled(True)
+            self.y_center.setEnabled(False)
+            self.y_points.setEnabled(False)
+            self.y_width.setEnabled(False)
+        elif self.trajectory.currentText() == "custom":
+            self.x_center.setEnabled(False)
+            self.x_points.setEnabled(False)
+            self.x_width.setEnabled(False)
+            self.y_center.setEnabled(False)
+            self.y_points.setEnabled(False)
+            self.y_width.setEnabled(False)
+
+        for key in self.__dict__:
+            item = getattr(self,key)
+            if isinstance(item, QtWidgets.QLineEdit):
+                if item.isEnabled():
+                    item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
+                else:
+                    item.setStyleSheet("background: lightblue; color: lightblue; border-radius: 4")
+        self.validate_params()
+
+    def scan_type_clicked(self):
+        button = self.sender()
+        if button.isChecked():
+            button.setText("fly")
+            self.trajectory.clear()
+            trajectories = ["raster", "snake"]
+            self.trajectory.addItems(trajectories)
+        else:
+            button.setText("step")
+            self.trajectory.clear()
+            trajectories = ["raster", "snake", "spiral", "lissajous", "custom"]
+            self.trajectory.addItems(trajectories)
+
+    def validate_params(self):
+        for key in self.__dict__:
+            item = getattr(self, key)
+            if isinstance(item, QtWidgets.QLineEdit):
+                try:
+                    if key == "comments":
+                        pass
+                    else:
+                        value = eval(item.text())
+                        if value<0:
+                            if item.isEnabled():
+                                item.setStyleSheet("background: lightcoral; color: black; border-radius: 4")
+                            else:
+                                item.setStyleSheet("background: lightblue; color: lightblue; border-radius: 4")
+
+                        else:
+                            if item.isEnabled():
+                                item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
+                            else:
+                                item.setStyleSheet("background: lightblue; color: lightblue; border-radius: 4")
+
+                except:
+                    item.setStyleSheet("background: lightcoral; color: black; border-radius: 4")
+            else:
+                pass
+        self.calculate_line_eta()
 
     def make_pretty(self):
 
@@ -534,6 +624,34 @@ class Line(QtWidgets.QWidget):
             else:
                 pass
         return
+    def calculate_line_eta(self):
+
+        #if any textedit in line is invalid (lihtcoral), return eta of "invalid"
+        #else check to see what kind of scan and calculate accordingly
+        dwell = self.dwell_time.text()
+        x_center = self.x_center.text()
+        x_points = self.x_points.text()
+        x_width = self.x_width.text()
+        x_parms = [x_center, x_points, x_width]
+        y_parms = []
+        r_parms = []
+        scan_type = self.scan_type.currentItem()
+        if scan_type == 0 or scan_type == 1:
+            y_center = self.y_center.text()
+            y_points = self.y_points.text()
+            y_width = self.y_width.text()
+            y_parms = [y_center,y_points,y_width]
+
+        if self.r_center.isVisible():
+            r_center = self.r_center.text()
+            r_points = self.r_points.text()
+            r_width = self.r_width.text()
+            r_parms = [r_center,r_points,r_width]
+
+        # if scan_type == 0  or scan_type == 1:
+        #TODO: calculate and update x&y step size for that line
+        #TODO:  note: custom, lissa, and snake all use x_points as the TOTAL numbe of points.
+        pass
 
 class ImageView(pyqtgraph.GraphicsLayoutWidget):
     def __init__(self):
@@ -551,14 +669,3 @@ class ImageView(pyqtgraph.GraphicsLayoutWidget):
     def wheelEvent(self, ev):
         #empty function, but leave it as it overrides some other unwanted functionality.
         pass
-
-# class MplCanvas(FigureCanvasQTAgg):
-#
-#     def __init__(self, parent=None, width=5, height=4, dpi=100):
-#         fig = plt.figure(figsize=(width, height), dpi=dpi, tight_layout=True)
-#         # fig = Figure(figsize=(width, height), dpi=dpi, tight_layout=True)
-#         self.axes = fig.add_subplot(111)
-#         self.axes.set_title("scan trajectory")
-#         #self.axes.set_legend() #scanned points, trajectory
-#         #self.axes.add_image()
-#         super(MplCanvas, self).__init__(fig)
