@@ -7,6 +7,8 @@ except:
     # from PyQt5 import QtCore, QtGui, QtWidgets
 
 import pyqtgraph
+import os
+import pickle
 
 #GUI structure:
 #   Header()
@@ -18,11 +20,12 @@ class BatchScanGui(QtWidgets.QMainWindow):
     def __init__(self,app):
         super(QtWidgets.QMainWindow, self).__init__()
         self.app = app
+        self.session_file = "default_session.pkl"
         self.setWindowTitle("Batch Py V1.0.0")
         #TODO: load gui config file
 
         self.update_interval = 10
-        self.num_lines = 10
+        self.num_lines = 20
         self.show_lines = 5
         self.line_names = []
         for i in range(self.num_lines): #max number of lines
@@ -30,6 +33,7 @@ class BatchScanGui(QtWidgets.QMainWindow):
         for v in self.line_names:
             setattr(self, v, Line())
         self.initUI()
+        self.restoresettings()
 
     def initUI(self):
         header = Header()
@@ -77,11 +81,12 @@ class BatchScanGui(QtWidgets.QMainWindow):
         show_lines.setStyleSheet("background-color: rgb(49,49,49); color: rgb(255,255,255); border: 1px solid #000;")
         ag = QtGui.QActionGroup(show_lines)
         ag.setExclusive(True)
-        for i in range(self.num_lines):
+        show_lines_options = self.num_lines//5
+        for i in range(1,show_lines_options+1):
             #dynamically create instance variable N_line_N and set it to an action
-            setattr(self, "N_line_{}".format(str(i)), ag.addAction(QtGui.QAction(str(i), show_lines, checkable=True)))
-            show_lines.addAction(self.__dict__["N_line_{}".format(i)])
-            self.__dict__["N_line_{}".format(i)].triggered.connect(self.num_lines_changed)
+            setattr(self, "N_line_{}".format(str(i*5)), ag.addAction(QtGui.QAction(str(i*5), show_lines, checkable=True)))
+            show_lines.addAction(self.__dict__["N_line_{}".format(i*5)])
+            self.__dict__["N_line_{}".format(i*5)].triggered.connect(self.num_lines_changed)
         self.num_lines_changed()
 
         update_interval = QtWidgets.QMenu("update interval (s)", self)
@@ -150,9 +155,10 @@ class BatchScanGui(QtWidgets.QMainWindow):
         last_clicked.setChecked(True)
 
     def num_lines_changed(self):
-        for i in range(self.num_lines):
-            if self.__dict__["N_line_{}".format(i)].isChecked():
-                self.show_lines = i
+        show_lines_options = self.num_lines//5
+        for i in range(1, show_lines_options+1):
+            if self.__dict__["N_line_{}".format(i*5)].isChecked():
+                self.show_lines = i*5
                 break
         for i in range(self.num_lines):
             if self.__dict__[self.line_names[i]].current_line.isChecked():
@@ -174,6 +180,80 @@ class BatchScanGui(QtWidgets.QMainWindow):
                 break
 
         #TODO: udate threading counter
+        return
+
+    def closeEvent(self,event):
+        try:
+            print("autosaving session")
+            cwd = os.path.dirname(os.path.abspath(__file__))+"/"
+            file = self.session_file
+            settings = {}
+            save_list = []
+            for i in range(self.num_lines):
+                settings["line_{}".format(i)] = []
+
+            for key in vars(self):
+                if isinstance(vars(self)[key], Line):
+                    line_object = vars(vars(self)[key])
+                    for widget in line_object:
+                        if isinstance(line_object[widget], QtWidgets.QRadioButton):
+                            settings[key].append([widget, line_object[widget].isChecked()])
+                        if isinstance(line_object[widget], QtWidgets.QPushButton):
+                            if line_object[widget].isCheckable():
+                                settings[key].append([widget, line_object[widget].isChecked()])
+                        if isinstance(line_object[widget], QtWidgets.QComboBox):
+                            settings[key].append([widget, line_object[widget].currentIndex()])
+                        if isinstance(line_object[widget], QtWidgets.QLineEdit):
+                            settings[key].append([widget, line_object[widget].text()])
+                        if isinstance(line_object[widget], QtWidgets.QLabel):
+                            settings[key].append([widget, line_object[widget].text()])
+            save_list = [settings, file, 1]
+
+            with open(cwd+file, 'wb') as f:
+                pickle.dump(save_list, f)
+                f.close()
+
+            # header = ["type", "trajectory", "action", "dwell", "x center", "x points", "x width", "y center", "y points",
+            #           "y width", "r center", "r points", "r width", "comments", "eta", "start", "finish"]
+            #for i,line in self.gui.lines:
+            #if i == self.gui.show_lines
+            #break
+            #else:
+            #settings = [line.scan_type.text(), line.trajectory.currentText(), line.action.currentText(), line.dwell.text(), ...
+
+            # with open(cwd+file, 'wb') as f:
+            #save csv header
+            #for line in "
+
+        except IOError as e:
+            print(e)
+            print("cannot autosave upon close")
+
+    def restoresettings(self):
+        current_dir = os.path.dirname(os.path.abspath(__file__))+"/"
+        try:
+            with open(current_dir+self.session_file,'rb') as f:
+                contents = pickle.load(f)
+                settings = contents[0]
+                self.session_file = contents[1]
+                for line in settings:
+                    for item in settings[line]:
+                        widget = item[0]
+                        value = item[1]
+                        if isinstance(vars(vars(self)[line])[widget], QtWidgets.QRadioButton):
+                            vars(vars(self)[line])[widget].setChecked(value)
+                        if isinstance(vars(vars(self)[line])[widget], QtWidgets.QPushButton):
+                            vars(vars(self)[line])[widget].setChecked(value)
+                        if isinstance(vars(vars(self)[line])[widget], QtWidgets.QComboBox):
+                            vars(vars(self)[line])[widget].setCurrentIndex(value)
+                        if isinstance(vars(vars(self)[line])[widget], QtWidgets.QLineEdit):
+                            vars(vars(self)[line])[widget].setText(value)
+                        if isinstance(vars(vars(self)[line])[widget], QtWidgets.QLabel):
+                            vars(vars(self)[line])[widget].setText(value)
+            f.close()
+            return
+        except:
+            print("cannot autoload session, or file not found")
         return
 
 class Controls(QtWidgets.QWidget):
@@ -635,7 +715,7 @@ class Line(QtWidgets.QWidget):
         x_parms = [x_center, x_points, x_width]
         y_parms = []
         r_parms = []
-        scan_type = self.scan_type.currentItem()
+        scan_type = self.scan_type.text()
         if scan_type == 0 or scan_type == 1:
             y_center = self.y_center.text()
             y_points = self.y_points.text()

@@ -1,11 +1,12 @@
 from PyQt6 import QtCore, QtGui, QtWidgets
 import batch_gui
 import sys
+import os
+import pickle
 import numpy as np
 
 class Launcher(object):
     def __init__(self):
-        # batch_gui.main()
         app = QtWidgets.QApplication(sys.argv)
         self.gui = batch_gui.BatchScanGui(app)
         self.gui.closeAction.triggered.connect(sys.exit)
@@ -26,16 +27,9 @@ class Launcher(object):
         #TODO: save session, update ETA
         #TODO: other stuff?
         #TODO: might move this to Threading class
-        pass
-
-
-
-    def line_param_changed(self):
-
         global_eta = self.calculate_global_eta()
-        return
 
-
+        pass
 
     def scan_settings_changed(self):
         #TODO: check if settings violate motor limits, if all good. calculate ETAs
@@ -57,12 +51,8 @@ class Launcher(object):
         #TODO: print message
         pass
 
-    def calculate_line_eta(self):
-        #TODO: line_number, scan type, dwell, npts
-        #TODO: update line_eta
-        pass
-
     def calculate_global_eta(self):
+
         #TODO: current scan eta + not-yet-scanned etas that are not marked "skip"
         #TODO: update globl ETA
         pass
@@ -74,11 +64,6 @@ class Launcher(object):
         pass
 
     def save_session(self):
-        #TODO: save show_line number
-        #TODO: for each scan line: save, radio, trajectory, action, dwell, xcenter .. etc
-        #TODO: xstep ystep
-        #TODO: maybe save plot
-        #TODO: save log
         pass
 
     def update_plot(self):
