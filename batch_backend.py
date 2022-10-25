@@ -144,6 +144,18 @@ class BatchSetup(object):
         else:
             self.save_settings()
 
+    def alt_scanning(self):
+        #TODO: if no scan records specified, need to create alternate method of scanning and implement the following.
+        #metho of signaling busy records
+        #method of triggering (detector trigger PV fields)
+        #method of beginning scan
+        #method for pausing scan
+        #method for continuing scan
+        #method for aborting scan
+        #mothod for SAVING metadata
+        #method for defining what metadata to save
+        pass
+
     def open_pkl(self):
         current_dir = os.path.dirname(os.path.abspath(__file__)) + "/"
         files_in_cwd = []

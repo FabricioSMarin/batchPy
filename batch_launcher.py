@@ -1,9 +1,10 @@
 from PyQt6 import QtCore, QtGui, QtWidgets
+from PyQt6.QtCore import pyqtSignal
+
 import batch_gui
 import sys
-import os
-import pickle
-import numpy as np
+import time
+
 
 class Launcher(object):
     def __init__(self):
@@ -12,7 +13,9 @@ class Launcher(object):
         self.gui.closeAction.triggered.connect(sys.exit)
         self.gui.openAction.triggered.connect(self.open_session)
         self.gui.saveAction.triggered.connect(self.save_session)
+        # self.start_threads()
         sys.exit(app.exec())
+
 
     def screenshot_window(self):
         # date = datetime.now()
@@ -145,6 +148,60 @@ class Launcher(object):
         #apply button updates scan trajectory plot
         #clear drawing button
         pass
+
+    def start_threads(self):
+        # Create new threads
+        # self.thread1 = myThreads(1, "countdown",self.pv_dict)
+        self.thread1 = myThreads(1, "autosave countdown")
+        self.thread1.timer = 30
+        self.thread2 = myThreads(2, "eta countdown")
+        self.thread2.timer = 10
+
+        self.thread1.countSig.connect(self.update_global_eta)
+        # self.thread1.pvSig.connect(self.caget_pvs)
+        # self.pv_dict = self.caget_pvs()
+        self.thread1.start()
+        self.thread2.start()
+        print("test")
+    def stop_thread(self):
+        self.thread1.exit_flag=1
+        self.thread1.quit()
+        self.thread1.wait()
+        self.thread2.exit_flag=1
+        self.thread2.quit()
+        self.thread2.wait()
+
+class myThreads(QtCore.QThread):
+    countSig = pyqtSignal(int, name='countSig')
+    # pvSig = pyqtSignal()
+
+    def __init__(self, threadID, name):
+        QtCore.QThread.__init__(self)
+        self.threadID = threadID
+        self.name = name
+        self.timer = 10
+        # self.pv_dict = pv_dict
+        self.exit_flag = 0
+
+    def run(self):
+        print ("Starting " + self.name)
+        timer = self.timer
+        if self.name == "countdown":
+            self.countdown(int(timer))
+        print ("Exiting " + self.name)
+
+    def countdown(self, t):
+        t_original = t
+        while t:
+            time.sleep(1)
+            t -= 1
+            if t==0 and self.exit_flag==0:
+                # self.pvSig.emit()       #update pvs
+                t=t_original
+            if self.exit_flag:
+                break
+            else:
+                self.countSig.emit(t)   #update counter
 
 def main():
     Launcher()
