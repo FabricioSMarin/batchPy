@@ -11,8 +11,8 @@ class Launcher(object):
         app = QtWidgets.QApplication(sys.argv)
         self.gui = batch_gui.BatchScanGui(app)
         self.gui.closeAction.triggered.connect(sys.exit)
-        self.gui.openAction.triggered.connect(self.open_session)
-        self.gui.saveAction.triggered.connect(self.save_session)
+        self.gui.openAction.triggered.connect(self.open_PVconfig)
+
         # self.start_threads()
         sys.exit(app.exec())
 
@@ -55,19 +55,33 @@ class Launcher(object):
         pass
 
     def calculate_global_eta(self):
+        # eta = []
+        # lines = []
+        # for key in vars(self.gui):
+        #     if isinstance(vars(self.gui)[key], self.gui.Line):
+        #         lines.append(vars(vars(self.gui)[key]))
+        #
+        # for i, line in enumerate(lines):
+        #     eta = line.eta
+        #     action = line.action.currentIndex()
 
+
+            #if line<current_line: eta = 0
+            #if skip: eta = 0
+            #if current scan: eta - scanned
+            #
         #TODO: current scan eta + not-yet-scanned etas that are not marked "skip"
         #TODO: update globl ETA
         pass
 
-    def open_session(self):
-        print("testing")
+    def open_PVconfig(self):
+        print("Opening PV config file")
+
         #TODO: if no scan in progress, open file dialog
+        #TODO if scan in progress, print("NOTE: scan in progress for loded PVs. If beamline PVs are correct settings are correct.
         #TODO: load gui session file
         pass
 
-    def save_session(self):
-        pass
 
     def update_plot(self):
         #TODO: get current line
@@ -157,9 +171,8 @@ class Launcher(object):
         self.thread2 = myThreads(2, "eta countdown")
         self.thread2.timer = 10
 
-        self.thread1.countSig.connect(self.update_global_eta)
-        # self.thread1.pvSig.connect(self.caget_pvs)
-        # self.pv_dict = self.caget_pvs()
+        self.thread1.countSig.connect(self.gui.save_session)
+        self.thread2.countSig.connect(self.calculate_global_eta)
         self.thread1.start()
         self.thread2.start()
         print("test")
@@ -172,7 +185,7 @@ class Launcher(object):
         self.thread2.wait()
 
 class myThreads(QtCore.QThread):
-    countSig = pyqtSignal(int, name='countSig')
+    countSig = pyqtSignal()
     # pvSig = pyqtSignal()
 
     def __init__(self, threadID, name):
@@ -201,7 +214,7 @@ class myThreads(QtCore.QThread):
             if self.exit_flag:
                 break
             else:
-                self.countSig.emit(t)   #update counter
+                self.countSig.emit()   #update counter
 
 def main():
     Launcher()

@@ -5,6 +5,7 @@ import time
 from PyQt6.QtCore import pyqtSignal
 import pickle
 import os
+from datetime import datetime
 
 class ScanSettings(QtWidgets.QMainWindow):
     def __init__(self, app):
@@ -192,7 +193,7 @@ class ScanSettings(QtWidgets.QMainWindow):
                 item = vars(self.setup_window)[key]
                 if isinstance(item, QtWidgets.QLineEdit):
                     settings.append(item.text())
-            save_list = [settings, file, 1]
+            save_list = ["settings", datetime.now(), settings, file, 1]
 
             with open(cwd+file, 'wb') as f:
                 pickle.dump(save_list, f)
@@ -204,16 +205,10 @@ class ScanSettings(QtWidgets.QMainWindow):
     def savefile(self):
         #open all pkl files in cwd, set "last opened" status to 0 for all except current file.
         current_dir = os.path.dirname(os.path.abspath(__file__))+"/"
-        files = []
         for file in os.listdir(current_dir):
-            if file.endswith(".pkl") and file != self.fname:
-                with open(current_dir+file,'rb') as f:
-                    contents = pickle.load(f)
-                    contents[-1] = 0
-                    f.close()
-            elif file.endswith(".pkl") and file == self.fname:
+            if file.endswith(".pkl") and file == self.fname:
                 with open(current_dir + file, 'wb') as f:
-                    pickle.dump([self.var_dict,self.fname,1], f)
+                    pickle.dump(["settings", datetime.now(), self.var_dict], f)
                     f.close()
             else:
                 pass
@@ -221,50 +216,67 @@ class ScanSettings(QtWidgets.QMainWindow):
     def openfile(self):
         #open all pkl files in cwd, set "last opened" status to 0 for all except current file.
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        file = QtGui.QFileDialog.getOpenFileName(self, "Open .pkl", QtCore.QDir.currentPath(), "*.pkl")
+        file = QtWidgets.QFileDialog.getOpenFileName(self, "Open .pkl", current_dir, "*.pkl")
         if file[0] == '':
             return
 
-        with open(current_dir+file,'rb') as f:
+        with open(file[0],'rb') as f:
             contents = pickle.load(f)
-            contents[-1] = 0
+            filetype = contents[0]
+            last_opened = contents[1]
+            settings = contents[2]
+            self.fname = file[0].split("/")[-1]
+            self.setup_window.config_file.setText(self.fname)
+            for i, key in enumerate(self.var_dict):
+                try:
+                    key.setText(settings[i])
+                except:
+                    print("failed to set {} to {}".format(key,settings[i]))
             f.close()
         return
 
     def restoresettings(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))+"/"
-        files_in_cwd = []
-        for file in os.listdir(current_dir):
+        valid_files = []
+        last_opened = []
+        #check if files are .pkl and contain "settings" keyword.
+        for i, file in enumerate(os.listdir(current_dir)):
             if file.endswith(".pkl"):
-                files_in_cwd.append(file)
-        valid_files = len(files_in_cwd)
-        for file in files_in_cwd:
-            with open(current_dir+file,'rb') as f:
-                contents = pickle.load(f)
-                if len(contents) !=3:
-                    f.close()
-                    valid_files -=1
-                else:
-                    if contents[2] == 0:
-                        pass
-                    elif contents[2] ==1:
-                        settings = contents[0]
-                        self.fname = contents[1]
-                        self.setup_window.config_file.setText(self.fname)
-                        for i, key in enumerate(self.var_dict):
-                            key.setText(settings[i])
-                        return
-
-        if valid_files ==0:
+                with open(current_dir+file,'rb') as f:
+                    contents = pickle.load(f)
+                    #TODO: check contents[0] for file description. if settings file, keep it. if not, then not a valid file.
+                    if contents[0] == "settings":
+                        last_opened.append(contents[1])
+                        valid_files.append(file)
+                        f.close()
+        #if no  valid files exist, create new one.
+        if len(valid_files) ==0:
             self.fname = "default_settings.pkl"
             self.setup_window.config_file.setText(self.fname)
             settings = []
             for key in self.var_dict:
                 settings.append(key.text())
             with open(current_dir + self.fname, 'wb') as f:
-                pickle.dump([settings, self.fname, 1], f)
+                pickle.dump(["settings",datetime.now(),settings, self.fname, 1], f)
                 f.close()
                 return
+        #if file does exist,
+        else:
+            #check which settings file is last opened, open that one.
+            most_recent_file = valid_files[last_opened.index(max(last_opened))]
+            with open(current_dir+most_recent_file,'rb') as f:
+                contents = pickle.load(f)
+                settings = contents[2]
+                self.fname = most_recent_file
+                self.setup_window.config_file.setText(self.fname)
+                for i, key in enumerate(self.var_dict):
+                    try:
+                        key.setText(settings[i])
+                    except:
+                        print("cannot put {} in {}".format(settings[i], key))
+        return
+
+
 
 # class myThreads(threading.Thread,QtCore.QObject):
 class myThreads(QtCore.QThread):

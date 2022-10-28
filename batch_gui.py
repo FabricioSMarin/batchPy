@@ -9,6 +9,7 @@ except:
 import pyqtgraph
 import os
 import pickle
+from datetime import datetime, timedelta
 
 #GUI structure:
 #   Header()
@@ -33,7 +34,8 @@ class BatchScanGui(QtWidgets.QMainWindow):
         for v in self.line_names:
             setattr(self, v, Line())
         self.initUI()
-        self.restoresettings()
+        self.restore_session()
+        self.show()
 
     def initUI(self):
         header = Header()
@@ -54,22 +56,18 @@ class BatchScanGui(QtWidgets.QMainWindow):
         layout.setSpacing(0)
         layout.setContentsMargins(10,5,10,10) #left, top,right, bottom
 
-        wid = QtWidgets.QWidget()
-        self.setCentralWidget(wid)
-        wid.setLayout(layout)
-        wid.setStyleSheet("background: white")
-        self.show()
+        self.wid = QtWidgets.QWidget()
+        self.setCentralWidget(self.wid)
+        self.wid.setLayout(layout)
+        self.wid.setStyleSheet("background: white")
 
         self.line_0.current_line.setChecked(True)
 
-        #check motor limit violation
-
-
-        self.closeAction = QtGui.QAction(' &close', self)
+        self.closeAction = QtGui.QAction(' &close (Ctrl+Q)', self)
         self.closeAction.setShortcut(' Ctrl+Q')
-        self.openAction = QtGui.QAction(' &open config', self)
+        self.openAction = QtGui.QAction(' &open PV config (Ctrl+O)', self)
         self.openAction.setShortcut(' Ctrl+O')
-        self.saveAction = QtGui.QAction(' &save config', self)
+        self.saveAction = QtGui.QAction(' &save session (Ctrl+S)', self)
         self.saveAction.setShortcut(' Ctrl+S')
 
         self.tomoAction = QtGui.QAction(' tomo view', self, checkable=True)
@@ -120,6 +118,8 @@ class BatchScanGui(QtWidgets.QMainWindow):
         viewMenu = menubar.addMenu('&View')
         viewMenu.addAction(self.tomoAction)
         viewMenu.addAction(self.miscviewAction)
+
+        self.wid.resize(1200, 800)
 
     def tomoview_changed(self):
         for line in range(self.num_lines):
@@ -183,6 +183,11 @@ class BatchScanGui(QtWidgets.QMainWindow):
         return
 
     def closeEvent(self,event):
+        #do other stuff if necessary, perhaps signal to batch_launcher to gracefully disconnect from PVS or something.
+        #signal.emit("closing")
+        self.save_session()
+
+    def save_session(self):
         try:
             print("autosaving session")
             cwd = os.path.dirname(os.path.abspath(__file__))+"/"
@@ -207,12 +212,12 @@ class BatchScanGui(QtWidgets.QMainWindow):
                             settings[key].append([widget, line_object[widget].text()])
                         if isinstance(line_object[widget], QtWidgets.QLabel):
                             settings[key].append([widget, line_object[widget].text()])
-            save_list = [settings, file, 1]
 
             with open(cwd+file, 'wb') as f:
-                pickle.dump(save_list, f)
+                pickle.dump(["session",datetime.now(),settings], f)
                 f.close()
 
+            #TODO: save csv file as wel for easy access
             # header = ["type", "trajectory", "action", "dwell", "x center", "x points", "x width", "y center", "y points",
             #           "y width", "r center", "r points", "r width", "comments", "eta", "start", "finish"]
             #for i,line in self.gui.lines:
@@ -229,13 +234,12 @@ class BatchScanGui(QtWidgets.QMainWindow):
             print(e)
             print("cannot autosave upon close")
 
-    def restoresettings(self):
+    def restore_session(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))+"/"
         try:
             with open(current_dir+self.session_file,'rb') as f:
                 contents = pickle.load(f)
-                settings = contents[0]
-                self.session_file = contents[1]
+                settings = contents[2]
                 for line in settings:
                     for item in settings[line]:
                         widget = item[0]
@@ -383,10 +387,14 @@ class Controls(QtWidgets.QWidget):
         col3.addLayout(c1)
         col3.addLayout(c2)
 
-        self.messge_window = QtWidgets.QTextEdit("message bar")
-        self.messge_window.setFixedWidth(700)
-        self.messge_window.setStyleSheet("background: beige; color: black")
-        self.messge_window.setDisabled(True)
+        self.message_window = QtWidgets.QTextEdit("message bar")
+        self.message_window.setFixedWidth(700)
+        self.message_window.setStyleSheet("background: beige; color: black")
+        self.message_window.setDisabled(True)
+
+        self.status_bar = QtWidgets.QLabel("status bar")
+        self.status_bar.setFixedWidth(700)
+        self.status_bar.setStyleSheet("background: lightgray; color: black")
 
         control_layout = QtWidgets.QHBoxLayout()
         control_layout.addLayout(col1)
@@ -405,7 +413,8 @@ class Controls(QtWidgets.QWidget):
 
         combined = QtWidgets.QVBoxLayout()
         combined.addWidget(controlframe)
-        combined.addWidget(self.messge_window)
+        combined.addWidget(self.status_bar)
+        combined.addWidget(self.message_window)
 
 
 
@@ -504,7 +513,7 @@ class Header(QtWidgets.QWidget):
         self.r_width = QtWidgets.QLabel("r width")
         self.r_width.setFixedWidth(size2)
         self.r_width.setVisible(False)
-        self.global_eta = QtWidgets.QLabel("eta")
+        self.global_eta = QtWidgets.QLabel("eta H:M:S")
         self.global_eta.setFixedWidth(size2)
 
         myFont = QtGui.QFont()
@@ -536,6 +545,7 @@ class Line(QtWidgets.QWidget):
         self.setupUi()
         self.make_pretty()
         self.trajectory_arr = []
+        self.eta = timedelta(seconds=int(0))
 
     def setupUi(self):
         size1 = 30
@@ -598,6 +608,7 @@ class Line(QtWidgets.QWidget):
                 item.currentIndexChanged.connect(self.trajector_changed)
             if isinstance(item, QtWidgets.QLineEdit):
                 item.textChanged.connect(self.validate_params)
+                item.returnPressed.connect(self.calculate_line_eta)
             elif isinstance(item,QtWidgets.QPushButton):
                 item.clicked.connect(self.scan_type_clicked)
             if isinstance(item, QtWidgets.QHBoxLayout):
@@ -684,7 +695,6 @@ class Line(QtWidgets.QWidget):
                     item.setStyleSheet("background: lightcoral; color: black; border-radius: 4")
             else:
                 pass
-        self.calculate_line_eta()
 
     def make_pretty(self):
 
@@ -705,33 +715,79 @@ class Line(QtWidgets.QWidget):
                 pass
         return
     def calculate_line_eta(self):
-
+        hms = str(timedelta(seconds=int(0)))
         #if any textedit in line is invalid (lihtcoral), return eta of "invalid"
-        #else check to see what kind of scan and calculate accordingly
-        dwell = self.dwell_time.text()
-        x_center = self.x_center.text()
-        x_points = self.x_points.text()
-        x_width = self.x_width.text()
-        x_parms = [x_center, x_points, x_width]
-        y_parms = []
-        r_parms = []
+        invalid = 0
+        if self.dwell_time.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+            invalid = 1
+        if self.x_center.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+            invalid = 1
+        if self.x_points.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+            invalid = 1
+        if self.x_width.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+            invalid = 1
+        if self.y_center.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+            invalid = 1
+        if self.y_points.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+            invalid = 1
+        if self.y_width.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+            invalid = 1
+        if self.r_center.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+            invalid = 1
+        if self.r_points.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+            invalid = 1
+        if self.r_width.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+            invalid = 1
+
+        if invalid:
+            self.line_eta.setText(hms)
+            return
+        dwell = float(self.dwell_time.text())/1000
+        x_points = int(self.x_points.text())
+        x_width = float(self.x_width.text())
+        y_points = 0
+        r_points = 0
+        seconds_total = 0
         scan_type = self.scan_type.text()
-        if scan_type == 0 or scan_type == 1:
-            y_center = self.y_center.text()
-            y_points = self.y_points.text()
-            y_width = self.y_width.text()
-            y_parms = [y_center,y_points,y_width]
+        trajectory = self.trajectory.currentText()
+        if scan_type == "step" or scan_type == "fly":
+            y_points = int(eval(self.y_points.text()))
+            y_width = int(eval(self.y_width.text()))
+        if self.r_center.isVisible():
+            r_points = int(eval(self.r_points.text()))
+            r_width = int(eval(self.r_width.text()))
+
+        if trajectory == "raster":
+            if scan_type == "step":
+                overhead = 1.3
+            else:
+                overhead = 1.15
+            width_not_zero = (x_width*y_width>0)*1
+            seconds_total = dwell*x_points*y_points*overhead*width_not_zero
+
+        if trajectory == "snake":
+            if scan_type == "step":
+                overhead = 1.2
+            else:
+                overhead = 1.1
+            width_not_zero = (x_width*y_width>0)*1
+            seconds_total = dwell*eval(x_points)*eval(y_points)*overhead*width_not_zero
+
+        if trajectory == "spiral" or trajectory == "lissajous" or trajectory == "custom":
+            if scan_type == "step":
+                overhead = 1.2
+            else:
+                overhead = 1.1
+            seconds_total = dwell*eval(x_points)*overhead
 
         if self.r_center.isVisible():
-            r_center = self.r_center.text()
-            r_points = self.r_points.text()
-            r_width = self.r_width.text()
-            r_parms = [r_center,r_points,r_width]
+            overhead = 1.1
+            seconds_total = seconds_total*r_points*overhead
 
-        # if scan_type == 0  or scan_type == 1:
+        hms = str(timedelta(seconds=int(seconds_total)))
+        self.line_eta.setText(hms)
         #TODO: calculate and update x&y step size for that line
-        #TODO:  note: custom, lissa, and snake all use x_points as the TOTAL numbe of points.
-        pass
+        return
 
 class ImageView(pyqtgraph.GraphicsLayoutWidget):
     def __init__(self):
