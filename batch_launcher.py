@@ -2,9 +2,12 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import pyqtSignal
 
 import batch_gui
+import batch_backend
 import sys
 import time
-
+import subprocess
+import os
+import pickle
 
 class Launcher(object):
     def __init__(self):
@@ -12,10 +15,14 @@ class Launcher(object):
         self.gui = batch_gui.BatchScanGui(app)
         self.gui.closeAction.triggered.connect(sys.exit)
         self.gui.openAction.triggered.connect(self.open_PVconfig)
+        self.gui.controls.setup_btn.clicked.connect(self.setup_clicked)
 
+
+
+        self.backend = batch_backend.BatchSetup()
+        # self.connect_backend
         # self.start_threads()
         sys.exit(app.exec())
-
 
     def screenshot_window(self):
         # date = datetime.now()
@@ -118,9 +125,11 @@ class Launcher(object):
         pass
 
     def setup_clicked(self):
-        pass
+        cwd = os.path.dirname(os.path.abspath(__file__))+"/"
+        subprocess.Popen(["python", "{}batch_settings.py".format(cwd)])
 
     def import_cliked(self):
+
         pass
 
     def export_clicked(self):
@@ -176,6 +185,7 @@ class Launcher(object):
         self.thread1.start()
         self.thread2.start()
         print("test")
+
     def stop_thread(self):
         self.thread1.exit_flag=1
         self.thread1.quit()
@@ -201,7 +211,7 @@ class myThreads(QtCore.QThread):
         timer = self.timer
         if self.name == "countdown":
             self.countdown(int(timer))
-        print ("Exiting " + self.name)
+        print("Exiting " + self.name)
 
     def countdown(self, t):
         t_original = t

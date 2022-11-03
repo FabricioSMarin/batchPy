@@ -10,6 +10,7 @@ import pyqtgraph
 import os
 import pickle
 from datetime import datetime, timedelta
+import subprocess
 
 #GUI structure:
 #   Header()

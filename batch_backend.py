@@ -9,6 +9,8 @@ import time
 import numpy as np
 import pickle
 import os
+from datetime import datetime
+
 
 class BatchSetup(object):
     #get pv names from gui and check pvs are connected
@@ -23,9 +25,9 @@ class BatchSetup(object):
         self.xmap = ""
         self.struck = ""
         self.z = ""
-        self.r = ""
         self.x = ""
         self.y = ""
+        self.r = ""
         self.fscan1 = ""
         self.fscanH = ""
         self.delay_calc = ""
@@ -33,7 +35,8 @@ class BatchSetup(object):
         self.scan1 = ""
         self.scan2 = ""
         self.scanH = ""
-        self.open_pkl()
+        self.restoresettings()
+
 
         if epics.devices.xspress3.Xspress3.PV(epics.Device,self.xp3+"det1:CONNECTED",timeout=timeout).value is not None:
             self.XSPRESS3 = epics.devices.xspress3.Xspress3(self.xp3)
@@ -156,27 +159,24 @@ class BatchSetup(object):
         #method for defining what metadata to save
         pass
 
-    def open_pkl(self):
-        current_dir = os.path.dirname(os.path.abspath(__file__)) + "/"
-        files_in_cwd = []
-        for file in os.listdir(current_dir):
-            if file.endswith(".pkl"):
-                files_in_cwd.append(file)
-        valid_files = len(files_in_cwd)
-        for file in files_in_cwd:
-            with open(current_dir + file, 'rb') as f:
-                contents = pickle.load(f)
-                if len(contents) != 3:
-                    f.close()
-                    valid_files -= 1
-                else:
-                    if contents[2] == 0:
-                        pass
-                    elif contents[2] == 1:
-                        settings = contents[0]
-                        for i, key in enumerate(self.__dict__.keys()):
-                            self.__dict__[key] = settings[i]
-                        return
+    def restoresettings(self):
+        current_dir = os.path.dirname(os.path.abspath(__file__))+"/"
+        file = "default_settings.pkl"
+        with open(current_dir+file,'rb') as f:
+            contents = pickle.load(f)
+            filetype = contents[0]
+            last_opened = contents[1]
+            settings = contents[2]
+            f.close()
+
+            for i, key in enumerate(self.__dict__.keys()):
+                try:
+                    if settings[i] == "":
+                        settings[i] = "empty"
+                    self.__dict__[key] = settings[i]
+                except:
+                    print("cannot put {} in {}".format(settings[i], key))
+        return
 
     #copy scan record settings, save to file
     def save_settings(self):
@@ -376,9 +376,8 @@ class BatchSetup(object):
         return
 
     def check_busy(self):
-
-        if self.beamline == "2ide":
-            self.beamline
+        # if self.beamline == "2ide":
+        #     self.beamline
         self.before_outer()
         self.before_inner()
         self.after_inner()
@@ -613,9 +612,9 @@ batchscan.init_scan_record()
 please enter the FLYSCAN prameters below:
 scans [x-center(um), y-center.(um), x-width.(um), y-width.(um), x-stepsize.(um), Y-stepsize.(um), dwell.(ms)]
 '''
-
-scans = [
-[1200,  0,    1800,     1800,     20,    20,    100],
-[1200,  0,    1800,     1800,     20,    20,    100],
-]
-batchscan.run_scans(scans)
+#
+# scans = [
+# [1200,  0,    1800,     1800,     20,    20,    100],
+# [1200,  0,    1800,     1800,     20,    20,    100],
+# ]
+# batchscan.run_scans(scans)
