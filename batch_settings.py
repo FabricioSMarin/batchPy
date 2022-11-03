@@ -276,8 +276,6 @@ class ScanSettings(QtWidgets.QMainWindow):
                         print("cannot put {} in {}".format(settings[i], key))
         return
 
-
-
 # class myThreads(threading.Thread,QtCore.QObject):
 class myThreads(QtCore.QThread):
     countSig = pyqtSignal(int, name='countSig')

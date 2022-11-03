@@ -60,16 +60,13 @@ class BatchScanGui(QtWidgets.QMainWindow):
         self.setCentralWidget(self.wid)
         self.wid.setLayout(layout)
         self.wid.setStyleSheet("background: white")
-
         self.line_0.current_line.setChecked(True)
-
         self.closeAction = QtGui.QAction(' &close (Ctrl+Q)', self)
         self.closeAction.setShortcut(' Ctrl+Q')
         self.openAction = QtGui.QAction(' &open PV config (Ctrl+O)', self)
         self.openAction.setShortcut(' Ctrl+O')
         self.saveAction = QtGui.QAction(' &save session (Ctrl+S)', self)
         self.saveAction.setShortcut(' Ctrl+S')
-
         self.tomoAction = QtGui.QAction(' tomo view', self, checkable=True)
         self.tomoAction.triggered.connect(self.tomoview_changed)
         self.miscviewAction = QtGui.QAction(' misc view', self, checkable=True)
@@ -93,7 +90,7 @@ class BatchScanGui(QtWidgets.QMainWindow):
         ag2.setExclusive(True)
 
         for i in range(3):
-            #dynamically create instance variable N_line_N and set it to an action
+            #dynamically create instance variable interval_S and connect it to action
             setattr(self, "interval_{}".format(str(i)), ag2.addAction(QtGui.QAction(str(list([10,30,60])[i]), update_interval, checkable=True)))
             update_interval.addAction(self.__dict__["interval_{}".format(i)])
             self.__dict__["interval_{}".format(i)].triggered.connect(self.update_interval_changed)
@@ -101,6 +98,10 @@ class BatchScanGui(QtWidgets.QMainWindow):
 
         for i in range(self.num_lines):
             self.__dict__["line_{}".format(i)].current_line.clicked.connect(self.line_changed)
+
+        self.controls.points.clicked.connect(self.points_clicked)
+        self.controls.points_all.clicked.connect(self.all_clicked)
+
 
         menubar = self.menuBar()
         menubar.setStyleSheet("background-color: rgb(49,49,49); color: rgb(255,255,255); border: 1px solid #000;")
@@ -153,6 +154,63 @@ class BatchScanGui(QtWidgets.QMainWindow):
             self.__dict__[self.line_names[line]].current_line.setChecked(False)
 
         last_clicked.setChecked(True)
+
+
+    def update_npts(self, line_number):
+        x_step = eval(self.controls.x_step.text())
+        y_step = eval(self.controls.y_step.text())
+        x_npts = "-1"
+        y_npts = "-1"
+        current_line = self.__dict__[self.line_names[line_number]]
+        x_width = eval(current_line.x_width.text())
+        y_width = eval(current_line.y_width.text())
+        if x_step < x_width:
+            x_npts = int(x_width // x_step + 1)
+            current_line.x_points.setText(str(x_npts))
+        elif x_step == x_width:
+            x_npts = 2
+            print("x_step same as width")
+        else:
+            x_npts = 1
+            print("x_step larger than width")
+
+        if y_step < y_width:
+            y_npts = int(y_width // y_step + 1)
+        elif y_step == y_width:
+            y_npts = 2
+            print("y_step same as width")
+        else:
+            y_npts = 1
+            print("y_step larger than width")
+
+        if x_npts<=0 or y_npts<= 0:
+            print("erorr setting npts from step size")
+            return
+
+        else:
+            current_line.x_points.setText(str(x_npts))
+            current_line.y_points.setText(str(y_npts))
+
+    def points_clicked(self):
+        if self.controls.x_step.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+            return
+        if self.controls.y_step.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+            return
+        else:
+            for i in range(self.num_lines):
+                if self.__dict__[self.line_names[i]].current_line.isChecked():
+                    current_line = i
+                    self.update_npts(current_line)
+
+    def all_clicked(self):
+        if self.controls.x_step.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+            return
+        if self.controls.y_step.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+            return
+        else:
+            for i in range(self.show_lines):
+                self.update_npts(i)
+
 
     def num_lines_changed(self):
         show_lines_options = self.num_lines//5
@@ -281,9 +339,9 @@ class Controls(QtWidgets.QWidget):
         self.points.setFixedWidth(size1)
         self.points_all = QtWidgets.QPushButton("all")
         self.points_all.setFixedWidth(size1)
-        self.x_step = QtWidgets.QLineEdit("0")
+        self.x_step = QtWidgets.QLineEdit("0.002")
         self.x_step.setFixedWidth(size2)
-        self.y_step = QtWidgets.QLineEdit("0")
+        self.y_step = QtWidgets.QLineEdit("0.002")
         self.y_step.setFixedWidth(size2)
         points_lbl = QtWidgets.QLabel("calculate points for selected scan line")
         points_lbl.setFixedWidth(size4)
@@ -416,8 +474,6 @@ class Controls(QtWidgets.QWidget):
         combined.addWidget(self.status_bar)
         combined.addWidget(self.message_window)
 
-
-
         combined2 = QtWidgets.QHBoxLayout()
         combined2.addLayout(combined)
         # try:
@@ -440,6 +496,7 @@ class Controls(QtWidgets.QWidget):
         for key in self.__dict__:
             item = getattr(self,key)
             if isinstance(item, QtWidgets.QLineEdit):
+                item.textChanged.connect(self.validate_params)
                 item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
             elif isinstance(item,QtWidgets.QLabel):
                 item.setStyleSheet("QLabel {background-color: lightgray;" 
@@ -460,6 +517,31 @@ class Controls(QtWidgets.QWidget):
 
         self.setStyleSheet("background: white")
         self.setLayout(combined2)
+
+    def validate_params(self):
+        for key in self.__dict__:
+            item = getattr(self, key)
+            if isinstance(item, QtWidgets.QLineEdit):
+                try:
+                    value = eval(item.text())
+                    if value<=0:
+                        if item.isEnabled():
+                            item.setStyleSheet("background: lightcoral; color: black; border-radius: 4")
+                        else:
+                            item.setStyleSheet("background: lightblue; color: lightblue; border-radius: 4")
+
+                    else:
+                        if item.isEnabled():
+                            item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
+                        else:
+                            item.setStyleSheet("background: lightblue; color: lightblue; border-radius: 4")
+
+                except:
+                    item.setStyleSheet("background: lightcoral; color: black; border-radius: 4")
+            else:
+                pass
+
+
 
 class Header(QtWidgets.QWidget):
     def __init__(self):

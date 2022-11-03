@@ -148,6 +148,7 @@ class Launcher(object):
         pass
 
     def calculate_points_clicked(self):
+
         pass
 
     def calculate_all_points_clicked(self):
@@ -165,7 +166,6 @@ class Launcher(object):
 
     def start_threads(self):
         # Create new threads
-        # self.thread1 = myThreads(1, "countdown",self.pv_dict)
         self.thread1 = myThreads(1, "autosave countdown")
         self.thread1.timer = 30
         self.thread2 = myThreads(2, "eta countdown")
