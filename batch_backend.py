@@ -36,6 +36,7 @@ class BatchSetup(object):
         self.scan2 = ""
         self.scanH = ""
         self.restoresettings()
+        self.backend_ready = False
 
 
         if epics.devices.xspress3.Xspress3.PV(epics.Device,self.xp3+"det1:CONNECTED",timeout=timeout).value is not None:
@@ -45,7 +46,7 @@ class BatchSetup(object):
             self.XSPRESS3 = None
             print("xspress3  not connected")
 
-        if epics.devices.struck.Struck(self.struck).Prescale is not None:
+        if epics.devices.struck.Struck.PV(epics.Device, self.struck, timeout = timeout).value is not None:
             self.STRUCK = epics.devices.struck.Struck(self.struck)
         else:
             self.STRUCK = None
@@ -117,34 +118,40 @@ class BatchSetup(object):
         self.outer_before_wait = epics.PV(self.obw,connection_timeout=timeout)
         self.outer_after_wait = epics.PV(self.oaw,connection_timeout=timeout)
 
-        if self.outer_before_wait is not None:
+        if self.outer_before_wait.connected:
             self.outer_before_wait.value = 0
             self.Fscan1.BSPV = self.outer_before_wait.pvname
         else:
-            self.Fscan1.BSPV = ""
+            if self.Fscan1 is not None:
+                self.Fscan1.BSPV = ""
 
-        if self.inner_before_wait is not None:
+        if self.inner_before_wait.connected:
             self.inner_before_wait.value = 0
             self.FscanH.BSPV = self.inner_before_wait.pvname
         else:
-            self.FscanH.BSPV = ""
+            if self.FscanH is not None:
+                self.FscanH.BSPV = ""
 
-        if self.inner_after_wait is not None:
+        if self.inner_after_wait.connected:
             self.inner_after_wait.value = 0
             self.FscanH.ASPV = self.inner_after_wait.pvname
         else:
-            self.FscanH.ASPV = ""
+            if self.FscanH is not None:
+                self.FscanH.ASPV = ""
 
-        if self.outer_after_wait is not None:
+        if self.outer_after_wait.connected:
             self.outer_after_wait.value = 0
             self.Fscan1.ASPV = self.outer_after_wait.pvname
         else:
-            self.Fscan1.ASPV = ""
+            if self.Fscan1 is not None:
+                self.Fscan1.ASPV = ""
 
         if self.x_motor is None or self.y_motor is None or self.Fscan1 is None or self.FscanH is None \
                 or self.Scan2 is None or self.ScanH is None or self.Scan1 is None:
             print("One or more crucial PVs not connected ")
+            self.backend_ready = False
         else:
+            self.backend_ready =True
             self.save_settings()
 
     def alt_scanning(self):
@@ -253,17 +260,20 @@ class BatchSetup(object):
     def init_scan_record(self):
         scan_type = "fly"
         if scan_type == "fly":
-            self.FscanH.T1PV = ""
-            self.FscanH.T2PV = ""
-            self.FscanH.T3PV = ""
-            self.FscanH.T4PV = ""
-            self.Fscan1.T1PV = ""
-            self.Fscan1.T2PV = ""
-            self.Fscan1.T3PV = ""
-            self.Fscan1.T4PV = ""
+            if self.FscanH is not None:
+                self.FscanH.T1PV = ""
+                self.FscanH.T2PV = ""
+                self.FscanH.T3PV = ""
+                self.FscanH.T4PV = ""
+                self.FscanH.P1PV = self.delay_calc
 
-            self.FscanH.P1PV = self.delay_calc
-            self.Fscan1.P1PV = self.y_motor._prefix.split(".")[0]
+            if self.Fscan1 is not None:
+                self.Fscan1.T1PV = ""
+                self.Fscan1.T2PV = ""
+                self.Fscan1.T3PV = ""
+                self.Fscan1.T4PV = ""
+                self.Fscan1.P1PV = self.y_motor._prefix.split(".")[0]
+
 
             if self.STRUCK is not None:
                 self.FscanH.T1PV = self.STRUCK._prefix + "EraseStart"
@@ -606,7 +616,8 @@ class BatchSetup(object):
         return
 
 batchscan = BatchSetup()
-batchscan.init_scan_record()
+if batchscan.backend_ready:
+    batchscan.init_scan_record()
 
 '''
 please enter the FLYSCAN prameters below:
