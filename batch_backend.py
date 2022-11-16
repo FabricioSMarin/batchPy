@@ -200,7 +200,7 @@ class BatchSetup(object):
     # for each scan: run it.
     def run_scan(self,scan, scan_type):
         if scan_type == "fly":
-            self.init_pvs(scan)
+            self.init_pvs(scan, scan_type)
             self.reset_detector()
             self.x_motor.VELO = self.fast_speed
             self.x_motor.VAL = self.FscanH.P1SP
@@ -216,7 +216,7 @@ class BatchSetup(object):
                 time.sleep(3.0)
 
         if scan_type == "step":
-            self.init_pvs(scan)
+            self.init_pvs(scan, scan_type)
             self.x_motor.VELO = self.fast_speed
             self.x_motor.VAL = self.Scan1.P1SP
             self.y_motor.VAL = self.Scan2.P1SP
@@ -321,9 +321,9 @@ class BatchSetup(object):
             else:
                 pass
 
-    def init_pvs(self, scan):
-        scan_type = "fly"
-        unit_sf = 1/1000
+    def init_pvs(self, scan, scan_type):
+        # unit_sf = 1/1000
+        unit_sf = 1
         xcenter, ycenter, xwidth, ywidth, x_npts, y_npts, dwell = scan[0]*unit_sf, scan[1]*unit_sf, scan[2]*unit_sf, \
                                                                 scan[3]*unit_sf, scan[4], scan[5], scan[6]/1000
 
@@ -565,6 +565,7 @@ class BatchSetup(object):
         return
 
     def pause_scan(self):
+
         self.FscanH.WAIT = 1
         self.Scan1.WAIT = 1
         return

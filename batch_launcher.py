@@ -22,8 +22,12 @@ class Launcher(object):
         self.gui.controls.zero_all_btn.clicked.connect(self.zero_all_clicked)
         self.gui.controls.begin_btn.clicked.connect(self.begin_clicked)
         self.gui.controls.pause_btn.clicked.connect(self.pause_clicked)
+        self.gui.controls.continue_btn.clicked.connect(self.continue_clicked)
+        self.gui.controls.abort_btn.clicked.connect(self.abort_line_clicked)
+        self.gui.controls.abort_all_btn.clicked.connect(self.abort_all_clicked)
         self.gui.controls.points.clicked.connect(self.calculate_points_clicked)
         self.gui.controls.points_all.clicked.connect(self.calculate_all_points_clicked)
+
 
         self.backend = batch_backend.BatchSetup()
         if self.backend.backend_ready:
@@ -208,11 +212,11 @@ class Launcher(object):
             line.y_width.setText("0")
 
     def begin_clicked(self):
-        #TODO: This function may need to be threaded to disconnect the rest of the UI
-        lines = [vars(self.gui)[i] for i in self.gui.line_names]
         if not self.backend.backend_ready:
             print("scan record not connected")
             return
+        #TODO: This function may need to be threaded to disconnect the rest of the UI
+        lines = [vars(self.gui)[i] for i in self.gui.line_names]
         for line, idx in enumerate(lines):
             if line.line_action.currentText() == "skip":
                 pass
@@ -230,32 +234,46 @@ class Launcher(object):
                 #TODO: run backend.run_scans in separate thread
                 self.backend.run_scan(scan, scan_type)
                 #TODO: periodically update global ETA
+        self.backend.cleanup()
+        return
 
     def pause_clicked(self):
+        if not self.backend.backend_ready:
+            print("scan record not connected")
+            return
         self.backend.pause_scan()
         self.gui.controls.status_bar.setText("Scan Paused")
         #TODO: disable some buttons to prevent error states
 
     def continue_clicked(self):
+        if not self.backend.backend_ready:
+            print("scan record not connected")
+            return
         self.backend.continue_scan()
         self.gui.controls.status_bar.setText("Continuing scan")
 
     def abort_line_clicked(self):
+        if not self.backend.backend_ready:
+            print("scan record not connected")
+            return
         self.backend.abort_scan()
         self.gui.controls.status_bar.setText("Aborting Line")
 
     def abort_all_clicked(self):
+        if not self.backend.backend_ready:
+            print("scan record not connected")
+            return
         self.backend.abort_scan()
         lines = [vars(self.gui)[i] for i in self.gui.line_names]
         for line in lines:
             line.line_action.setCurrentIndex(0)
 
     def calculate_points_clicked(self):
-        self.gui.controls.points_clicked()
+        self.gui.points_clicked()
         return
 
     def calculate_all_points_clicked(self):
-        self.gui.controls.all_clicked()
+        self.gui.all_clicked()
         return
 
     def custom_draw(self):
