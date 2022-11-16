@@ -100,10 +100,6 @@ class BatchScanGui(QtWidgets.QMainWindow):
         for i in range(self.num_lines):
             self.__dict__["line_{}".format(i)].current_line.clicked.connect(self.line_changed)
 
-        self.controls.points.clicked.connect(self.points_clicked)
-        self.controls.points_all.clicked.connect(self.all_clicked)
-
-
         menubar = self.menuBar()
         menubar.setStyleSheet("background-color: rgb(49,49,49); color: rgb(255,255,255); border: 1px solid #000;")
         menubar.setNativeMenuBar(False)
@@ -411,8 +407,8 @@ class Controls(QtWidgets.QWidget):
 
         self.begin_btn = QtWidgets.QPushButton("Begin")
         self.begin_btn.setFixedWidth(size2)
-        self.Pause_btn = QtWidgets.QPushButton("Pause")
-        self.Pause_btn.setFixedWidth(size2)
+        self.pause_btn = QtWidgets.QPushButton("Pause")
+        self.pause_btn.setFixedWidth(size2)
         self.Continue_btn = QtWidgets.QPushButton("Continue")
         self.Continue_btn.setFixedWidth(size2)
         self.Abort_btn = QtWidgets.QPushButton("Abort")
@@ -421,8 +417,8 @@ class Controls(QtWidgets.QWidget):
         self.Abort_all_btn.setFixedWidth(size2)
         begin_lbl = QtWidgets.QLabel("begin batch scan")
         begin_lbl.setFixedWidth(size3)
-        Pause_lbl = QtWidgets.QLabel("pause batch scan")
-        Pause_lbl.setFixedWidth(size3)
+        pause_lbl = QtWidgets.QLabel("pause batch scan")
+        pause_lbl.setFixedWidth(size3)
         Continue_lbl = QtWidgets.QLabel("resume from pause")
         Continue_lbl.setFixedWidth(size3)
         Abort_lbl = QtWidgets.QLabel("abort line")
@@ -432,13 +428,13 @@ class Controls(QtWidgets.QWidget):
 
         c1 = QtWidgets.QVBoxLayout()
         c1.addWidget(self.begin_btn)
-        c1.addWidget(self.Pause_btn)
+        c1.addWidget(self.pause_btn)
         c1.addWidget(self.Continue_btn)
         c1.addWidget(self.Abort_btn)
         c1.addWidget(self.Abort_all_btn)
         c2 = QtWidgets.QVBoxLayout()
         c2.addWidget(begin_lbl)
-        c2.addWidget(Pause_lbl)
+        c2.addWidget(pause_lbl)
         c2.addWidget(Continue_lbl)
         c2.addWidget(Abort_lbl)
         c2.addWidget(Abort_all_lbl)

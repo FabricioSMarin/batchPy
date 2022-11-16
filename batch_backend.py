@@ -38,7 +38,6 @@ class BatchSetup(object):
         self.restoresettings()
         self.backend_ready = False
 
-
         if epics.devices.xspress3.Xspress3.PV(epics.Device,self.xp3+"det1:CONNECTED",timeout=timeout).value is not None:
             self.XSPRESS3 = epics.devices.xspress3.Xspress3(self.xp3)
             self.XSPRESS3._pvs["HDF1:FilePath"].put(self.savePath)
@@ -192,7 +191,6 @@ class BatchSetup(object):
         Scan1_save = self.Scan1.save_state()
         Scan2_save = self.Scan2.save_state()
         ScanH_save = self.ScanH.save_state()
-
         save_list = [Fscan1_save, FscanH_save, Scan1_save, Scan2_save, ScanH_save]
 
         with open('saved_settings.pkl', 'wb') as f:
@@ -200,42 +198,39 @@ class BatchSetup(object):
         return
 
     # for each scan: run it.
-    def run_scans(self,scans):
-        scan_type = "fly"
+    def run_scan(self,scan, scan_type):
         if scan_type == "fly":
-            for scan in scans:
-                self.init_pvs(scan)
-                self.reset_detector()
-                self.x_motor.VELO = self.fast_speed
-                self.x_motor.VAL = self.FscanH.P1SP
-                self.y_motor.VAL = self.Fscan1.P1SP
-                self.check_position()
-                self.x_motor.VELO = self.scan_speed
-                self.Fscan1.EXSC = 1
-                done = False
-                while not done:
-                    self.check_busy()
-                    done = self.Fscan1.EXSC == 0
-                    print('scan is ongoing')
-                    time.sleep(3.0)
+            self.init_pvs(scan)
+            self.reset_detector()
+            self.x_motor.VELO = self.fast_speed
+            self.x_motor.VAL = self.FscanH.P1SP
+            self.y_motor.VAL = self.Fscan1.P1SP
+            self.check_position()
+            self.x_motor.VELO = self.scan_speed
+            self.Fscan1.EXSC = 1
+            done = False
+            while not done:
+                self.check_busy()
+                done = self.Fscan1.EXSC == 0
+                print('scan is ongoing')
+                time.sleep(3.0)
 
         if scan_type == "step":
-            for scan in scans:
-                self.init_pvs(scan)
-                self.x_motor.VELO = self.fast_speed
-                self.x_motor.VAL = self.Scan1.P1SP
-                self.y_motor.VAL = self.Scan2.P1SP
-                self.check_position()
-                self.x_motor.VELO = self.scan_speed
-                self.Scan1.EXSC = 1
-                done = False
-                while not done:
-                    self.check_busy()
-                    done = self.Scan1.EXSC == 0
-                    print('scan is ongoing')
-                    time.sleep(3.0)
-        self.cleanup()
-        print('Completeted. Congratulations!')
+            self.init_pvs(scan)
+            self.x_motor.VELO = self.fast_speed
+            self.x_motor.VAL = self.Scan1.P1SP
+            self.y_motor.VAL = self.Scan2.P1SP
+            self.check_position()
+            self.x_motor.VELO = self.scan_speed
+            self.Scan1.EXSC = 1
+            done = False
+            while not done:
+                self.check_busy()
+                done = self.Scan1.EXSC == 0
+                print('scan is ongoing')
+                time.sleep(3.0)
+
+        # self.cleanup()
 
     #check pvs and update
     def update_ui(self):
@@ -273,7 +268,6 @@ class BatchSetup(object):
                 self.Fscan1.T3PV = ""
                 self.Fscan1.T4PV = ""
                 self.Fscan1.P1PV = self.y_motor._prefix.split(".")[0]
-
 
             if self.STRUCK is not None:
                 self.FscanH.T1PV = self.STRUCK._prefix + "EraseStart"
@@ -330,16 +324,15 @@ class BatchSetup(object):
     def init_pvs(self, scan):
         scan_type = "fly"
         unit_sf = 1/1000
-        xcenter, ycenter, xwidth, ywidth, xstep, ystep, dwell = scan[0]*unit_sf, scan[1]*unit_sf, scan[2]*unit_sf, \
-                                                                scan[3]*unit_sf, scan[4]*unit_sf, scan[5]*unit_sf, \
-                                                                scan[6]/1000
+        xcenter, ycenter, xwidth, ywidth, x_npts, y_npts, dwell = scan[0]*unit_sf, scan[1]*unit_sf, scan[2]*unit_sf, \
+                                                                scan[3]*unit_sf, scan[4], scan[5], scan[6]/1000
 
         if scan_type == "fly":
-            self.FscanH.NPTS = int(np.ceil(xwidth/xstep))           #set number of points
+            self.FscanH.NPTS = x_npts           #set number of points
             self.FscanH.P1WD = xwidth                               #set width
             self.FscanH.P1CP = xcenter                              #set center
 
-            self.Fscan1.NPTS = int(np.ceil(ywidth/ystep))
+            self.Fscan1.NPTS = y_npts
             self.Fscan1.P1WD = ywidth
             self.Fscan1.P1CP = ycenter
             self.Fscan1.PDLY = int(3)
@@ -359,11 +352,11 @@ class BatchSetup(object):
         if scan_type == "step":
             self.ScanH.P1CP = xcenter
             self.ScanH.P1WD = xwidth
-            self.ScanH.NPTS = int(np.ceil(xwidth / xstep))
+            self.ScanH.NPTS = x_npts
 
             self.Scan1.P1CP = ycenter
             self.Scan1.P1WD = ywidth
-            self.Scan1.NPTS = int(np.ceil(ywidth / ystep))
+            self.Scan1.NPTS = y_npts
 
             abort_PV = self.ScanH._prefix.split(":")[0]+":AbortScans.PROC"
             epics.caput(abort_PV,1)
@@ -381,8 +374,7 @@ class BatchSetup(object):
             pass
 
         self.fast_speed = 5
-        self.scan_speed = xstep/dwell
-
+        self.scan_speed = (xwidth/x_npts)/dwell
         return
 
     def check_busy(self):
@@ -572,27 +564,24 @@ class BatchSetup(object):
             print("after outer done")
         return
 
-    def pause_scan(sefl, **kwargs):
-        print(kwargs)
-
-        if kwargs['value'] == 1:
-            #TODO: Add wait to inner loop.
-            #pause execution
-            pass
-        else:
-            print("pause pressed, but scan unable to pause?")
+    def pause_scan(self):
+        self.FscanH.WAIT = 1
+        self.Scan1.WAIT = 1
         return
 
-    def abort_scan(self, *value):
+    def continue_scan(self):
+        self.FscanH.WAIT = 0
+        self.Scan1.WAIT = 0
+        return
 
-        if value == 1:
-            abort_PV = self.FscanH._prefix.split(":")[0]+":FAbortScans.PROC"
-            epics.caput(abort_PV,1)
-            time.sleep(0.1)
-            epics.caput(abort_PV,1)
-            time.sleep(0.1)
-            epics.caput(abort_PV,1)
-            self.reset_detector()
+    def abort_scan(self):
+        abort_PV = self.FscanH._prefix.split(":")[0]+":FAbortScans.PROC"
+        epics.caput(abort_PV,1)
+        time.sleep(0.1)
+        epics.caput(abort_PV,1)
+        time.sleep(0.1)
+        epics.caput(abort_PV,1)
+        self.reset_detector()
         return
 
     def reset_detector(self):
@@ -614,18 +603,3 @@ class BatchSetup(object):
         self.restore_settings()
         self.reset_detector()
         return
-
-batchscan = BatchSetup()
-if batchscan.backend_ready:
-    batchscan.init_scan_record()
-
-'''
-please enter the FLYSCAN prameters below:
-scans [x-center(um), y-center.(um), x-width.(um), y-width.(um), x-stepsize.(um), Y-stepsize.(um), dwell.(ms)]
-'''
-#
-# scans = [
-# [1200,  0,    1800,     1800,     20,    20,    100],
-# [1200,  0,    1800,     1800,     20,    20,    100],
-# ]
-# batchscan.run_scans(scans)

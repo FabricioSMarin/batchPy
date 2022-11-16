@@ -16,10 +16,18 @@ class Launcher(object):
         self.gui.closeAction.triggered.connect(sys.exit)
         self.gui.openAction.triggered.connect(self.open_PVconfig)
         self.gui.controls.setup_btn.clicked.connect(self.setup_clicked)
-
-
+        self.gui.controls.import_btn.clicked.connect(self.import_clicked)
+        self.gui.controls.export_btn.clicked.connect(self.export_clicked)
+        self.gui.controls.zero_btn.clicked.connect(self.zero_clicked)
+        self.gui.controls.zero_all_btn.clicked.connect(self.zero_all_clicked)
+        self.gui.controls.begin_btn.clicked.connect(self.begin_clicked)
+        self.gui.controls.pause_btn.clicked.connect(self.pause_clicked)
+        self.gui.controls.points.clicked.connect(self.calculate_points_clicked)
+        self.gui.controls.points_all.clicked.connect(self.calculate_all_points_clicked)
 
         self.backend = batch_backend.BatchSetup()
+        if self.backend.backend_ready:
+            self.backend.init_scan_record()
         # self.connect_backend
         # self.start_threads()
         sys.exit(app.exec())
@@ -128,40 +136,127 @@ class Launcher(object):
         cwd = os.path.dirname(os.path.abspath(__file__))+"/"
         subprocess.Popen(["python", "{}batch_settings.py".format(cwd)])
 
-    def import_cliked(self):
+    def import_clicked(self):
+        if not self.backend.backend_ready:
+            print("scan record not connected")
+            return
+        lines = [vars(self.gui)[i] for i in self.gui.line_names]
+        checked = [line.current_line.isChecked() for line in lines].index(True)
+        scan_type = lines[checked].scan_type.text()
+        if scan_type == "step":
+            #use step scan record inner loop
+            lines[checked].x_center.setText(self.backend.Scan1.P1CP)
+            lines[checked].x_points.setText(self.backend.Scan1.NPTS)
+            lines[checked].x_width.setText(self.backend.Scan1.P1WD)
+            lines[checked].y_center.setText(self.backend.Scan2.P1CP)
+            lines[checked].y_points.setText(self.backend.Scan2.NPTS)
+            lines[checked].y_width.setText(self.backend.Scan2.P1WD)
 
-        pass
+        elif scan_type == "fly":
+            lines[checked].x_center.setText(self.backend.FscanH.P1CP)
+            lines[checked].x_points.setText(self.backend.FscanH.NPTS)
+            lines[checked].x_width.setText(self.backend.FscanH.P1WD)
+            lines[checked].y_center.setText(self.backend.Fscan1.P1CP)
+            lines[checked].y_points.setText(self.backend.Fscan1.NPTS)
+            lines[checked].y_width.setText(self.backend.Fscan1.P1WD)
 
     def export_clicked(self):
-        pass
+        if not self.backend.backend_ready:
+            print("scan record not connected")
+            return
+        lines = [vars(self.gui)[i] for i in self.gui.line_names]
+        checked = [line.current_line.isChecked() for line in lines].index(True)
+        scan_type = lines[checked].scan_type.text()
+        if scan_type == "step":
+            #use step scan record inner loop
+            self.backend.Scan1.P1CP = lines[checked].x_center.Text()
+            self.backend.Scan1.NPTS = lines[checked].x_points.Text()
+            self.backend.Scan1.P1WD = lines[checked].x_width.Text()
+            self.backend.Scan2.P1CP = lines[checked].y_center.Text()
+            self.backend.Scan2.NPTS = lines[checked].y_points.Text()
+            self.backend.Scan2.P1WD = lines[checked].y_width.Text()
+
+        elif scan_type == "fly":
+            self.backend.FscanH.P1CP = lines[checked].x_center.Text()
+            self.backend.FscanH.NPTS = lines[checked].x_points.Text()
+            self.backend.FscanH.P1WD = lines[checked].x_width.Text()
+            self.backend.Fscan1.P1CP = lines[checked].y_center.Text()
+            self.backend.Fscan1.NPTS = lines[checked].y_points.Text()
+            self.backend.Fscan1.P1WD = lines[checked].y_width.Text()
 
     def zero_clicked(self):
-        pass
+        lines = [vars(self.gui)[i] for i in self.gui.line_names]
+        checked = [line.current_line.isChecked() for line in lines].index(True)
+        #use step scan record inner loop
+        lines[checked].x_center.setText("0")
+        lines[checked].x_points.setText("0")
+        lines[checked].x_width.setText("0")
+        lines[checked].y_center.setText("0")
+        lines[checked].y_points.setText("0")
+        lines[checked].y_width.setText("0")
 
     def zero_all_clicked(self):
-        pass
+        lines = [vars(self.gui)[i] for i in self.gui.line_names]
+        checked = [line.current_line.isChecked() for line in lines].index(True)
+        #use step scan record inner loop
+        for line in lines:
+            line.x_center.setText("0")
+            line.x_points.setText("0")
+            line.x_width.setText("0")
+            line.y_center.setText("0")
+            line.y_points.setText("0")
+            line.y_width.setText("0")
 
-    def begin_clikced(self):
-        pass
+    def begin_clicked(self):
+        #TODO: This function may need to be threaded to disconnect the rest of the UI
+        lines = [vars(self.gui)[i] for i in self.gui.line_names]
+        if not self.backend.backend_ready:
+            print("scan record not connected")
+            return
+        for line, idx in enumerate(lines):
+            if line.line_action.currentText() == "skip":
+                pass
+            else:
+                # use step scan record inner loop
+                scan_type = lines[idx].scan_type.text()
+                dwell = line.dwell.Text()
+                x_center = line.x_center.Text()
+                x_npts = line.x_points.Text()
+                x_width = line.x_width.Text()
+                y_center = line.y_center.Text()
+                y_npts = line.y_points.Text()
+                y_width = line.y_width.Text()
+                scan = [x_center, y_center, x_width, y_width, x_npts, y_npts, dwell]
+                #TODO: run backend.run_scans in separate thread
+                self.backend.run_scan(scan, scan_type)
+                #TODO: periodically update global ETA
 
     def pause_clicked(self):
-        pass
+        self.backend.pause_scan()
+        self.gui.controls.status_bar.setText("Scan Paused")
+        #TODO: disable some buttons to prevent error states
 
     def continue_clicked(self):
-        pass
+        self.backend.continue_scan()
+        self.gui.controls.status_bar.setText("Continuing scan")
 
     def abort_line_clicked(self):
-        pass
+        self.backend.abort_scan()
+        self.gui.controls.status_bar.setText("Aborting Line")
 
     def abort_all_clicked(self):
-        pass
+        self.backend.abort_scan()
+        lines = [vars(self.gui)[i] for i in self.gui.line_names]
+        for line in lines:
+            line.line_action.setCurrentIndex(0)
 
     def calculate_points_clicked(self):
-
-        pass
+        self.gui.controls.points_clicked()
+        return
 
     def calculate_all_points_clicked(self):
-        pass
+        self.gui.controls.all_clicked()
+        return
 
     def custom_draw(self):
         #TODO: create interactive draw windwo but put it under gui
