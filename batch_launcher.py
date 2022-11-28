@@ -7,6 +7,7 @@ import sys
 import time
 import subprocess
 import os
+from datetime import datetime, timedelta
 import pickle
 
 class Launcher(object):
@@ -34,7 +35,7 @@ class Launcher(object):
         if self.backend.backend_ready:
             self.backend.init_scan_record()
         # self.connect_backend
-        # self.start_threads()
+        self.start_threads()
         sys.exit(app.exec())
 
     def initialize_record(self):
@@ -49,10 +50,9 @@ class Launcher(object):
         pass
 
     def timer_event(self):
-        #TODO: save session, update ETA
-        #TODO: other stuff?
-        #TODO: might move this to Threading class
-        global_eta = self.calculate_global_eta()
+        #TODO might move this to threading class
+        #TODO: save session
+        # global_eta = self.calculate_global_eta()
 
         pass
 
@@ -77,24 +77,32 @@ class Launcher(object):
         pass
 
     def calculate_global_eta(self):
-        # eta = []
-        # lines = []
-        # for key in vars(self.gui):
-        #     if isinstance(vars(self.gui)[key], self.gui.Line):
-        #         lines.append(vars(vars(self.gui)[key]))
-        #
-        # for i, line in enumerate(lines):
-        #     eta = line.eta
-        #     action = line.action.currentIndex()
+        eta = []
+        line_status = []
+        line_action = []
+        lines = []
+        for key in vars(self.gui):
+            if isinstance(vars(self.gui)[key], batch_gui.Line):
+                lines.append(vars(vars(self.gui)[key]))
 
-
-            #if line<current_line: eta = 0
-            #if skip: eta = 0
-            #if current scan: eta - scanned
-            #
-        #TODO: current scan eta + not-yet-scanned etas that are not marked "skip"
-        #TODO: update globl ETA
-        pass
+        for i, line in enumerate(lines):
+            if line["line_action"].currentText() == "normal":
+                eta_str = line["line_eta"].text()
+                hrs = int(eta_str.split(":")[0]) * 60 * 60
+                min = int(eta_str.split(":")[1]) * 60
+                sec = int(eta_str.split(":")[2])
+                total_s = sec + min + hrs
+                if line["status"] == "scanning":
+                    #TODO:  calculate eta for current line
+                    if line["scan_type"].text() == "fly":
+                        line_eta = (self.backend.Scan1.CPT/self.backend.Scan1.NPTS) * total_s
+                    else:
+                        line_eta = (self.backend.Fscan1.CPT/self.backend.Fscan1.NPTS) * total_s
+                    eta.append(line_eta)
+                else:
+                    eta.append(total_s)
+        self.gui.controls.eta.setText(str(timedelta(seconds=sum(eta))))
+        return
 
     def open_PVconfig(self):
         print("Opening PV config file")
@@ -243,6 +251,7 @@ class Launcher(object):
             # self.backend.run_tomo(r_center,r_npts,r_width,scan,scan_type)
         line.status = "scanning"
 
+        self.gui.controls.status_bar.setText("scanning line {}".format(first_line))
         self.backend.done = False
         self.thread3 = myThreads(self, 3, "run_scan")
         self.thread3.scan = scan
@@ -287,10 +296,11 @@ class Launcher(object):
                 scan = [r_center, r_npts, r_width, x_center, y_center, x_width, y_width, x_npts, y_npts, dwell]
                 # self.backend.run_tomo(r_center,r_npts,r_width,scan,scan_type)
             line.status = "scanning"
+            self.gui.controls.status_bar.setText("scanning line {}".format(next_line))
 
             # TODO: run backend.run_scans in separate thread
             self.backend.done = False
-            self.thread3 = myThreads(self, 3, "run_scan")
+            # self.thread3 = myThreads(self, 3, "run_scan")
             self.thread3.scan = scan
             self.thread3.scan_type = scan_type
             self.thread3.exit_flag = 0
@@ -298,7 +308,6 @@ class Launcher(object):
 
             # self.backend.run_scan(scan, scan_type)
             # self.line_finished_sig()
-            # TODO: periodically update global ETA
         else:
             print("batch finished")
             self.backend.cleanup()
@@ -326,6 +335,8 @@ class Launcher(object):
         self.backend.abort_scan()
         try:
             self.thread3.exit_flag = 1
+            # self.thread3.quit()
+            # self.thread3.wait()
         except:
             pass
         self.gui.controls.status_bar.setText("Aborting Line")
@@ -334,6 +345,12 @@ class Launcher(object):
         if not self.backend.backend_ready:
             print("scan record not connected")
             return
+        try:
+            self.thread3.exit_flag = 1
+            # self.thread3.quit()
+            # self.thread3.wait()
+        except:
+            pass
         self.backend.abort_scan()
         lines = [vars(self.gui)[i] for i in self.gui.line_names]
         for line in lines:
@@ -359,30 +376,30 @@ class Launcher(object):
 
     def start_threads(self):
         # Create new threads
-        self.thread1 = myThreads(self, 1, "autosave countdown")
-        self.thread1.timer = 30
+        # self.thread1 = myThreads(self, 1, "save countdown")
+        # self.thread1.timer = 60
         self.thread2 = myThreads(self, 2, "eta countdown")
-        # self.thread2.timer = 10
-        self.thread3 = myThreads(self, 3, "run_scan")
+        self.thread2.timer = 10
 
-        self.thread1.countSig.connect(self.gui.save_session)
-        self.thread2.countSig.connect(self.calculate_global_eta)
-        self.thread3.lineFinishSig.connect(self.line_finished_sig)
-        self.thread1.start()
+        # self.thread1.saveSig.connect(self.gui.save_session)
+        self.thread2.etaSig.connect(self.calculate_global_eta)
+        # self.thread3.lineFinishSig.connect(self.line_finished_sig)
+        # self.thread1.start()
         self.thread2.start()
-        self.thread3.start()
+        # self.thread3.start()
 
     def stop_thread(self):
-        self.thread1.exit_flag=1
-        self.thread1.quit()
-        self.thread1.wait()
+        # self.thread1.exit_flag=1
+        # self.thread1.quit()
+        # self.thread1.wait()
         self.thread2.exit_flag=1
         self.thread2.quit()
         self.thread2.wait()
         pass
 
 class myThreads(QtCore.QThread):
-    countSig = pyqtSignal()
+    saveSig = pyqtSignal()
+    etaSig = pyqtSignal()
     lineFinishSig = pyqtSignal()
     # pvSig = pyqtSignal()
 
@@ -402,8 +419,11 @@ class myThreads(QtCore.QThread):
     def run(self):
         print ("Starting " + self.name)
         timer = self.timer
-        if self.name == "countdown":
-            self.countdown(int(timer))
+        if self.name == "save countdown":
+            self.save_countdown(int(timer))
+        if self.name == "eta countdown":
+            print(timer)
+            self.eta_countdown(int(timer))
         elif self.name == "run_scan":
             self.run_scan()
         print("Exiting " + self.name)
@@ -413,6 +433,7 @@ class myThreads(QtCore.QThread):
         scan_type = self.scan_type
         scanning = self.scanning
         print("scanning")
+        tick = time.time()
         self.parent.backend.run_scan(scan, scan_type)
         while True:
             time.sleep(1)
@@ -423,22 +444,36 @@ class myThreads(QtCore.QThread):
             else:
                 if self.parent.backend.done == True:
                     print("line finished")
+                    tock = time.time() - tick
+                    print(tock)
                     self.lineFinishSig.emit()
                     print("sending signal")
                     break
 
-    def countdown(self, t):
+    def save_countdown(self, t):
         t_original = t
         while t:
             time.sleep(1)
             t -= 1
             if t==0 and self.exit_flag==0:
-                # self.pvSig.emit()       #update pvs
                 t=t_original
             if self.exit_flag:
                 break
             else:
-                self.countSig.emit()   #update counter
+                print("save event")
+                self.saveSig.emit()   #update counter
+    def eta_countdown(self, t):
+        t_original = t
+        while t:
+            time.sleep(1)
+            t -= 1
+            if t==0 and self.exit_flag==0:
+                self.etaSig.emit()   #update counter
+                t=t_original
+            if self.exit_flag:
+                break
+            else:
+                pass
 
 def main():
     Launcher()

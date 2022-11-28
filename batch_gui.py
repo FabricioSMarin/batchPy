@@ -313,6 +313,12 @@ class BatchScanGui(QtWidgets.QMainWindow):
                             vars(vars(self)[line])[widget].setText(value)
                         if isinstance(vars(vars(self)[line])[widget], QtWidgets.QLabel):
                             vars(vars(self)[line])[widget].setText(value)
+                            if widget == "line_eta":
+                                hrs = int(value.split(":")[0])*60*60
+                                min = int(value.split(":")[1])*60
+                                sec = int(value.split(":")[2])
+                                total_s = sec + min + hrs
+                                vars(vars(self)[line])["eta"] = timedelta(seconds = total_s)
             f.close()
             return
         except:
@@ -713,7 +719,7 @@ class Line(QtWidgets.QWidget):
         self.r_width = QtWidgets.QLineEdit("0")
         self.r_width.setFixedWidth(size2)
         self.r_width.setVisible(False)
-        self.line_eta = QtWidgets.QLabel("eta: hours-minues-seconds")
+        self.line_eta = QtWidgets.QLabel("00:00:00")
         self.line_eta.setFixedWidth(size2)
 
         for key in self.__dict__:
@@ -725,6 +731,7 @@ class Line(QtWidgets.QWidget):
                 item.returnPressed.connect(self.calculate_line_eta)
             elif isinstance(item,QtWidgets.QPushButton):
                 item.clicked.connect(self.scan_type_clicked)
+                item.clicked.connect(self.calculate_line_eta)
             if isinstance(item, QtWidgets.QHBoxLayout):
                 pass
             else:
@@ -856,6 +863,11 @@ class Line(QtWidgets.QWidget):
 
         if invalid:
             self.line_eta.setText(hms)
+            hrs = int(hms.split(":")[0]) * 60 * 60
+            min = int(hms.split(":")[1]) * 60
+            sec = int(hms.split(":")[2])
+            total_s = sec + min + hrs
+            self.eta= timedelta(seconds=total_s)
             return
         dwell = float(self.dwell_time.text())/1000
         x_points = int(self.x_points.text())
@@ -901,6 +913,14 @@ class Line(QtWidgets.QWidget):
 
         hms = str(timedelta(seconds=int(seconds_total)))
         self.line_eta.setText(hms)
+        try:
+            hrs = int(hms.split(":")[0]) * 60 * 60
+            min = int(hms.split(":")[1]) * 60
+            sec = int(hms.split(":")[2])
+            total_s = sec + min + hrs
+        except:
+            return
+        self.eta = timedelta(seconds=total_s)
         #TODO: calculate and update x&y step size for that line
         return
 

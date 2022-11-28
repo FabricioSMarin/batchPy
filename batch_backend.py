@@ -240,13 +240,14 @@ class BatchSetup(object):
             self.x_motor.VELO = self.scan_speed
             self.Fscan1.EXSC = 1
             time.sleep(1)
-            done = False
+            self.done = False
 
-            while not done:
+            while not self.done:
                 self.check_busy()
-                done = self.Fscan1.EXSC == 0
-                # print('scan is ongoing')
-                time.sleep(1.0)
+                print("scanning")
+                if self.FScan1.CPT == self.FScan1.NPTS and self.FScan1.EXSC == 0:
+                    self.done = True
+                time.sleep(0.1)
 
         if scan_type == "step":
             self.init_pvs(scan, scan_type)
@@ -255,20 +256,15 @@ class BatchSetup(object):
             self.y_motor.VAL = self.Scan1.P1SP
             self.check_position()
             self.x_motor.VELO = self.scan_speed
-            total_y = self.Scan1.NPTS
             self.Scan1.EXSC = 1
-            time.sleep(1)
-
             self.done = False
             while not self.done:
                 self.check_busy_step()
-                current_point = self.Scan1.CPT
-                print("{} / {} : {}".format(current_point, total_y, self.Scan1.EXSC))
+                print("scaning")
+                # print("{} / {} : {}".format(self.Scan1.CPT, self.Scan1.NPTS, self.Scan1.EXSC))
                 if self.Scan1.CPT == self.Scan1.NPTS and self.Scan1.EXSC == 0:
                     self.done = True
-
-                print('scan is ongoing')
-                time.sleep(1.0)
+                time.sleep(0.1)
         return True
 
         # self.cleanup()
@@ -490,6 +486,7 @@ class BatchSetup(object):
         while not ready or retry > 5:
             print('\t Motors are not ready')
             try:
+                self.x_motor.VELO = self.fast_speed
                 self.x_motor.put(self.x_motor.VAL)
                 self.y_motor.put(self.y_motor.VAL)
                 time.sleep(0.1)
@@ -499,11 +496,14 @@ class BatchSetup(object):
                 retry += 1
                 if retry > 5:
                     print("cant get motor pos")
+                    self.x_motor.VELO = self.scan_speed
                     break
         if retry > 5:
+            self.x_motor.VELO = self.scan_speed
             return False
         else:
             print('Motors are ready now!')
+            self.x_motor.VELO = self.scan_speed
             return True
     def check_r_position(self):
         print('checking whether motors are in position')
@@ -635,7 +635,7 @@ class BatchSetup(object):
             self.x_motor.VELO = self.scan_speed
             self.outer_before_wait.value = 0
         else:
-            print("before outer done")
+            pass
         return
 
     def before_outer_step(self):
@@ -663,7 +663,7 @@ class BatchSetup(object):
             self.x_motor.VELO = self.scan_speed
             self.outer_before_wait.value = 0
         else:
-            print("before outer done")
+            pass
         return
 
     def before_inner(self):
@@ -693,7 +693,7 @@ class BatchSetup(object):
             self.x_motor.VELO = self.scan_speed
             self.inner_before_wait.value = 0
         else:
-            print("before inner done")
+            pass
         return
 
     def before_inner_step(self):
@@ -742,7 +742,7 @@ class BatchSetup(object):
             self.x_motor.VELO = self.scan_speed
             self.inner_before_wait.value = 0
         else:
-            print("before inner done")
+            pass
         return
 
     def after_inner(self):
@@ -757,7 +757,7 @@ class BatchSetup(object):
             self.x_motor.VAL = self.FscanH.P1SP
             self.inner_after_wait.value = 0
         else:
-            print("after inner done")
+            pass
         return
 
     def after_inner_step(self):
@@ -772,7 +772,7 @@ class BatchSetup(object):
             self.x_motor.VAL = self.ScanH.P1SP
             self.inner_after_wait.value = 0
         else:
-            print("after inner done")
+            pass
         return
     def after_outer(self):
         val = self.outer_after_wait.value
@@ -780,7 +780,7 @@ class BatchSetup(object):
             self.reset_detector()
             self.outer_after_wait.value = 0
         else:
-            print("after outer done")
+            pass
         return
 
     def after_outer_step(self):
@@ -789,7 +789,7 @@ class BatchSetup(object):
             self.reset_detector()
             self.outer_after_wait.value = 0
         else:
-            print("after outer done")
+            pass
         return
 
     def pause_scan(self):
