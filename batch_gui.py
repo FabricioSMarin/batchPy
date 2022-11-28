@@ -62,11 +62,12 @@ class BatchScanGui(QtWidgets.QMainWindow):
         self.wid.setLayout(layout)
         self.wid.setStyleSheet("background: white")
         self.line_0.current_line.setChecked(True)
-        self.closeAction = QtGui.QAction(' &close (Ctrl+Q)', self)
+        self.closeAction = QtGui.QAction(' &close', self)
         self.closeAction.setShortcut(' Ctrl+Q')
-        self.openAction = QtGui.QAction(' &open PV config (Ctrl+O)', self)
+        self.initRecordAction = QtGui.QAction(" &init PVs", self)
+        self.openAction = QtGui.QAction(' &open PV config', self)
         self.openAction.setShortcut(' Ctrl+O')
-        self.saveAction = QtGui.QAction(' &save session (Ctrl+S)', self)
+        self.saveAction = QtGui.QAction(' &save session', self)
         self.saveAction.setShortcut(' Ctrl+S')
         self.tomoAction = QtGui.QAction(' tomo view', self, checkable=True)
         self.tomoAction.triggered.connect(self.tomoview_changed)
@@ -110,6 +111,7 @@ class BatchScanGui(QtWidgets.QMainWindow):
         fileMenu.addAction(self.saveAction)
 
         settingsMenu = menubar.addMenu(' &Settings')
+        settingsMenu.addAction(self.initRecordAction)
         settingsMenu.addMenu(show_lines)
         settingsMenu.addMenu(update_interval)
 
@@ -303,6 +305,8 @@ class BatchScanGui(QtWidgets.QMainWindow):
                             vars(vars(self)[line])[widget].setChecked(value)
                         if isinstance(vars(vars(self)[line])[widget], QtWidgets.QPushButton):
                             vars(vars(self)[line])[widget].setChecked(value)
+                            text = "fly" if value else "step"
+                            vars(vars(self)[line])[widget].setText(text)
                         if isinstance(vars(vars(self)[line])[widget], QtWidgets.QComboBox):
                             vars(vars(self)[line])[widget].setCurrentIndex(value)
                         if isinstance(vars(vars(self)[line])[widget], QtWidgets.QLineEdit):
@@ -315,6 +319,35 @@ class BatchScanGui(QtWidgets.QMainWindow):
             print("cannot autoload session, or file not found")
         return
 
+    def open_session(self):
+        #open all pkl files in cwd, set "last opened" status to 0 for all except current file.
+        current_dir = os.path.dirname(os.path.abspath(__file__))+"/"
+        file = QtWidgets.QFileDialog.getOpenFileName(self, "Open .pkl", current_dir, "*.pkl")
+        if file[0] == '':
+            return
+        try:
+            with open(current_dir+self.session_file,'rb') as f:
+                contents = pickle.load(f)
+                settings = contents[2]
+                for line in settings:
+                    for item in settings[line]:
+                        widget = item[0]
+                        value = item[1]
+                        if isinstance(vars(vars(self)[line])[widget], QtWidgets.QRadioButton):
+                            vars(vars(self)[line])[widget].setChecked(value)
+                        if isinstance(vars(vars(self)[line])[widget], QtWidgets.QPushButton):
+                            vars(vars(self)[line])[widget].setChecked(value)
+                        if isinstance(vars(vars(self)[line])[widget], QtWidgets.QComboBox):
+                            vars(vars(self)[line])[widget].setCurrentIndex(value)
+                        if isinstance(vars(vars(self)[line])[widget], QtWidgets.QLineEdit):
+                            vars(vars(self)[line])[widget].setText(value)
+                        if isinstance(vars(vars(self)[line])[widget], QtWidgets.QLabel):
+                            vars(vars(self)[line])[widget].setText(value)
+            f.close()
+            return
+        except:
+            print("cannot autoload session, or file not found")
+        return
 class Controls(QtWidgets.QWidget):
     def __init__(self):
         super(Controls, self).__init__()
@@ -625,6 +658,8 @@ class Line(QtWidgets.QWidget):
         self.make_pretty()
         self.trajectory_arr = []
         self.eta = timedelta(seconds=int(0))
+        self.status = "idle" # 0=idle, 1 = done, 2 = scanning
+
 
     def setupUi(self):
         size1 = 30
@@ -695,6 +730,7 @@ class Line(QtWidgets.QWidget):
             else:
                 line.addWidget(item)
         line.setContentsMargins(0,0,0,0)
+
         self.setLayout(line)
     def trajector_changed(self):
         trajectory = self.sender()

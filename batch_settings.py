@@ -204,14 +204,22 @@ class ScanSettings(QtWidgets.QMainWindow):
 
     def savefile(self):
         #open all pkl files in cwd, set "last opened" status to 0 for all except current file.
-        current_dir = os.path.dirname(os.path.abspath(__file__))+"/"
-        for file in os.listdir(current_dir):
-            if file.endswith(".pkl") and file == self.fname:
-                with open(current_dir + file, 'wb') as f:
-                    pickle.dump(["settings", datetime.now(), self.var_dict], f)
-                    f.close()
-            else:
-                pass
+        try:
+            cwd = os.path.dirname(os.path.abspath(__file__)) + "/"
+            file = self.setup_window.config_file.text()
+            settings = []
+            for key in vars(self.setup_window):
+                item = vars(self.setup_window)[key]
+                if isinstance(item, QtWidgets.QLineEdit):
+                    settings.append(item.text())
+            save_list = ["settings", datetime.now(), settings, file, 1]
+
+            with open(cwd + file, 'wb') as f:
+                pickle.dump(save_list, f)
+                f.close()
+            return
+        except IOError as e:
+            print(e)
 
     def openfile(self):
         #open all pkl files in cwd, set "last opened" status to 0 for all except current file.
@@ -248,7 +256,7 @@ class ScanSettings(QtWidgets.QMainWindow):
                     if contents[0] == "settings":
                         last_opened.append(contents[1])
                         valid_files.append(file)
-                        f.close()
+                    f.close()
         #if no  valid files exist, create new one.
         if len(valid_files) ==0:
             self.fname = "default_settings.pkl"
@@ -306,8 +314,6 @@ class myThreads(QtCore.QThread):
                 break
             else:
                 self.countSig.emit(t)   #update counter
-
-from PyQt6 import QtCore, QtGui, QtWidgets
 
 class Setup(QtWidgets.QWidget):
     def __init__(self):
