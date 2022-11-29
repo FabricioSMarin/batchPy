@@ -244,10 +244,10 @@ class BatchSetup(object):
 
             while not self.done:
                 self.check_busy()
-                print("scanning")
-                if self.FScan1.CPT == self.FScan1.NPTS and self.FScan1.EXSC == 0:
+                if self.Fscan1.CPT == self.Fscan1.NPTS and self.Fscan1.EXSC == 0:
                     self.done = True
-                time.sleep(0.1)
+                    print("exit while loop")
+
 
         if scan_type == "step":
             self.init_pvs(scan, scan_type)
@@ -257,27 +257,28 @@ class BatchSetup(object):
             self.check_position()
             self.x_motor.VELO = self.scan_speed
             self.Scan1.EXSC = 1
+            time.sleep(1)
             self.done = False
             while not self.done:
+
                 self.check_busy_step()
-                print("scaning")
-                # print("{} / {} : {}".format(self.Scan1.CPT, self.Scan1.NPTS, self.Scan1.EXSC))
                 if self.Scan1.CPT == self.Scan1.NPTS and self.Scan1.EXSC == 0:
                     self.done = True
-                time.sleep(0.1)
+                    print("exit while loop")
         return True
-
-        # self.cleanup()
 
 
     def run_tomo(self,r_center,r_npts,r_width,scan,scan_type):
-        start = eval(r_center - r_width//2)
-        end = eval(r_center + r_width//2)
+        start = r_center - r_width//2
+        end = r_center + r_width//2
         angles= np.linspace(start, end, r_npts)
 
         for i in angles:
+            self.r_motor.VELO = 5
             self.r_motor.VAL = i
-            self.check_r_position()
+            time.sleep(0.01)
+            in_pos = self.check_r_position()
+            self.r_motor.VELO = 1
             #wait for motor to get there.
             self.run_scan(scan,scan_type)
 
@@ -328,7 +329,7 @@ class BatchSetup(object):
             pass
         if self.XSPRESS3 is not None:
             #! self.Fscan1.T1PV = self.XSPRESS3._prefix + "det1:ERASE"
-            self.Fscan1.T2PV = self.XSPRESS3._prefix + "HDF1:Capture"
+            self.FscanH.T1PV = self.XSPRESS3._prefix + "HDF1:Capture"
             self.FscanH.T2PV = self.XSPRESS3._prefix + "det1:Acquire"
             self.Fscan1.T4PV = self.FscanH._prefix + "EXSC"
         else:
@@ -372,7 +373,7 @@ class BatchSetup(object):
 
         if self.XSPRESS3 is not None:
             self.ScanH.T2PV = self.XSPRESS3._prefix + "det1:Acquire"
-            self.Scan1.T2PV = self.XSPRESS3._prefix + "HDF1:Capture"
+            self.ScanH.T1PV = self.XSPRESS3._prefix + "HDF1:Capture"
             self.Scan1.T4PV = self.ScanH._prefix + "EXSC"
             #! self.Scan1.T1PV = self.XSPRESS3._prefix + "det1:ERASE"
         else:
@@ -480,62 +481,57 @@ class BatchSetup(object):
         self.after_outer()
 
     def check_position(self):
-        print('checking whether motors are in position')
         ready = abs(self.x_motor.VAL - self.x_motor.RBV) < 0.1 and abs(self.y_motor.VAL - self.y_motor.RBV) < 0.1
         retry = 0
         while not ready or retry > 5:
-            print('\t Motors are not ready')
             try:
                 self.x_motor.VELO = self.fast_speed
-                self.x_motor.put(self.x_motor.VAL)
-                self.y_motor.put(self.y_motor.VAL)
-                time.sleep(0.1)
+                self.x_motor.VAL = self.x_motor.VAL
+                self.y_motor.VAL = self.y_motor.VAL
                 ready = abs(self.x_motor.VAL - self.x_motor.VAL) < 0.1 and abs(self.y_motor.VAL - self.y_motor.VAL) < 0.1
                 retry += 1
             except:
                 retry += 1
                 if retry > 5:
-                    print("cant get motor pos")
                     self.x_motor.VELO = self.scan_speed
                     break
         if retry > 5:
             self.x_motor.VELO = self.scan_speed
             return False
         else:
-            print('Motors are ready now!')
             self.x_motor.VELO = self.scan_speed
             return True
     def check_r_position(self):
-        print('checking whether motors are in position')
-        ready = abs(self.r_motor.VAL - self.r_motor.RBV) < 0.1
+        val = abs(self.r_motor.VAL - self.r_motor.RBV)
+        ready = val < 0.1
         retry = 0
-        while not ready or retry > 5:
-            print('\t Motors are not ready')
+        while not ready:
             try:
-                self.r_motor.put(self.r_motor.VAL)
+                self.r_motor.VAL = self.r_motor.VAL
                 time.sleep(0.1)
-                ready = abs(self.r_motor.VAL - self.r_motor.RBV) < 0.1
-                retry += 1
+                new_val = abs(self.r_motor.VAL - self.r_motor.RBV)
+                if abs(new_val-val) < 0.1:
+                    retry+=1
+                else:
+                    ready = new_val < 0.1
             except:
                 retry += 1
-                if retry > 5:
-                    print("cant get motor pos")
-                    break
-        if retry > 5:
+            if retry > 10:
+                break
+        if retry > 10:
             return False
         else:
-            print('Motors are ready now!')
             return True
+
     def check_struck(self):
         struck_retry = 0
         if self.STRUCK is not None:
             not_done = self.STRUCK.Acquiring
             while not_done:
                 status = self.STRUCK.Acquiring
-                time.sleep(0.1)
                 struck_retry+=1
                 if struck_retry >=0:
-                    print("struc might not ready")
+                    # print("struck might not ready")
                     self.STRUCK.StopAll = 0
                     return False
                 else:
@@ -551,10 +547,9 @@ class BatchSetup(object):
 
             while acquiring == 1 and arr_cntr > 0:
                 status = self.XSPRESS3.Acquire_RBV
-                time.sleep(0.1)
                 xp3_retry+=1
                 if xp3_retry >=0:
-                    print("detecotor might not ready")
+                    # print("detecotor might not ready")
                     self.XSPRESS3.stop()
                     return False
                 else:
@@ -569,7 +564,6 @@ class BatchSetup(object):
             retry = 0
             while status != 0:
                 status = self.XMAP.Acquiring
-                time.sleep(0.1)
                 retry+=1
 
             if retry > 5:
@@ -619,19 +613,17 @@ class BatchSetup(object):
             detector_ready = self.check_readout_system()
             if self.STRUCK is not None:
                 struck_ready = self.check_struck()
-                ready = not_paused and detector_ready and struck_ready
+                ready = not_paused and struck_ready
             else:
-                ready = not_paused and detector_ready
+                ready = True
 
             retry = 0
             while not ready:
-                time.sleep(0.1)
                 retry+=1
                 if retry >=10:
                     if self.STRUCK is not None:
-                        self.STRUCK.StopAll= 0
+                        self.STRUCK.StopAll = 0
                     self.XSPRESS3.stop()
-                    time.sleep(3)
             self.x_motor.VELO = self.scan_speed
             self.outer_before_wait.value = 0
         else:
@@ -649,17 +641,14 @@ class BatchSetup(object):
                 ready = not_paused and struck_ready
             else:
                 ready = True
-                # ready = not_paused and detector_ready
 
             retry = 0
             while not ready:
-                time.sleep(0.1)
                 retry+=1
                 if retry >=10:
                     if self.STRUCK is not None:
-                        self.STRUCK.StopAll= 0
+                        self.STRUCK.StopAll = 0
                     self.XSPRESS3.stop()
-                    time.sleep(3)
             self.x_motor.VELO = self.scan_speed
             self.outer_before_wait.value = 0
         else:
@@ -678,18 +667,34 @@ class BatchSetup(object):
             detector_ready = self.check_readout_system()
             if self.STRUCK is not None:
                 struck_ready = self.check_struck()
+            else:
+                struck_ready = True
 
-            #! ready = not_paused and detector_ready and struck_ready and in_position
-            ready = not_paused and detector_ready and in_position
+            ready = not_paused and detector_ready and struck_ready and in_position
             retry = 0
             while not ready:
-                time.sleep(0.1)
+                if not struck_ready:
+                    struck_ready = self.check_struck()
+                if not detector_ready:
+                    detector_ready = self.check_readout_system()
+                if not in_position:
+                    in_position = self.check_position()
+                if not not_paused:
+                    not_paused = (self.Scan1.pause != 1 and self.ScanH.WCNT == 0 and self.Scan1.WCNT == 0)
+                ready = not_paused and detector_ready and struck_ready and in_position
+
                 retry+=1
                 if retry >=10:
-                    if self.STRUCK is not None:
+                    if not struck_ready:
                         self.STRUCK.StopAll= 0
-                    self.XSPRESS3.stop()
-                    time.sleep(1)
+                    if not detector_ready:
+                        self.XSPRESS3.stop()
+                    if not in_position:
+                        self.inner_before_wait.value = 1
+                        return
+                    if not not_paused:
+                        return
+
             self.x_motor.VELO = self.scan_speed
             self.inner_before_wait.value = 0
         else:
@@ -725,7 +730,6 @@ class BatchSetup(object):
                     not_paused = (self.Scan1.pause != 1 and self.ScanH.WCNT == 0 and self.Scan1.WCNT == 0)
                 ready = not_paused and detector_ready and struck_ready and in_position
 
-                time.sleep(0.1)
                 retry+=1
                 if retry >=10:
                     if not struck_ready:
@@ -734,7 +738,6 @@ class BatchSetup(object):
                         self.XSPRESS3.stop()
                     if not in_position:
                         self.inner_before_wait.value = 1
-                        print("motors not in position")
                         return
                     if not not_paused:
                         return
@@ -793,7 +796,6 @@ class BatchSetup(object):
         return
 
     def pause_scan(self):
-
         self.FscanH.WAIT = 1
         self.Scan1.WAIT = 1
         return

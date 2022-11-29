@@ -39,7 +39,7 @@ class BatchScanGui(QtWidgets.QMainWindow):
         self.show()
 
     def initUI(self):
-        header = Header()
+        self.header = Header()
         self.controls = Controls()
 
         lineframe = QtWidgets.QFrame()
@@ -51,7 +51,7 @@ class BatchScanGui(QtWidgets.QMainWindow):
         lineframe.setContentsMargins(0,0,0,0) #left, top,right, bottom
 
         layout = QtWidgets.QVBoxLayout()
-        layout.addWidget(header)
+        layout.addWidget(self.header)
         layout.addWidget(lineframe)
         layout.addWidget(self.controls)
         layout.setSpacing(0)
@@ -126,11 +126,20 @@ class BatchScanGui(QtWidgets.QMainWindow):
             self.__dict__[self.line_names[line]].r_center.setVisible(False)
             self.__dict__[self.line_names[line]].r_points.setVisible(False)
             self.__dict__[self.line_names[line]].r_width.setVisible(False)
+        self.header.r_center.setVisible(False)
+        self.header.r_points.setVisible(False)
+        self.header.r_width.setVisible(False)
         if self.tomoAction.isChecked():
+            self.wid.resize(1400, 800)
+            self.header.r_center.setVisible(True)
+            self.header.r_points.setVisible(True)
+            self.header.r_width.setVisible(True)
             for line in range(self.show_lines):
                 self.__dict__[self.line_names[line]].r_center.setVisible(True)
                 self.__dict__[self.line_names[line]].r_points.setVisible(True)
                 self.__dict__[self.line_names[line]].r_width.setVisible(True)
+        else:
+            self.wid.resize(1200, 800)
 
     def miscview_changed(self):
         for line in range(self.num_lines):
@@ -728,6 +737,7 @@ class Line(QtWidgets.QWidget):
                 item.currentIndexChanged.connect(self.trajector_changed)
             if isinstance(item, QtWidgets.QLineEdit):
                 item.textChanged.connect(self.validate_params)
+                item.textChanged.connect(self.calculate_line_eta)
                 item.returnPressed.connect(self.calculate_line_eta)
             elif isinstance(item,QtWidgets.QPushButton):
                 item.clicked.connect(self.scan_type_clicked)
@@ -863,11 +873,7 @@ class Line(QtWidgets.QWidget):
 
         if invalid:
             self.line_eta.setText(hms)
-            hrs = int(hms.split(":")[0]) * 60 * 60
-            min = int(hms.split(":")[1]) * 60
-            sec = int(hms.split(":")[2])
-            total_s = sec + min + hrs
-            self.eta= timedelta(seconds=total_s)
+            self.eta= timedelta(seconds=0)
             return
         dwell = float(self.dwell_time.text())/1000
         x_points = int(self.x_points.text())
@@ -888,23 +894,23 @@ class Line(QtWidgets.QWidget):
             if scan_type == "step":
                 overhead = 1.3
             else:
-                overhead = 1.15
+                overhead = 1.18
             width_not_zero = (x_width*y_width>0)*1
-            seconds_total = dwell*x_points*y_points*overhead*width_not_zero
+            seconds_total = dwell*x_points*y_points*overhead*width_not_zero + (2*y_points)
 
         if trajectory == "snake":
             if scan_type == "step":
-                overhead = 1.2
+                overhead = 1.3
             else:
-                overhead = 1.1
+                overhead = 1.18
             width_not_zero = (x_width*y_width>0)*1
-            seconds_total = dwell*eval(x_points)*eval(y_points)*overhead*width_not_zero
+            seconds_total = dwell*eval(x_points)*eval(y_points)*overhead*width_not_zero + (2*y_points)
 
         if trajectory == "spiral" or trajectory == "lissajous" or trajectory == "custom":
             if scan_type == "step":
-                overhead = 1.2
+                overhead = 1.3
             else:
-                overhead = 1.1
+                overhead = 1.18
             seconds_total = dwell*eval(x_points)*overhead
 
         if self.r_center.isVisible():

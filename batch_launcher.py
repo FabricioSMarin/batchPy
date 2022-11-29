@@ -158,20 +158,20 @@ class Launcher(object):
         scan_type = lines[checked].scan_type.text()
         if scan_type == "step":
             #use step scan record inner loop
-            lines[checked].x_center.setText(self.backend.Scan1.P1CP)
-            lines[checked].x_points.setText(self.backend.Scan1.NPTS)
-            lines[checked].x_width.setText(self.backend.Scan1.P1WD)
-            lines[checked].y_center.setText(self.backend.Scan2.P1CP)
-            lines[checked].y_points.setText(self.backend.Scan2.NPTS)
-            lines[checked].y_width.setText(self.backend.Scan2.P1WD)
+            lines[checked].x_center.setText(str(self.backend.ScanH.P1CP))
+            lines[checked].x_points.setText(str(self.backend.ScanH.NPTS))
+            lines[checked].x_width.setText(str(self.backend.ScanH.P1WD))
+            lines[checked].y_center.setText(str(self.backend.Scan1.P1CP))
+            lines[checked].y_points.setText(str(self.backend.Scan1.NPTS))
+            lines[checked].y_width.setText(str(self.backend.Scan1.P1WD))
 
         elif scan_type == "fly":
-            lines[checked].x_center.setText(self.backend.FscanH.P1CP)
-            lines[checked].x_points.setText(self.backend.FscanH.NPTS)
-            lines[checked].x_width.setText(self.backend.FscanH.P1WD)
-            lines[checked].y_center.setText(self.backend.Fscan1.P1CP)
-            lines[checked].y_points.setText(self.backend.Fscan1.NPTS)
-            lines[checked].y_width.setText(self.backend.Fscan1.P1WD)
+            lines[checked].x_center.setText(str(self.backend.FscanH.P1CP))
+            lines[checked].x_points.setText(str(self.backend.FscanH.NPTS))
+            lines[checked].x_width.setText(str(self.backend.FscanH.P1WD))
+            lines[checked].y_center.setText(str(self.backend.Fscan1.P1CP))
+            lines[checked].y_points.setText(str(self.backend.Fscan1.NPTS))
+            lines[checked].y_width.setText(str(self.backend.Fscan1.P1WD))
 
     def export_clicked(self):
         if not self.backend.backend_ready:
@@ -182,20 +182,20 @@ class Launcher(object):
         scan_type = lines[checked].scan_type.text()
         if scan_type == "step":
             #use step scan record inner loop
-            self.backend.Scan1.P1CP = lines[checked].x_center.Text()
-            self.backend.Scan1.NPTS = lines[checked].x_points.Text()
-            self.backend.Scan1.P1WD = lines[checked].x_width.Text()
-            self.backend.Scan2.P1CP = lines[checked].y_center.Text()
-            self.backend.Scan2.NPTS = lines[checked].y_points.Text()
-            self.backend.Scan2.P1WD = lines[checked].y_width.Text()
+            self.backend.ScanH.P1CP = lines[checked].x_center.text()
+            self.backend.ScanH.NPTS = lines[checked].x_points.text()
+            self.backend.ScanH.P1WD = lines[checked].x_width.text()
+            self.backend.Scan1.P1CP = lines[checked].y_center.text()
+            self.backend.Scan1.NPTS = lines[checked].y_points.text()
+            self.backend.Scan1.P1WD = lines[checked].y_width.text()
 
         elif scan_type == "fly":
-            self.backend.FscanH.P1CP = lines[checked].x_center.Text()
-            self.backend.FscanH.NPTS = lines[checked].x_points.Text()
-            self.backend.FscanH.P1WD = lines[checked].x_width.Text()
-            self.backend.Fscan1.P1CP = lines[checked].y_center.Text()
-            self.backend.Fscan1.NPTS = lines[checked].y_points.Text()
-            self.backend.Fscan1.P1WD = lines[checked].y_width.Text()
+            self.backend.FscanH.P1CP = lines[checked].x_center.text()
+            self.backend.FscanH.NPTS = lines[checked].x_points.text()
+            self.backend.FscanH.P1WD = lines[checked].x_width.text()
+            self.backend.Fscan1.P1CP = lines[checked].y_center.text()
+            self.backend.Fscan1.NPTS = lines[checked].y_points.text()
+            self.backend.Fscan1.P1WD = lines[checked].y_width.text()
 
     def zero_clicked(self):
         lines = [vars(self.gui)[i] for i in self.gui.line_names]
@@ -243,35 +243,66 @@ class Launcher(object):
         y_npts = eval(line.y_points.text())
         y_width = eval(line.y_width.text())
         scan = [x_center, y_center, x_width, y_width, x_npts, y_npts, dwell]
-        if self.gui.tomoAction.isChecked():
+        line.status = "scanning"
+        self.gui.controls.status_bar.setText("scanning line {}".format(first_line))
+        self.backend.done = False
+
+        if self.gui.tomoAction.isChecked() and self.tomo_valid(first_line):
             r_center = eval(line.r_center.text())
             r_npts = eval(line.r_points.text())
             r_width = eval(line.r_width.text())
-            scan = [r_center,r_npts,r_width, x_center, y_center, x_width, y_width, x_npts, y_npts, dwell]
-            # self.backend.run_tomo(r_center,r_npts,r_width,scan,scan_type)
-        line.status = "scanning"
 
-        self.gui.controls.status_bar.setText("scanning line {}".format(first_line))
-        self.backend.done = False
-        self.thread3 = myThreads(self, 3, "run_scan")
-        self.thread3.scan = scan
-        self.thread3.scan_type = scan_type
-        self.thread3.exit_flag = 0
-        self.thread3.lineFinishSig.connect(self.line_finished_sig)
-        self.thread3.start()
+            # Threaded run-mode
+            # self.thread4.scan = scan
+            # self.thread4.scan_type = scan_type
+            # self.thread4.exit_flag = 0
+            # self.thread4.start()
 
-        # self.backend.run_scan(scan, scan_type)
-        # time.sleep(1)
-        # self.line_finished_sig()
-        #TODO: periodically update global ETA
-        # self.backend.cleanup()
+            tick = time.time()
+            self.backend.run_tomo(r_center, r_npts, r_width, scan, scan_type)
+            tock = time.time() - tick
+            print("scanline ", first_line, "finished: ", tock)
+            self.line_finished_sig()
+
+        else:
+            # Threaded run-mode
+            # self.thread3.scan = scan
+            # self.thread3.scan_type = scan_type
+            # self.thread3.exit_flag = 0
+            # self.thread3.start()
+
+            # Non-threaded run mode
+            tick = time.time()
+            print("here")
+            self.backend.run_scan(scan, scan_type)
+            tock = time.time() - tick
+            print("scanline ", first_line, "finished: ", tock)
+            self.line_finished_sig()
+
         return
 
+    def tomo_valid(self, line_idx):
+        lines = [vars(self.gui)[i] for i in self.gui.line_names]
+        line = lines[line_idx]
+        invalid = 0
+        if line.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+            invalid = 1
+        if line.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+            invalid = 1
+        if line.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+            invalid = 1
+        if  invalid:
+            return False
+        else:
+            return True
 
     def line_finished_sig(self):
         print("starting next line")
         lines = [vars(self.gui)[i] for i in self.gui.line_names]
-        current_line = [line.line_action.currentText() for line in lines].index("normal")
+        try:
+            current_line = [line.line_action.currentText() for line in lines].index("normal")
+        except:
+            return
         lines[current_line].status = "done"
         lines[current_line].line_action.setCurrentIndex(0)
         #TODO: set current line.status to "done"
@@ -288,28 +319,45 @@ class Launcher(object):
             y_npts = eval(line.y_points.text())
             y_width = eval(line.y_width.text())
             scan = [x_center, y_center, x_width, y_width, x_npts, y_npts, dwell]
-            #TODO:  check if tomo settings are valid instead of checking if tomoAction is checked.
-            if self.gui.tomoAction.isChecked():
+            line.status = "scanning"
+            self.gui.controls.status_bar.setText("scanning line {}".format(next_line))
+            self.backend.done = False
+
+            if self.gui.tomoAction.isChecked() and self.tomo_valid(next_line):
                 r_center = eval(line.r_center.text())
                 r_npts = eval(line.r_points.text())
                 r_width = eval(line.r_width.text())
-                scan = [r_center, r_npts, r_width, x_center, y_center, x_width, y_width, x_npts, y_npts, dwell]
-                # self.backend.run_tomo(r_center,r_npts,r_width,scan,scan_type)
-            line.status = "scanning"
-            self.gui.controls.status_bar.setText("scanning line {}".format(next_line))
+                #TODO: have conditional scan variable which determines if is tomo or not based on "scan" length. 
+                # Threaded run-mode
+                # self.thread4.scan = scan
+                # self.thread4.scan_type = scan_type
+                # self.thread4.exit_flag = 0
+                # self.thread4.start()
 
-            # TODO: run backend.run_scans in separate thread
-            self.backend.done = False
-            # self.thread3 = myThreads(self, 3, "run_scan")
-            self.thread3.scan = scan
-            self.thread3.scan_type = scan_type
-            self.thread3.exit_flag = 0
-            self.thread3.start()
+                tick = time.time()
+                print("here")
+                self.backend.run_tomo(r_center,r_npts,r_width,scan,scan_type)
+                tock = time.time() - tick
+                print("scanline ", next_line, "finished: ", tock)
+                self.line_finished_sig()
 
-            # self.backend.run_scan(scan, scan_type)
-            # self.line_finished_sig()
+            else:
+                # Threaded run-mode
+                # self.thread3.scan = scan
+                # self.thread3.scan_type = scan_type
+                # self.thread3.exit_flag = 0
+                # self.thread3.start()
+
+                #Non-threaded run mode
+                tick = time.time()
+                print("here")
+                self.backend.run_scan(scan, scan_type)
+                tock = time.time() - tick
+                print("scanline ", next_line, "finished: ", tock)
+                self.line_finished_sig()
+
         else:
-            print("batch finished")
+            self.gui.controls.status_bar.setText("batch finished")
             self.backend.cleanup()
 
         return
@@ -376,22 +424,20 @@ class Launcher(object):
 
     def start_threads(self):
         # Create new threads
-        # self.thread1 = myThreads(self, 1, "save countdown")
-        # self.thread1.timer = 60
+        self.thread1 = myThreads(self, 1, "save countdown")
+        self.thread1.timer = 60
         self.thread2 = myThreads(self, 2, "eta countdown")
         self.thread2.timer = 10
 
-        # self.thread1.saveSig.connect(self.gui.save_session)
+        self.thread1.saveSig.connect(self.gui.save_session)
         self.thread2.etaSig.connect(self.calculate_global_eta)
-        # self.thread3.lineFinishSig.connect(self.line_finished_sig)
-        # self.thread1.start()
+        self.thread1.start()
         self.thread2.start()
-        # self.thread3.start()
 
     def stop_thread(self):
-        # self.thread1.exit_flag=1
-        # self.thread1.quit()
-        # self.thread1.wait()
+        self.thread1.exit_flag=1
+        self.thread1.quit()
+        self.thread1.wait()
         self.thread2.exit_flag=1
         self.thread2.quit()
         self.thread2.wait()
@@ -428,11 +474,25 @@ class myThreads(QtCore.QThread):
             self.run_scan()
         print("Exiting " + self.name)
 
-    def run_scan(self):
-        scan = self.scan
-        scan_type = self.scan_type
-        scanning = self.scanning
-        print("scanning")
+
+    def run_tomo(self,r_center,r_npts,r_width,scan,scan_type):
+        tick = time.time()
+        self.parent.backend.run_tomo(r_center,r_npts,r_width,scan,scan_type)
+        while True:
+            time.sleep(1)
+            #if abort or abort_all
+            if self.exit_flag == 1:
+                print("aborting scan")
+                break
+            else:
+                if self.parent.backend.done == True:
+                    print("line finished")
+                    tock = time.time() - tick
+                    print(tock)
+                    self.lineFinishSig.emit()
+                    print("sending signal")
+                    break
+    def run_scan(self,scan, scan_type):
         tick = time.time()
         self.parent.backend.run_scan(scan, scan_type)
         while True:
@@ -456,12 +516,13 @@ class myThreads(QtCore.QThread):
             time.sleep(1)
             t -= 1
             if t==0 and self.exit_flag==0:
+                self.saveSig.emit()  # update counter
                 t=t_original
             if self.exit_flag:
                 break
             else:
-                print("save event")
-                self.saveSig.emit()   #update counter
+                pass
+
     def eta_countdown(self, t):
         t_original = t
         while t:
