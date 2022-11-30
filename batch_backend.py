@@ -244,10 +244,11 @@ class BatchSetup(object):
 
             while not self.done:
                 self.check_busy()
-                if self.Fscan1.CPT == self.Fscan1.NPTS and self.Fscan1.EXSC == 0:
+                if self.check_done():
+                    self.FscanH.NPTS = 1
+                    self.Fscan1.NPTS = 1
                     self.done = True
                     print("exit while loop")
-
 
         if scan_type == "step":
             self.init_pvs(scan, scan_type)
@@ -260,13 +261,13 @@ class BatchSetup(object):
             time.sleep(1)
             self.done = False
             while not self.done:
-
                 self.check_busy_step()
-                if self.Scan1.CPT == self.Scan1.NPTS and self.Scan1.EXSC == 0:
+                if self.check_done_step():
+                    self.ScanH.NPTS = 1
+                    self.Scan1.NPTS = 1
                     self.done = True
                     print("exit while loop")
         return True
-
 
     def run_tomo(self,r_center,r_npts,r_width,scan,scan_type):
         start = r_center - r_width//2
@@ -471,6 +472,13 @@ class BatchSetup(object):
         self.before_inner_step()
         self.after_inner_step()
         self.after_outer_step()
+
+    def check_done(self):
+        is_done = self.Fscan1.CPT == self.Fscan1.NPTS and self.Fscan1.EXSC == 0 and self.FscanH.CPT == self.FscanH.NPTS and self.FscanH.EXSC == 0
+        return is_done
+    def check_done_step(self):
+        is_done = self.Scan1.CPT == self.Scan1.NPTS and self.Scan1.EXSC == 0 and self.ScanH.CPT == self.ScanH.NPTS and self.ScanH.EXSC == 0
+        return is_done
 
     def check_busy(self):
         # if self.beamline == "2ide":
