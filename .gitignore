@@ -10,3 +10,4 @@ __pycache__/batch_gui.cpython-39.pyc
 .idea/workspace.xml
 __pycache__/batch_backend.cpython-39.pyc
 *.pyc
+*.pyc

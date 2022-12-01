@@ -247,10 +247,17 @@ class BatchSetup(object):
             time.sleep(1)
             self.done = False
 
+            tick = time.time()
             while not self.done:
                 self.check_busy()
                 if self.check_done():
+                    tock = time.time() - tick
+                    if tock < 5:
+                        print("scan terminated early going back to while loop")
+                        break
+
                     #TODO: SCANS still terminating prematurely ugh
+                    #TODO: check threading method, it fails when threading.
                     self.FscanH.NPTS = 1
                     self.Fscan1.NPTS = 1
                     self.done = True
