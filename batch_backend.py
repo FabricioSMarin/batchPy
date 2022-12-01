@@ -41,7 +41,12 @@ class BatchSetup(object):
         self.backend_ready = False
         self.done = False
 
-        if epics.devices.xspress3.Xspress3.PV(epics.Device,self.xp3+"det1:CONNECTED",timeout=timeout).value is not None:
+
+        # self.XSPRESS3 = epics.devices.xspress3.Xspress310(self.xp3)
+        # self.XSPRESS3._pvs["HDF1:FilePath"].put(self.savePath)
+        # self.XSPRESS3.TriggerMode = 1  # 3 = external, 1=internal
+
+        if epics.devices.xspress3.Xspress310.PV(epics.Device,self.xp3+"det1:CONNECTED",timeout=timeout).value is not None:
             self.XSPRESS3 = epics.devices.xspress3.Xspress3(self.xp3)
             self.XSPRESS3._pvs["HDF1:FilePath"].put(self.savePath)
             self.XSPRESS3.TriggerMode = 1  # 3 = external, 1=internal
@@ -245,6 +250,7 @@ class BatchSetup(object):
             while not self.done:
                 self.check_busy()
                 if self.check_done():
+                    #TODO: SCANS still terminating prematurely ugh
                     self.FscanH.NPTS = 1
                     self.Fscan1.NPTS = 1
                     self.done = True

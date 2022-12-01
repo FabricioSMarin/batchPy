@@ -490,7 +490,7 @@ class Controls(QtWidgets.QWidget):
         col3.addLayout(c1)
         col3.addLayout(c2)
 
-        self.message_window = QtWidgets.QTextEdit("message bar")
+        self.message_window = QtWidgets.QTextEdit("")
         self.message_window.setFixedWidth(700)
         self.message_window.setStyleSheet("background: beige; color: black")
         self.message_window.setDisabled(True)
@@ -813,9 +813,13 @@ class Line(QtWidgets.QWidget):
                         value = eval(item.text())
                         if value<0:
                             if item.isEnabled():
-                                item.setStyleSheet("background: lightcoral; color: black; border-radius: 4")
+                                if key == "r_center" or key == "x_center":
+                                    item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
+                                else:
+                                    item.setStyleSheet("background: lightcoral; color: black; border-radius: 4")
                             else:
                                 item.setStyleSheet("background: lightblue; color: lightblue; border-radius: 4")
+
 
                         else:
                             if item.isEnabled():
@@ -913,7 +917,7 @@ class Line(QtWidgets.QWidget):
                 overhead = 1.18
             seconds_total = dwell*eval(x_points)*overhead
 
-        if self.r_center.isVisible():
+        if self.r_center.isVisible() and r_points > 0:
             overhead = 1.1
             seconds_total = seconds_total*r_points*overhead
 

@@ -10,8 +10,15 @@ import os
 from datetime import datetime, timedelta
 import pickle
 
+
+class Stream(QtCore.QObject):
+    newText = QtCore.pyqtSignal(str)
+    def write(self, text):
+        self.newText.emit(str(text))
+
 class Launcher(object):
     def __init__(self):
+
         app = QtWidgets.QApplication(sys.argv)
         self.gui = batch_gui.BatchScanGui(app)
         self.gui.closeAction.triggered.connect(sys.exit)
@@ -30,6 +37,7 @@ class Launcher(object):
         self.gui.controls.points.clicked.connect(self.calculate_points_clicked)
         self.gui.controls.points_all.clicked.connect(self.calculate_all_points_clicked)
 
+        sys.stdout = Stream(newText=self.onUpdateText)
 
         self.backend = batch_backend.BatchSetup()
         if self.backend.backend_ready:
@@ -37,6 +45,16 @@ class Launcher(object):
         # self.connect_backend
         self.start_threads()
         sys.exit(app.exec())
+
+    def onUpdateText(self, text):
+        # self.gui.controls.message_window.setText(text)
+        cursor = self.gui.controls.message_window.textCursor()
+        cursor.insertText(text)
+        self.gui.controls.message_window.setTextCursor(cursor)
+        self.gui.controls.message_window.ensureCursorVisible()
+
+    def __del__(self):
+        sys.stdout = sys.__stdout__
 
     def initialize_record(self):
         self.backend.init_scan_record()
@@ -256,6 +274,7 @@ class Launcher(object):
             self.thread4.exit_flag = 0
             self.thread4.start()
 
+            # print("here begin tomo")
             # tick = time.time()
             # self.backend.run_tomo(r_center, r_npts, r_width, scan, scan_type)
             # tock = time.time() - tick
@@ -270,7 +289,7 @@ class Launcher(object):
 
             # Non-threaded run mode
             # tick = time.time()
-            # print("here")
+            # print("here begin scan")
             # self.backend.run_scan(scan, scan_type)
             # tock = time.time() - tick
             # print("scanline ", first_line, "finished: ", tock)
@@ -282,13 +301,20 @@ class Launcher(object):
         lines = [vars(self.gui)[i] for i in self.gui.line_names]
         line = lines[line_idx]
         invalid = 0
-        if line.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+        if line.r_center.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
             invalid = 1
-        if line.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+
+        if line.r_points.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
             invalid = 1
-        if line.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+        else:
+            if int(line.r_points.text()) <= 0:
+                invalid = 1
+        if line.r_width.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
             invalid = 1
-        if  invalid:
+        else:
+            if int(line.r_width.text()) <= 0:
+                invalid = 1
+        if invalid:
             return False
         else:
             return True
@@ -333,7 +359,7 @@ class Launcher(object):
                 self.thread4.start()
 
                 # tick = time.time()
-                # print("here")
+                # print("here tomo")
                 # self.backend.run_tomo(r_center,r_npts,r_width,scan,scan_type)
                 # tock = time.time() - tick
                 # print("scanline ", next_line, "finished: ", tock)
@@ -347,7 +373,7 @@ class Launcher(object):
 
                 #Non-threaded run mode
                 # tick = time.time()
-                # print("here")
+                # print("here scan")
                 # self.backend.run_scan(scan, scan_type)
                 # tock = time.time() - tick
                 # print("scanline ", next_line, "finished: ", tock)
@@ -444,6 +470,8 @@ class Launcher(object):
         self.thread2.wait()
         pass
 
+
+
 class myThreads(QtCore.QThread):
     saveSig = pyqtSignal()
     etaSig = pyqtSignal()
@@ -468,7 +496,6 @@ class myThreads(QtCore.QThread):
         if self.name == "save countdown":
             self.save_countdown(int(timer))
         if self.name == "eta countdown":
-            print(timer)
             self.eta_countdown(int(timer))
         elif self.name == "run_scan":
             self.run_scan()
