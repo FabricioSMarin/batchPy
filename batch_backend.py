@@ -246,7 +246,6 @@ class BatchSetup(object):
             self.Fscan1.EXSC = 1
             time.sleep(1)
             self.done = False
-
             tick = time.time()
             while not self.done:
                 self.check_busy()
@@ -260,8 +259,11 @@ class BatchSetup(object):
                     #TODO: check threading method, it fails when threading.
                     self.FscanH.NPTS = 1
                     self.Fscan1.NPTS = 1
+                    time.sleep(1)
                     self.done = True
-                    print("exit while loop")
+                    finish = time.time() - tick
+                    finish = round(finish,2)
+                    print("finished in {} seconds.".format(finish))
 
         if scan_type == "step":
             self.init_pvs(scan, scan_type)
@@ -273,13 +275,17 @@ class BatchSetup(object):
             self.Scan1.EXSC = 1
             time.sleep(1)
             self.done = False
+            tick = time.time()
             while not self.done:
                 self.check_busy_step()
                 if self.check_done_step():
                     self.ScanH.NPTS = 1
                     self.Scan1.NPTS = 1
+                    time.sleep(1)
                     self.done = True
-                    print("exit while loop")
+                    finish = time.time() - tick
+                    finish = round(finish,2)
+                    print("finished in {} seconds.".format(finish))
         return True
 
     def run_tomo(self,r_center,r_npts,r_width,scan,scan_type):

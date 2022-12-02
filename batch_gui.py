@@ -493,7 +493,7 @@ class Controls(QtWidgets.QWidget):
         self.message_window = QtWidgets.QTextEdit("")
         self.message_window.setFixedWidth(700)
         self.message_window.setStyleSheet("background: beige; color: black")
-        self.message_window.setDisabled(True)
+        self.message_window.setDisabled(False)
 
         self.status_bar = QtWidgets.QLabel("status bar")
         self.status_bar.setFixedWidth(700)
