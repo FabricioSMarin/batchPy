@@ -239,6 +239,7 @@ class Launcher(object):
             line.y_width.setText("0")
 
     def begin_clicked(self):
+        #TODO: disable when clicked once and enable when scan completed or abort_all pressed.
         if not self.backend.backend_ready:
             print("scan record not connected")
             return
@@ -379,10 +380,14 @@ class Launcher(object):
         else:
             self.gui.controls.status_bar.setText("batch finished")
             self.backend.cleanup()
+            # TODO: disable when clicked once and enable when scan completed or abort_all pressed.
+
             print("cleaning up")
 
         return
     def pause_clicked(self):
+        #TODO: pause when line action is set to pause
+
         if not self.backend.backend_ready:
             print("scan record not connected")
             return
@@ -409,6 +414,8 @@ class Launcher(object):
         self.gui.controls.status_bar.setText("Aborting Line")
 
     def abort_all_clicked(self):
+        #TODO: disable when clicked once and enable when scan completed or abort_all pressed.
+
         if not self.backend.backend_ready:
             print("scan record not connected")
             return

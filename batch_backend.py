@@ -52,7 +52,7 @@ class BatchSetup(object):
             self.XSPRESS3.TriggerMode = 1  # 3 = external, 1=internal
 
         else:
-            # self.XSPRESS3 = None
+            self.XSPRESS3 = None
             print("xspress3  not connected")
 
         if epics.devices.struck.Struck.PV(epics.Device, self.struck, timeout = timeout).value is not None:
