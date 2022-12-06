@@ -38,7 +38,7 @@ class Launcher(object):
         self.gui.controls.points_all.clicked.connect(self.calculate_all_points_clicked)
 
         sys.stdout = Stream(newText=self.onUpdateText)
-        self.threading_mode = 1
+        self.threading_mode = 0
         self.backend = batch_backend.BatchSetup()
         if self.backend.backend_ready:
             self.backend.init_scan_record()

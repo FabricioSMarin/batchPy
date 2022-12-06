@@ -41,136 +41,143 @@ class BatchSetup(object):
         self.backend_ready = False
         self.done = False
 
-
-        # self.XSPRESS3 = epics.devices.xspress3.Xspress310(self.xp3)
-        # self.XSPRESS3._pvs["HDF1:FilePath"].put(self.savePath)
-        # self.XSPRESS3.TriggerMode = 1  # 3 = external, 1=internal
-
-        if epics.devices.xspress3.Xspress310.PV(epics.Device,self.xp3+"det1:CONNECTED",timeout=timeout).value is not None:
-            self.XSPRESS3 = epics.devices.xspress3.Xspress3(self.xp3)
-            self.XSPRESS3._pvs["HDF1:FilePath"].put(self.savePath)
-            self.XSPRESS3.TriggerMode = 1  # 3 = external, 1=internal
-
-        else:
+        try:
+            os.environ["EPICS_CA_ADDR_LIST"] = "164.54.108.30"
+            self.XSPRESS3 = epics.devices.xspress3.Xspress310(self.xp3)
+            self.XSPRESS3._pvs["HDF5:FilePath"].put(self.savePath)
+            self.XSPRESS3.TriggerMode = 3  # 3 = external, 1=internal
+        except:
             self.XSPRESS3 = None
             print("xspress3  not connected")
 
-        if epics.devices.struck.Struck.PV(epics.Device, self.struck, timeout = timeout).value is not None:
-            self.STRUCK = epics.devices.struck.Struck(self.struck)
-        else:
-            self.STRUCK = None
-            print("struck not connected")
+        # if epics.devices.xspress3.Xspress310.PV(epics.Device,self.xp3+"det1:CONNECTED",timeout=timeout).value is not None:
+        #     self.XSPRESS3 = epics.devices.xspress3.Xspress310(self.xp3)
+        #     self.XSPRESS3._pvs["HDF1:FilePath"].put(self.savePath)
+        #     self.XSPRESS3.TriggerMode = 1  # 3 = external, 1=internal
+        # else:
+        #     self.XSPRESS3 = None
+        #     print("xspress3  not connected")
 
-        if epics.devices.mca.MultiXMAP.PV(epics.Device,self.xmap,timeout=timeout).value is not None:
-            self.XMAP = epics.devices.mca.MultiXMAP(self.xmap)
-        else:
-            self.XMAP = None
-            print("XMAP not connected")
+        try:
+            if True:
+                # if epics.devices.struck.Struck.PV(epics.Device, self.struck, timeout = timeout).value is not None:
+                self.STRUCK = epics.devices.struck.Struck(self.struck)
+            else:
+                self.STRUCK = None
+                print("struck not connected")
 
-        if epics.Motor.PV(epics.Device,self.x,timeout=timeout).value is not None:
-            self.x_motor = epics.Motor(self.x)
-        else:
-            self.x_motor = None
-            print("x-motor not connected")
+            if epics.devices.mca.MultiXMAP.PV(epics.Device,self.xmap,timeout=timeout).value is not None:
+                self.XMAP = epics.devices.mca.MultiXMAP(self.xmap)
+            else:
+                self.XMAP = None
+                print("XMAP not connected")
 
-        if epics.Motor.PV(epics.Device,self.y,timeout=timeout).value is not None:
-            self.y_motor = epics.Motor(self.y)
-        else:
-            self.y_motor = None
-            print("y-motor not connected")
+            if epics.Motor.PV(epics.Device,self.x,timeout=timeout).value is not None:
+                self.x_motor = epics.Motor(self.x)
+            else:
+                self.x_motor = None
+                print("x-motor not connected")
 
-        if epics.Motor.PV(epics.Device,self.z,timeout=timeout).value is not None:
-            self.z_motor = epics.Motor(self.z)
-        else:
-            self.z_motor = None
-            print("z-motor not connected")
+            if epics.Motor.PV(epics.Device,self.y,timeout=timeout).value is not None:
+                self.y_motor = epics.Motor(self.y)
+            else:
+                self.y_motor = None
+                print("y-motor not connected")
 
-        if epics.Motor.PV(epics.Device,self.r,timeout=timeout).value is not None:
-            self.r_motor = epics.Motor(self.r)
-        else:
-            self.r_motor = None
-            print("r-motor not connected")
+            if epics.Motor.PV(epics.Device,self.z,timeout=timeout).value is not None:
+                self.z_motor = epics.Motor(self.z)
+            else:
+                self.z_motor = None
+                print("z-motor not connected")
 
-        if epics.devices.scan.Scan.PV(epics.Device,self.fscan1,timeout=timeout).value is not None:
-            self.Fscan1 = epics.devices.scan.Scan(self.fscan1, timeout=timeout)
-        else:
-            self.Fscan1 = None
-            print("Fscan1 record not connected")
+            if epics.Motor.PV(epics.Device,self.r,timeout=timeout).value is not None:
+                self.r_motor = epics.Motor(self.r)
+            else:
+                self.r_motor = None
+                print("r-motor not connected")
 
-        if epics.devices.scan.Scan.PV(epics.Device,self.fscanH,timeout=timeout).value is not None:
-            self.FscanH = epics.devices.scan.Scan(self.fscanH, timeout=timeout)
-        else:
-            self.FscanH = None
-            print("FscanH record not connected")
+            if epics.devices.scan.Scan.PV(epics.Device,self.fscan1,timeout=timeout).value is not None:
+                self.Fscan1 = epics.devices.scan.Scan(self.fscan1, timeout=timeout)
+            else:
+                self.Fscan1 = None
+                print("Fscan1 record not connected")
 
-        if epics.devices.scan.Scan.PV(epics.Device,self.scan1,timeout=timeout).value is not None:
-            self.Scan1 = epics.devices.scan.Scan(self.scan1, timeout=timeout)
-        else:
-            self.Scan1 = None
-            print("Scan1 record not connected")
+            if epics.devices.scan.Scan.PV(epics.Device,self.fscanH,timeout=timeout).value is not None:
+                self.FscanH = epics.devices.scan.Scan(self.fscanH, timeout=timeout)
+            else:
+                self.FscanH = None
+                print("FscanH record not connected")
 
-        if epics.devices.scan.Scan.PV(epics.Device,self.scan2,timeout=timeout).value is not None:
-            self.Scan2 = epics.devices.scan.Scan(self.scan2, timeout=timeout)
-        else:
-            self.Scan2 = None
-            print("Scan2 record not connected")
+            if epics.devices.scan.Scan.PV(epics.Device,self.scan1,timeout=timeout).value is not None:
+                self.Scan1 = epics.devices.scan.Scan(self.scan1, timeout=timeout)
+            else:
+                self.Scan1 = None
+                print("Scan1 record not connected")
 
-        if epics.devices.scan.Scan.PV(epics.Device,self.scanH,timeout=timeout).value is not None:
-            self.ScanH = epics.devices.scan.Scan(self.scanH, timeout=timeout)
-        else:
-            self.ScanH = None
-            print("ScanH record not connected")
+            if epics.devices.scan.Scan.PV(epics.Device,self.scan2,timeout=timeout).value is not None:
+                self.Scan2 = epics.devices.scan.Scan(self.scan2, timeout=timeout)
+            else:
+                self.Scan2 = None
+                print("Scan2 record not connected")
 
-        #check if busy record exists/is connected
-        self.inner_before_wait = epics.PV(self.ibw,connection_timeout=timeout)
-        self.inner_after_wait = epics.PV(self.iaw,connection_timeout=timeout)
-        self.outer_before_wait = epics.PV(self.obw,connection_timeout=timeout)
-        self.outer_after_wait = epics.PV(self.oaw,connection_timeout=timeout)
+            if epics.devices.scan.Scan.PV(epics.Device,self.scanH,timeout=timeout).value is not None:
+                self.ScanH = epics.devices.scan.Scan(self.scanH, timeout=timeout)
+            else:
+                self.ScanH = None
+                print("ScanH record not connected")
 
-        if self.outer_before_wait.connected:
-            self.outer_before_wait.value = 0
-            self.Fscan1.BSPV = self.outer_before_wait.pvname
-            self.Fscan1.BSWAIT = 0
-            self.Scan1.BSWAIT = 0
-        else:
-            if self.Fscan1 is not None:
-                self.Fscan1.BSPV = ""
+            #check if busy record exists/is connected
+            self.inner_before_wait = epics.PV(self.ibw,connection_timeout=timeout)
+            self.inner_after_wait = epics.PV(self.iaw,connection_timeout=timeout)
+            self.outer_before_wait = epics.PV(self.obw,connection_timeout=timeout)
+            self.outer_after_wait = epics.PV(self.oaw,connection_timeout=timeout)
 
-        if self.inner_before_wait.connected:
-            self.inner_before_wait.value = 0
-            self.FscanH.BSPV = self.inner_before_wait.pvname
-            self.FscanH.BSWAIT = 0
-            self.ScanH.BSWAIT = 0
-        else:
-            if self.FscanH is not None:
-                self.FscanH.BSPV = ""
+            if self.outer_before_wait.connected:
+                self.outer_before_wait.value = 0
+                self.Fscan1.BSPV = self.outer_before_wait.pvname
+                self.Fscan1.BSWAIT = 0
+                self.Scan1.BSWAIT = 0
+            else:
+                if self.Fscan1 is not None:
+                    self.Fscan1.BSPV = ""
 
-        if self.inner_after_wait.connected:
-            self.inner_after_wait.value = 0
-            self.FscanH.ASPV = self.inner_after_wait.pvname
-            self.FscanH.ASWAIT = 0
-            self.ScanH.ASWAIT = 0
-        else:
-            if self.FscanH is not None:
-                self.FscanH.ASPV = ""
+            if self.inner_before_wait.connected:
+                self.inner_before_wait.value = 0
+                self.FscanH.BSPV = self.inner_before_wait.pvname
+                self.FscanH.BSWAIT = 0
+                self.ScanH.BSWAIT = 0
+            else:
+                if self.FscanH is not None:
+                    self.FscanH.BSPV = ""
 
-        if self.outer_after_wait.connected:
-            self.outer_after_wait.value = 0
-            self.Fscan1.ASPV = self.outer_after_wait.pvname
-            self.Fscan1.ASWAIT = 0
-            self.Scan1.ASWAIT = 0
-        else:
-            if self.Fscan1 is not None:
-                self.Fscan1.ASPV = ""
+            if self.inner_after_wait.connected:
+                self.inner_after_wait.value = 0
+                self.FscanH.ASPV = self.inner_after_wait.pvname
+                self.FscanH.ASWAIT = 0
+                self.ScanH.ASWAIT = 0
+            else:
+                if self.FscanH is not None:
+                    self.FscanH.ASPV = ""
 
-        if self.x_motor is None or self.y_motor is None or self.Fscan1 is None or self.FscanH is None \
-                or self.Scan2 is None or self.ScanH is None or self.Scan1 is None:
-            print("One or more crucial PVs not connected ")
-            self.backend_ready = False
-        else:
-            self.backend_ready =True
-            self.save_settings()
+            if self.outer_after_wait.connected:
+                self.outer_after_wait.value = 0
+                self.Fscan1.ASPV = self.outer_after_wait.pvname
+                self.Fscan1.ASWAIT = 0
+                self.Scan1.ASWAIT = 0
+            else:
+                if self.Fscan1 is not None:
+                    self.Fscan1.ASPV = ""
 
+            if self.x_motor is None or self.y_motor is None or self.Fscan1 is None or self.FscanH is None \
+                    or self.Scan2 is None or self.ScanH is None or self.Scan1 is None:
+                print("One or more crucial PVs not connected ")
+                self.backend_ready = False
+            else:
+                self.backend_ready =True
+                self.save_settings()
+
+        except:
+            pass
     def alt_scanning(self):
         #TODO: if no scan records specified, need to create alternate method of scanning and implement the following.
         #metho of signaling busy records
@@ -236,8 +243,8 @@ class BatchSetup(object):
     def run_scan(self,scan, scan_type):
 
         if scan_type == "fly":
-            self.init_pvs(scan, scan_type)
             self.reset_detector()
+            self.init_pvs(scan, scan_type)
             self.x_motor.VELO = self.fast_speed
             self.x_motor.VAL = self.FscanH.P1SP
             self.y_motor.VAL = self.Fscan1.P1SP
@@ -249,6 +256,7 @@ class BatchSetup(object):
             tick = time.time()
             while not self.done:
                 self.check_busy()
+                time.sleep(0.1)
                 if self.check_done():
                     tock = time.time() - tick
                     if tock < 5:
@@ -266,6 +274,7 @@ class BatchSetup(object):
                     print("finished in {} seconds.".format(finish))
 
         if scan_type == "step":
+            self.reset_detector()
             self.init_pvs(scan, scan_type)
             self.x_motor.VELO = self.fast_speed
             self.x_motor.VAL = self.ScanH.P1SP
@@ -278,6 +287,7 @@ class BatchSetup(object):
             tick = time.time()
             while not self.done:
                 self.check_busy_step()
+                time.sleep(0.1)
                 if self.check_done_step():
                     self.ScanH.NPTS = 1
                     self.Scan1.NPTS = 1
@@ -339,7 +349,7 @@ class BatchSetup(object):
             self.Fscan1.P1PV = self.y_motor._prefix.split(".")[0]
 
         if self.STRUCK is not None:
-            self.FscanH.T1PV = self.STRUCK._prefix + "EraseStart"
+            self.FscanH.T3PV = self.STRUCK._prefix + "EraseStart"
         else:
             pass
         if self.XMAP is not None:
@@ -349,8 +359,8 @@ class BatchSetup(object):
             pass
         if self.XSPRESS3 is not None:
             #! self.Fscan1.T1PV = self.XSPRESS3._prefix + "det1:ERASE"
-            self.FscanH.T1PV = self.XSPRESS3._prefix + "HDF1:Capture"
-            self.FscanH.T2PV = self.XSPRESS3._prefix + "det1:Acquire"
+            self.FscanH.T1PV = self.XSPRESS3._prefix + "HDF5:Capture"
+            self.FscanH.T2PV = self.XSPRESS3._prefix + "Acquire"
             self.Fscan1.T4PV = self.FscanH._prefix + "EXSC"
         else:
             pass
@@ -381,7 +391,7 @@ class BatchSetup(object):
             self.Scan1.T4PV = ""
             self.Scan1.P1PV = self.y_motor._prefix.split(".")[0]
         if self.STRUCK is not None:
-            self.ScanH.T1PV = self.STRUCK._prefix + "EraseStart"
+            self.ScanH.T3PV = self.STRUCK._prefix + "EraseStart"
         else:
             pass
 
@@ -392,8 +402,8 @@ class BatchSetup(object):
             pass
 
         if self.XSPRESS3 is not None:
-            self.ScanH.T2PV = self.XSPRESS3._prefix + "det1:Acquire"
-            self.ScanH.T1PV = self.XSPRESS3._prefix + "HDF1:Capture"
+            self.ScanH.T1PV = self.XSPRESS3._prefix + "HDF5:Capture"
+            self.ScanH.T2PV = self.XSPRESS3._prefix + "Acquire"
             self.Scan1.T4PV = self.ScanH._prefix + "EXSC"
             #! self.Scan1.T1PV = self.XSPRESS3._prefix + "det1:ERASE"
         else:
@@ -432,7 +442,8 @@ class BatchSetup(object):
             self.outer_after_wait.value = 0
 
         if scan_type == "fly":
-            abort_PV = self.FscanH._prefix.split(":")[0]+":FAbortScans.PROC"
+            #TODO: abort button may vary from scan to scan
+            abort_PV = self.FscanH._prefix.split(":")[0]+":PSAbortScans.PROC"
             epics.caput(abort_PV,1)
             time.sleep(0.1)
             epics.caput(abort_PV,1)
@@ -455,6 +466,12 @@ class BatchSetup(object):
                 #TODO: setting numImages took forever for some reason
                 self.XSPRESS3.NumImages = x_npts - 2
                 self.XSPRESS3.AcquireTime = dwell
+            if self.STRUCK is not None:
+                self.STRUCK.NuseAll = x_npts - 2
+                self.STRUCK.Dwell = dwell*1000
+                #setup struck here:
+                print("settings up struck")
+                pass
 
         if scan_type == "step":
             abort_PV = self.ScanH._prefix.split(":")[0]+":AbortScans.PROC"
@@ -475,11 +492,15 @@ class BatchSetup(object):
             self.fast_speed = 5
             self.scan_speed = (xwidth / x_npts) / dwell
 
-
             if self.XSPRESS3 is not None:
                 self.XSPRESS3.NumImages = x_npts - 2
                 self.XSPRESS3.AcquireTime = dwell
-
+            if self.STRUCK is not None:
+                self.STRUCK.NuseAll = x_npts - 2
+                self.STRUCK.Dwell = dwell*1000
+                #setup struck here:
+                print("settings up struck")
+                pass
         else:
             #TODO: reserve for future scan types
             pass
@@ -576,7 +597,6 @@ class BatchSetup(object):
                 status = self.XSPRESS3.Acquire_RBV
                 xp3_retry+=1
                 if xp3_retry >=0:
-                    # print("detecotor might not ready")
                     self.XSPRESS3.stop()
                     return False
                 else:
@@ -606,8 +626,8 @@ class BatchSetup(object):
         stepsPerPixel = np.floor(np.abs(innerScanStepSize / fastPositionerResolution) + 0.0001)
         self.STRUCK.PresetReal = 0.0
         self.STRUCK.NuseAll = innerScanNumPoints - 2
-        self.STRUCK.Prescale = 1
-        self.STRUCK.CurrentChannel = 0
+        self.STRUCK.Prescale = 9
+        self.STRUCK.EraseAll = 1
 
     def setup_triggers(self):
 
@@ -833,7 +853,7 @@ class BatchSetup(object):
         return
 
     def abort_scan(self):
-        abort_PV = self.FscanH._prefix.split(":")[0]+":FAbortScans.PROC"
+        abort_PV = self.FscanH._prefix.split(":")[0]+":PSAbortScans.PROC"
         epics.caput(abort_PV,1)
         time.sleep(0.1)
         epics.caput(abort_PV,1)
@@ -864,6 +884,12 @@ class BatchSetup(object):
         return
 
     def cleanup(self):
-        self.restore_scan_record()
+        # self.restore_scan_record()
         self.reset_detector()
+        self.inner_before_wait.value = 0
+        self.inner_after_wait.value = 0
+        self.outer_before_wait.value = 0
+        self.outer_after_wait.value = 0
+
+
         return
