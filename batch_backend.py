@@ -626,7 +626,10 @@ class BatchSetup(object):
         stepsPerPixel = np.floor(np.abs(innerScanStepSize / fastPositionerResolution) + 0.0001)
         self.STRUCK.PresetReal = 0.0
         self.STRUCK.NuseAll = innerScanNumPoints - 2
-        self.STRUCK.Prescale = 9
+
+        #if using step pak,
+        self.STRUCK.Prescale = int(self.FscanH.P1SI/self.x_motor.MRES)
+        #if using hydra, set prescale to 1.
         self.STRUCK.EraseAll = 1
 
     def setup_triggers(self):
@@ -884,7 +887,7 @@ class BatchSetup(object):
         return
 
     def cleanup(self):
-        # self.restore_scan_record()
+        self.restore_scan_record()
         self.reset_detector()
         self.inner_before_wait.value = 0
         self.inner_after_wait.value = 0
