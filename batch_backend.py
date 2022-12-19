@@ -42,6 +42,8 @@ class BatchSetup(object):
         self.done = False
 
         try:
+            #TODO: might need to configure EPICS_CA_ADDR_LIST in client computer to talk to xspress3 PVS
+            #do this in ~/.tcshrc file along with any other aliases and
             os.environ["EPICS_CA_ADDR_LIST"] = "164.54.108.30"
             self.XSPRESS3 = epics.devices.xspress3.Xspress310(self.xp3)
             self.XSPRESS3._pvs["HDF5:FilePath"].put(self.savePath)
@@ -235,7 +237,7 @@ class BatchSetup(object):
         ScanH_save = self.ScanH.save_state()
         save_list = [Fscan1_save, FscanH_save, Scan1_save, Scan2_save, ScanH_save]
 
-        with open('saved_settings.pkl', 'wb') as f:
+        with open('default_settings.pkl', 'wb') as f:
             pickle.dump(save_list, f)
         return
 
@@ -322,8 +324,9 @@ class BatchSetup(object):
 
     #restore scan record from file
     def restore_scan_record(self):
-        with open('saved_settings.pkl', 'rb') as f:
+        with open('default_settings.pkl', 'rb') as f:
             loaded_list = pickle.load(f)
+
         self.Fscan1.restore_state(loaded_list[0])
         self.FscanH.restore_state(loaded_list[1])
         self.Scan1.restore_state(loaded_list[2])
@@ -466,12 +469,13 @@ class BatchSetup(object):
                 #TODO: setting numImages took forever for some reason
                 self.XSPRESS3.NumImages = x_npts - 2
                 self.XSPRESS3.AcquireTime = dwell
-            if self.STRUCK is not None:
-                self.STRUCK.NuseAll = x_npts - 2
-                self.STRUCK.Dwell = dwell*1000
+
+            #THIS IS ALREADY SETSET IN before_inner()
+            # if self.STRUCK is not None:
+                # self.STRUCK.NuseAll = x_npts - 2
+                # self.STRUCK.Dwell = dwell*1000
                 #setup struck here:
-                print("settings up struck")
-                pass
+                # print("setting up struck")
 
         if scan_type == "step":
             abort_PV = self.ScanH._prefix.split(":")[0]+":AbortScans.PROC"
@@ -495,12 +499,13 @@ class BatchSetup(object):
             if self.XSPRESS3 is not None:
                 self.XSPRESS3.NumImages = x_npts - 2
                 self.XSPRESS3.AcquireTime = dwell
-            if self.STRUCK is not None:
-                self.STRUCK.NuseAll = x_npts - 2
-                self.STRUCK.Dwell = dwell*1000
+
+            # THIS IS ALREADY SETSET IN before_inner()
+                # if self.STRUCK is not None:
+            #     self.STRUCK.NuseAll = x_npts - 2
+            #     self.STRUCK.Dwell = dwell*1000
                 #setup struck here:
-                print("settings up struck")
-                pass
+                # print("settings up struck")
         else:
             #TODO: reserve for future scan types
             pass
@@ -579,7 +584,7 @@ class BatchSetup(object):
                 status = self.STRUCK.Acquiring
                 struck_retry+=1
                 if struck_retry >=0:
-                    # print("struck might not ready")
+                    print("struck retrying...")
                     self.STRUCK.StopAll = 0
                     return False
                 else:
@@ -587,11 +592,13 @@ class BatchSetup(object):
             return True
 
     def check_readout_system(self):
+        #TODO: check readout system ready logic. it's returning true when it's not ready to begin acquring.
         xp3_retry = 0
         status = 0
         if self.XSPRESS3 is not None:
             acquiring = self.XSPRESS3.Acquire_RBV
             arr_cntr = self.XSPRESS3.ArrayCounter_RBV
+            # state = self.XSPRESS3
 
             while acquiring == 1 and arr_cntr > 0:
                 status = self.XSPRESS3.Acquire_RBV
@@ -671,6 +678,8 @@ class BatchSetup(object):
             while not ready:
                 retry+=1
                 if retry >=10:
+                    print("before outer retry >10")
+
                     if self.STRUCK is not None:
                         self.STRUCK.StopAll = 0
                     self.XSPRESS3.stop()
@@ -721,8 +730,10 @@ class BatchSetup(object):
                 struck_ready = True
 
             ready = not_paused and detector_ready and struck_ready and in_position
+
             retry = 0
             while not ready:
+                print("not ready...")
                 if not struck_ready:
                     struck_ready = self.check_struck()
                 if not detector_ready:
@@ -735,6 +746,7 @@ class BatchSetup(object):
 
                 retry+=1
                 if retry >=10:
+                    print("before inner retrying...")
                     if not struck_ready:
                         self.STRUCK.StopAll= 0
                     if not detector_ready:
@@ -868,6 +880,7 @@ class BatchSetup(object):
         epics.caput(abort_PV,1)
         time.sleep(0.1)
         epics.caput(abort_PV,1)
+
         self.reset_detector()
         return
 
@@ -887,7 +900,7 @@ class BatchSetup(object):
         return
 
     def cleanup(self):
-        self.restore_scan_record()
+        # self.restore_scan_record()
         self.reset_detector()
         self.inner_before_wait.value = 0
         self.inner_after_wait.value = 0

@@ -243,7 +243,6 @@ class Launcher(object):
         if not self.backend.backend_ready:
             print("scan record not connected")
             return
-
         lines = [vars(self.gui)[i] for i in self.gui.line_names]
         line_actions = [line.line_action.currentText() for line in lines]
 
@@ -272,8 +271,8 @@ class Launcher(object):
             r_width = eval(line.r_width.text())
             if self.threading_mode == 1:
                 print("h1")
-                self.thread3.quit()
-                self.thread3.wait()
+                self.thread3 = myThreads(self, 3, "run_scan")
+                self.thread3.lineFinishSig.connect(self.line_finished_sig)
                 self.thread3.params = [r_center, r_npts, r_width, scan, scan_type]
                 self.thread3.exit_flag = 0
                 self.thread3.start()
@@ -285,8 +284,8 @@ class Launcher(object):
         else:
             if self.threading_mode == 1:
                 print("h3")
-                self.thread3.quit()
-                self.thread3.wait()
+                self.thread3 = myThreads(self, 3, "run_scan")
+                self.thread3.lineFinishSig.connect(self.line_finished_sig)
                 self.thread3.params = [scan, scan_type]
                 self.thread3.exit_flag = 0
                 self.thread3.start()
@@ -355,8 +354,8 @@ class Launcher(object):
 
                 if self.threading_mode == 1:
                     print("l1")
-                    self.thread3.quit()
-                    self.thread3.wait()
+                    self.thread3 = myThreads(self, 3, "run_scan")
+                    self.thread3.lineFinishSig.connect(self.line_finished_sig)
                     self.thread3.params = [r_center, r_npts, r_width, scan, scan_type]
                     self.thread3.exit_flag = 0
                     self.thread3.start()
@@ -367,8 +366,8 @@ class Launcher(object):
             else:
                 print("l3")
                 if self.threading_mode == 1:
-                    self.thread3.quit()
-                    self.thread3.wait()
+                    self.thread3 = myThreads(self, 3, "run_scan")
+                    self.thread3.lineFinishSig.connect(self.line_finished_sig)
                     self.thread3.params = [scan, scan_type]
                     self.thread3.exit_flag = 0
                     self.thread3.start()
@@ -406,12 +405,18 @@ class Launcher(object):
         if not self.backend.backend_ready:
             print("scan record not connected")
             return
-        self.backend.abort_scan()
         try:
             self.thread3.exit_flag = 1
+            self.thread3.quit()
+            # self.thread3.wait()
+            print("thread3 exit flag set")
         except:
+            print("error aborting scan")
             pass
+        self.backend.abort_scan()
+        #TODO: set current scan line action to skip
         self.gui.controls.status_bar.setText("Aborting Line")
+        return
 
     def abort_all_clicked(self):
         #TODO: disable when clicked once and enable when scan completed or abort_all pressed.
@@ -427,6 +432,7 @@ class Launcher(object):
         lines = [vars(self.gui)[i] for i in self.gui.line_names]
         for line in lines:
             line.line_action.setCurrentIndex(0)
+        return
 
     def calculate_points_clicked(self):
         self.gui.points_clicked()
@@ -452,11 +458,9 @@ class Launcher(object):
         self.thread1.timer = 60
         self.thread2 = myThreads(self, 2, "eta countdown")
         self.thread2.timer = 10
-        self.thread3 = myThreads(self, 3, "run_scan")
 
         self.thread1.saveSig.connect(self.gui.save_session)
         self.thread2.etaSig.connect(self.calculate_global_eta)
-        self.thread3.lineFinishSig.connect(self.line_finished_sig)
         self.thread1.start()
         self.thread2.start()
 

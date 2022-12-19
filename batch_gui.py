@@ -36,6 +36,9 @@ class BatchScanGui(QtWidgets.QMainWindow):
             setattr(self, v, Line())
         self.initUI()
         self.restore_session()
+
+        self.setFixedWidth(1200)
+
         self.show()
 
     def initUI(self):
@@ -119,9 +122,9 @@ class BatchScanGui(QtWidgets.QMainWindow):
         viewMenu.addAction(self.tomoAction)
         viewMenu.addAction(self.miscviewAction)
 
-        self.wid.resize(1200, 800)
 
     def tomoview_changed(self):
+        #TODO: third and fourth condition where if Misc view is checked/unchecked
         for line in range(self.num_lines):
             self.__dict__[self.line_names[line]].r_center.setVisible(False)
             self.__dict__[self.line_names[line]].r_points.setVisible(False)
@@ -130,7 +133,6 @@ class BatchScanGui(QtWidgets.QMainWindow):
         self.header.r_points.setVisible(False)
         self.header.r_width.setVisible(False)
         if self.tomoAction.isChecked():
-            self.wid.resize(1400, 800)
             self.header.r_center.setVisible(True)
             self.header.r_points.setVisible(True)
             self.header.r_width.setVisible(True)
@@ -138,10 +140,18 @@ class BatchScanGui(QtWidgets.QMainWindow):
                 self.__dict__[self.line_names[line]].r_center.setVisible(True)
                 self.__dict__[self.line_names[line]].r_points.setVisible(True)
                 self.__dict__[self.line_names[line]].r_width.setVisible(True)
+            if self.miscviewAction.isChecked():
+                self.setFixedWidth(1750)
+            else:
+                self.setFixedWidth(1400)
         else:
-            self.wid.resize(1200, 800)
+            if self.miscviewAction.isChecked():
+                self.setFixedWidth(1500)
+            else:
+                self.setFixedWidth(1200)
 
     def miscview_changed(self):
+        #TODO: third and fourth condition where if tomo view is checked/unchecked
         for line in range(self.num_lines):
             self.__dict__[self.line_names[line]].save_message.setVisible(False)
             self.__dict__[self.line_names[line]].start_time.setVisible(False)
@@ -151,6 +161,17 @@ class BatchScanGui(QtWidgets.QMainWindow):
                 self.__dict__[self.line_names[line]].save_message.setVisible(True)
                 self.__dict__[self.line_names[line]].start_time.setVisible(True)
                 self.__dict__[self.line_names[line]].finish_time.setVisible(True)
+            if self.tomoAction.isChecked():
+                self.setFixedWidth(1750)
+            else:
+                self.setFixedWidth(1500)
+        else:
+            if self.tomoAction.isChecked():
+                self.setFixedWidth(1400)
+            else:
+                self.setFixedWidth(1200)
+
+
 
     def line_changed(self):
         checked_lines = []
@@ -554,7 +575,7 @@ class Controls(QtWidgets.QWidget):
             elif isinstance(item,QtWidgets.QComboBox):
                 item.setStyleSheet("background: lightyellow; color: black")
             elif isinstance(item, QtWidgets.QPushButton):
-                item.setStyleSheet("background: lightgreen;color: black; border-radius: 4")
+                item.setStyleSheet("QPushButton {background: lightgreen;color: black; border-radius: 4;}" "QPushButton::pressed {background-color: darkgreen;}")
             elif isinstance(item,QtWidgets.QRadioButton):
                 item.setStyleSheet("background: white;color: black; border-radius: 4")
             else:
@@ -813,7 +834,7 @@ class Line(QtWidgets.QWidget):
                         value = eval(item.text())
                         if value<0:
                             if item.isEnabled():
-                                if key == "r_center" or key == "x_center":
+                                if key == "r_center" or key == "x_center" or key == "y_center" or key == "x_width" or key == "y_width":
                                     item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
                                 else:
                                     item.setStyleSheet("background: lightcoral; color: black; border-radius: 4")
@@ -844,7 +865,7 @@ class Line(QtWidgets.QWidget):
                 # item.setStyleSheet("background: lightyellow;border: 2px red; color: black")
                 item.setStyleSheet("background: lightyellow; color: black")
             elif isinstance(item, QtWidgets.QPushButton):
-                item.setStyleSheet("background: lightgreen;color: black; border-radius: 4")
+                item.setStyleSheet("QPushButton {background: lightgreen;color: black; border-radius: 4;}" "QPushButton::pressed {background-color: darkgreen;}")
             elif isinstance(item,QtWidgets.QRadioButton):
                 item.setStyleSheet("background: white;color: black; border-radius: 4")
             else:
