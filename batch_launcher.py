@@ -1,5 +1,7 @@
 from PyQt6 import QtCore, QtGui, QtWidgets
+# from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import pyqtSignal
+# from PyQt5.QtCore import pyqtSignal
 
 import batch_gui
 import batch_backend

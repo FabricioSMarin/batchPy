@@ -1,4 +1,5 @@
 from PyQt6 import QtCore, QtGui, QtWidgets
+# from PyQt5 import QtCore, QtGui, QtWidgets
 from epics import *
 # import batch_settings
 import time
