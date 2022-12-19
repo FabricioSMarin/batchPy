@@ -15,7 +15,6 @@ from datetime import datetime
 class BatchSetup(object):
     #get pv names from gui and check pvs are connected
     def __init__(self):
-        timeout = 0.05
         #THESE INSTANCE VARS ARE IN A SPECIFIC ORDER, must match teh pkl file.
         self.ibw = ""
         self.iaw = ""
@@ -41,6 +40,8 @@ class BatchSetup(object):
         self.backend_ready = False
         self.done = False
 
+    def connect_pvs(self):
+        timeout = 0.1
         try:
             #TODO: might need to configure EPICS_CA_ADDR_LIST in client computer to talk to xspress3 PVS
             #do this in ~/.tcshrc file along with any other aliases and
@@ -61,10 +62,10 @@ class BatchSetup(object):
         #     print("xspress3  not connected")
 
         try:
-            if True:
+            try:
                 # if epics.devices.struck.Struck.PV(epics.Device, self.struck, timeout = timeout).value is not None:
                 self.STRUCK = epics.devices.struck.Struck(self.struck)
-            else:
+            except:
                 self.STRUCK = None
                 print("struck not connected")
 
@@ -177,9 +178,11 @@ class BatchSetup(object):
             else:
                 self.backend_ready =True
                 self.save_settings()
-
         except:
             pass
+
+        return
+
     def alt_scanning(self):
         #TODO: if no scan records specified, need to create alternate method of scanning and implement the following.
         #metho of signaling busy records
@@ -246,7 +249,7 @@ class BatchSetup(object):
 
         if scan_type == "fly":
             self.reset_detector()
-            self.init_pvs(scan, scan_type)
+            self.init_scan(scan, scan_type)
             self.x_motor.VELO = self.fast_speed
             self.x_motor.VAL = self.FscanH.P1SP
             self.y_motor.VAL = self.Fscan1.P1SP
@@ -277,7 +280,7 @@ class BatchSetup(object):
 
         if scan_type == "step":
             self.reset_detector()
-            self.init_pvs(scan, scan_type)
+            self.init_scan(scan, scan_type)
             self.x_motor.VELO = self.fast_speed
             self.x_motor.VAL = self.ScanH.P1SP
             self.y_motor.VAL = self.Scan1.P1SP
@@ -425,7 +428,7 @@ class BatchSetup(object):
         else: self.Scan1.BSPV = ""
 
 
-    def init_pvs(self, scan, scan_type):
+    def init_scan(self, scan, scan_type):
         # unit_sf = 1/1000
         unit_sf = 1
         xcenter, ycenter, xwidth, ywidth, x_npts, y_npts, dwell = scan[0]*unit_sf, scan[1]*unit_sf, scan[2]*unit_sf, \

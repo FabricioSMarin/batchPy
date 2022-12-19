@@ -67,7 +67,8 @@ class BatchScanGui(QtWidgets.QMainWindow):
         self.line_0.current_line.setChecked(True)
         self.closeAction = QtGui.QAction(' &close', self)
         self.closeAction.setShortcut(' Ctrl+Q')
-        self.initRecordAction = QtGui.QAction(" &init PVs", self)
+        self.initRecordAction = QtGui.QAction(" &init scan record", self)
+        self.initPVsAction = QtGui.QAction(" init PVs ", self)
         self.openAction = QtGui.QAction(' &open PV config', self)
         self.openAction.setShortcut(' Ctrl+O')
         self.saveAction = QtGui.QAction(' &save session', self)
@@ -114,6 +115,7 @@ class BatchScanGui(QtWidgets.QMainWindow):
         fileMenu.addAction(self.saveAction)
 
         settingsMenu = menubar.addMenu(' &Settings')
+        settingsMenu.addAction(self.initPVsAction)
         settingsMenu.addAction(self.initRecordAction)
         settingsMenu.addMenu(show_lines)
         settingsMenu.addMenu(update_interval)

@@ -23,6 +23,7 @@ class Launcher(object):
         self.gui = batch_gui.BatchScanGui(app)
         self.gui.closeAction.triggered.connect(sys.exit)
         self.gui.initRecordAction.triggered.connect(self.initialize_record)
+        self.gui.initPVsAction.triggered.connect(self.connect_pvs)
         self.gui.openAction.triggered.connect(self.open_PVconfig)
         self.gui.controls.setup_btn.clicked.connect(self.setup_clicked)
         self.gui.controls.import_btn.clicked.connect(self.import_clicked)
@@ -58,6 +59,9 @@ class Launcher(object):
 
     def initialize_record(self):
         self.backend.init_scan_record()
+    def connect_pvs(self):
+        self.backend.connect_pvs()
+
     def screenshot_window(self):
         # date = datetime.now()
         # filename = date.strftime('%Y-%m-%d_%H-%M-%S.jpg')
