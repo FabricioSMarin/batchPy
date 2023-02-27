@@ -37,9 +37,7 @@ class BatchScanGui(QtWidgets.QMainWindow):
             setattr(self, v, Line())
         self.initUI()
         self.restore_session()
-
         self.setFixedWidth(1200)
-
         self.show()
 
     def initUI(self):
@@ -125,7 +123,6 @@ class BatchScanGui(QtWidgets.QMainWindow):
         viewMenu.addAction(self.tomoAction)
         viewMenu.addAction(self.miscviewAction)
 
-
     def tomoview_changed(self):
         #TODO: third and fourth condition where if Misc view is checked/unchecked
         for line in range(self.num_lines):
@@ -174,8 +171,6 @@ class BatchScanGui(QtWidgets.QMainWindow):
             else:
                 self.setFixedWidth(1200)
 
-
-
     def line_changed(self):
         checked_lines = []
         for line in range(self.show_lines):
@@ -186,7 +181,6 @@ class BatchScanGui(QtWidgets.QMainWindow):
             self.__dict__[self.line_names[line]].current_line.setChecked(False)
 
         last_clicked.setChecked(True)
-
 
     def update_npts(self, line_number):
         x_step = eval(self.controls.x_step.text())
@@ -242,7 +236,6 @@ class BatchScanGui(QtWidgets.QMainWindow):
         else:
             for i in range(self.show_lines):
                 self.update_npts(i)
-
 
     def num_lines_changed(self):
         show_lines_options = self.num_lines//5
@@ -610,8 +603,6 @@ class Controls(QtWidgets.QWidget):
             else:
                 pass
 
-
-
 class Header(QtWidgets.QWidget):
     def __init__(self):
         super(Header, self).__init__()
@@ -688,7 +679,6 @@ class Header(QtWidgets.QWidget):
                 pass
         line.setContentsMargins(0,10,0,0)
         self.setLayout(line)
-
 
 class Line(QtWidgets.QWidget):
     def __init__(self):

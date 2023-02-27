@@ -9,6 +9,7 @@ import time
 import numpy as np
 import pickle
 import os
+
 from datetime import datetime
 
 
@@ -230,9 +231,22 @@ class BatchSetup(object):
                     print("setting PV {} in {}".format(settings[i], key))
                 except:
                     print("cannot put {} in {}".format(settings[i], key))
+                    return
+            try:
+                save_list = ["settings", datetime.now(), settings, "default_settings.pkl", 1]
+                cwd = os.path.dirname(os.path.abspath(__file__)) + "/"
+                with open(cwd + "default_settings.pkl", 'wb') as f:
+                    pickle.dump(save_list, f)
+                    f.close()
+                return
+            except IOError as e:
+                print(e)
         return
+
     #copy scan record settings, save to file
-    def save_settings(self):
+    def save_scanrecord_settings(self):
+        current_dir = os.path.dirname(os.path.abspath(__file__))+"/"
+        file = "scanrecord_settings.pkl"
         Fscan1_save = self.Fscan1.save_state()
         FscanH_save = self.FscanH.save_state()
         Scan1_save = self.Scan1.save_state()
@@ -240,9 +254,16 @@ class BatchSetup(object):
         ScanH_save = self.ScanH.save_state()
         save_list = [Fscan1_save, FscanH_save, Scan1_save, Scan2_save, ScanH_save]
 
-        with open('default_settings.pkl', 'wb') as f:
-            pickle.dump(save_list, f)
+        if os.path.exists(current_dir+file):
+            with open(current_dir+file, 'rb') as f:
+                pickle.dump(save_list, f)
+        else:
+            with open(current_dir+file, 'wb') as f:
+                pickle.dump(save_list, f)
+                f.close()
         return
+
+
 
     # for each scan: run it.
     def run_scan(self,scan, scan_type):
@@ -450,6 +471,7 @@ class BatchSetup(object):
         if scan_type == "fly":
             #TODO: abort button may vary from scan to scan
             abort_PV = self.FscanH._prefix.split(":")[0]+":PSAbortScans.PROC"
+            abort_PV = self.FscanH._prefix.split(":")[0]+":FAbortScans.PROC"
             epics.caput(abort_PV,1)
             time.sleep(0.1)
             epics.caput(abort_PV,1)
@@ -472,6 +494,13 @@ class BatchSetup(object):
                 #TODO: setting numImages took forever for some reason
                 self.XSPRESS3.NumImages = x_npts - 2
                 self.XSPRESS3.AcquireTime = dwell
+                fname = caget(self.savePath, as_string=True)
+                if len(fname) < 1:
+                    prefix = self.FscanH._prefix.split(":")[0]+":"
+                    fname = str(prefix)+"_0000"
+                    # 2ideXS1:HDF1:FileName
+                self.XSPRESS3.FileName = fname
+                self.XSPRESS3.nextFileNumber = 0
 
             #THIS IS ALREADY SETSET IN before_inner()
             # if self.STRUCK is not None:
