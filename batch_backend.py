@@ -46,7 +46,8 @@ class BatchSetup(object):
         try:
             #TODO: might need to configure EPICS_CA_ADDR_LIST in client computer to talk to xspress3 PVS
             #do this in ~/.tcshrc file along with any other aliases and
-            os.environ["EPICS_CA_ADDR_LIST"] = "164.54.108.30"
+            # os.environ["EPICS_CA_ADDR_LIST"] = "164.54.108.30"
+            os.environ["EPICS_CA_ADDR_LIST"] = "164.54.113.18"
             self.XSPRESS3 = epics.devices.xspress3.Xspress310(self.xp3)
             self.XSPRESS3._pvs["HDF5:FilePath"].put(self.savePath)
             self.XSPRESS3.TriggerMode = 3  # 3 = external, 1=internal
@@ -360,7 +361,11 @@ class BatchSetup(object):
 
     #set detector triggers in scan records
     def init_scan_record(self):
-        caput(self.delay_calc.split(".")[0] + ".OUTN", self.x_motor._prefix.split(".")[0] + ".VAL")
+        try:
+            caput(self.delay_calc.split(".")[0] + ".OUTN", self.x_motor._prefix.split(".")[0] + ".VAL")
+        except:
+            print("setup error")
+            return
         if self.FscanH is not None:
             self.FscanH.T1PV = ""
             self.FscanH.T2PV = ""
@@ -386,8 +391,8 @@ class BatchSetup(object):
             pass
         if self.XSPRESS3 is not None:
             #! self.Fscan1.T1PV = self.XSPRESS3._prefix + "det1:ERASE"
-            self.FscanH.T1PV = self.XSPRESS3._prefix + "HDF5:Capture"
-            self.FscanH.T2PV = self.XSPRESS3._prefix + "Acquire"
+            self.FscanH.T1PV = self.XSPRESS3._prefix + "HDF1:Capture"
+            self.FscanH.T2PV = self.XSPRESS3._prefix + "det1:Acquire"
             self.Fscan1.T4PV = self.FscanH._prefix + "EXSC"
         else:
             pass
@@ -429,8 +434,8 @@ class BatchSetup(object):
             pass
 
         if self.XSPRESS3 is not None:
-            self.ScanH.T1PV = self.XSPRESS3._prefix + "HDF5:Capture"
-            self.ScanH.T2PV = self.XSPRESS3._prefix + "Acquire"
+            self.ScanH.T1PV = self.XSPRESS3._prefix + "HDF1:Capture"
+            self.ScanH.T2PV = self.XSPRESS3._prefix + "det1:Acquire"
             self.Scan1.T4PV = self.ScanH._prefix + "EXSC"
             #! self.Scan1.T1PV = self.XSPRESS3._prefix + "det1:ERASE"
         else:
@@ -470,7 +475,7 @@ class BatchSetup(object):
 
         if scan_type == "fly":
             #TODO: abort button may vary from scan to scan
-            abort_PV = self.FscanH._prefix.split(":")[0]+":PSAbortScans.PROC"
+            # abort_PV = self.FscanH._prefix.split(":")[0]+":PSAbortScans.PROC"
             abort_PV = self.FscanH._prefix.split(":")[0]+":FAbortScans.PROC"
             epics.caput(abort_PV,1)
             time.sleep(0.1)
@@ -618,6 +623,7 @@ class BatchSetup(object):
                 if struck_retry >=0:
                     print("struck retrying...")
                     self.STRUCK.StopAll = 0
+                    self.STRUCK.Acquiring = 0
                     return False
                 else:
                     return True
@@ -628,7 +634,7 @@ class BatchSetup(object):
         xp3_retry = 0
         status = 0
         if self.XSPRESS3 is not None:
-            acquiring = self.XSPRESS3.Acquire_RBV
+            acquiring = self.XSPRESS3.Acquire
             arr_cntr = self.XSPRESS3.ArrayCounter_RBV
             # state = self.XSPRESS3
 
@@ -702,13 +708,21 @@ class BatchSetup(object):
             detector_ready = self.check_readout_system()
             if self.STRUCK is not None:
                 struck_ready = self.check_struck()
-                ready = not_paused and struck_ready
+                ready = not_paused and struck_ready and detector_ready
             else:
-                ready = True
+                ready = not_paused and detector_ready
 
             retry = 0
             while not ready:
                 retry+=1
+                not_paused = (self.Fscan1.pause != 1 and self.FscanH.WCNT == 0 and self.Fscan1.WCNT == 0)
+                detector_ready = self.check_readout_system()
+                if self.STRUCK is not None:
+                    struck_ready = self.check_struck()
+                    ready = not_paused and struck_ready and detector_ready
+                else:
+                    ready = not_paused and detector_ready
+
                 if retry >=10:
                     print("before outer retry >10")
 
@@ -900,7 +914,8 @@ class BatchSetup(object):
         return
 
     def abort_scan(self):
-        abort_PV = self.FscanH._prefix.split(":")[0]+":PSAbortScans.PROC"
+        #TODO: abort PV may differ from beamline to beamline
+        abort_PV = self.FscanH._prefix.split(":")[0]+":FAbortScans.PROC"
         epics.caput(abort_PV,1)
         time.sleep(0.1)
         epics.caput(abort_PV,1)
@@ -924,6 +939,7 @@ class BatchSetup(object):
         if self.STRUCK is not None:
             self.STRUCK.StopAll = 1
             self.STRUCK.NuseAll = 0
+            self.STRUCK.Acquiring = 0
 
         if self.XMAP is not None:
             # TODO: get XMAP stop PV
