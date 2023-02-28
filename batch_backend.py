@@ -72,6 +72,8 @@ class BatchSetup(object):
             # self.XSPRESS3.TriggerMode = 3  # 3 = external, 1=internal
 
             self.XSPRESS3 = self.create_xspress3(self.xp3)
+            self.XSPRESS3.TriggerMode = 3
+            self.XSPRESS3.FilePath = self.savePath
 
         except:
             self.XSPRESS3 = None
