@@ -47,39 +47,82 @@ class BatchSetup(object):
         xp3 = epics.Device("xspress3")
         pv_list = ["CONNECTED","DetectorState_RBV", "StatusMessage_RBV", "NumImages", "NumImages_RBV", "AcquireTime", "AcquireTime_RBV",
                    "EraseOnStart", "EraseOnStart_RBV", "TriggerMode", "TriggerMode_RBV", "Acquire", "ERASE"]
-
-        writer_list = ["Capture", "Capture_RBV", "FilePath", "FileName", "FileName"]
-
+        writer_list = ["Capture", "Capture_RBV", "FilePath", "FileName", "FileTemplate", "FileNumber", "AutoIncrement", "FilePathExists_RBV"]
         for pv in pv_list:
             xp3.add_pv("{}det1:{}".format(prefix,pv), attr=pv)
-
         for pv in writer_list:
             xp3.add_pv("{}HDF1:{}".format(prefix,pv), attr=pv)
-
         xp3._prefix = prefix
-
         return xp3
+
+    def setup_xspress3_filesaving(self):
+        if self.XSPRESS3 is not None:
+            #TODO: may need to redefine file path to account for mount point discrepancy
+            file_path = epics.caget(self.savePath,as_string=True).split("mda")[0]+"flyXRF"
+            saveDate_fileName = self.savePath.split(":")[0]+(":saveData_fileName.VAL")
+            file_name = epics.caget(saveDate_fileName,as_string=True).split(".")[0]+"_"
+            file_template = "%s%s_%d.hdf5"
+            self.XSPRESS3.FilePath = file_path
+            if self.XSPRESS3.FilePathExists_RBV!=1:
+                print("file path does not exist!")
+                try:
+                    mnt = os.listdir("/mnt")
+                    if len(mnt) == 0:
+                        print("nothing in /mnt directory. micdata probably not mounted...")
+                        new_dir = os.path.expanduser("~")+"/local_xspress3_save"
+                        path_exists = os.path.exists(new_dir)
+                        print("saving to: {}".format(new_dir))
+                        print("When convenient, have IT mount micdata before starting future scans.")
+
+                    elif len(mnt)>0:
+                        print("micdata mount point exists, checking if micdata mounted...")
+                        subdir_len = len(mnt)
+                        save_path_folders = file_path.split("/")[:4]
+                        save_path_folders = [i for i in save_path_folders if i] #remove empty strings from list of strings
+                        if len(os.listdir("/mnt/{}".format(mnt[0])))!=0:
+                            print("micdata mounted, fixing file path...")
+
+                            for i in range(subdir_len):
+                                contents = os.listdir("/mnt/{}".format(mnt[i]))
+                                for folder in save_path_folders:
+                                    if folder in contents:
+                                        print("found {} in /mnt/{}/".format(folder,mnt[i]))
+                                        new_filepath = "/mnt/{}/{}/{}".format(mnt[i],folder, file_path.split(folder)[1])
+                                        file_path = new_filepath
+                                        self.XSPRESS3.FilePath = file_path
+                                        if self.XSPRESS3.FilePathExists_RBV != 1:
+                                            try:
+                                                print("file path does not exist, attemptint to create it...")
+                                                os.system("mkdir {}".format(file_path))
+                                            except:
+                                                print("cannot create file path, check file path or permissions")
+
+                except FileNotFoundError:
+                    print("/mnt directory not found. batchpy needs to run on beamline machine. \n file saving setup failed")
+                    print("setting hardcoded path to user2idd home directory... : /home/beams/USER2IDD/local_xspress3_save")
+                    self.XSPRESS3.FilePath = "/home/beams/USER2IDD/local_xspress3_save"
+
+            self.XSPRESS3.FileName = file_name
+            self.XSPRESS3.FileTemplate = file_template
+            self.XSPRESS3.FileNumber = 0
+            self.XSPRESS3.AutoIncrement = 0
+
     def connect_pvs(self):
         timeout = 0.1
         try:
-
             #TODO: might need to configure EPICS_CA_ADDR_LIST in client computer to talk to xspress3 PVS
             #do this in ~/.tcshrc file along with any other aliases and
             # os.environ["EPICS_CA_ADDR_LIST"] = "164.54.108.30"
             # os.environ["EPICS_CA_ADDR_LIST"] = "164.54.113.18"
-            #TODO: rewrite XSPRESS3 device becuse epics support not working
-
             self.XSPRESS3 = self.create_xspress3(self.xp3)
             self.XSPRESS3.TriggerMode = 3
-            self.XSPRESS3.FilePath = epics.caget(self.savePath,as_string=True)
-
+            self.setup_xspress3_filesaving()
         except:
             self.XSPRESS3 = None
             print("xspress3  not connected")
 
         try:
             try:
-                # if epics.devices.struck.Struck.PV(epics.Device, self.struck, timeout = timeout).value is not None:
                 self.STRUCK = epics.devices.struck.Struck(self.struck)
             except:
                 self.STRUCK = None
@@ -491,6 +534,7 @@ class BatchSetup(object):
             #TODO: abort button may vary from scan to scan
             # abort_PV = self.FscanH._prefix.split(":")[0]+":PSAbortScans.PROC"
             abort_PV = self.FscanH._prefix.split(":")[0]+":FAbortScans.PROC"
+            #TODO: check scan FAZE if not 0 (idle) or 12 (scan done), caput abort 3x
             epics.caput(abort_PV,1)
             time.sleep(0.1)
             epics.caput(abort_PV,1)
@@ -642,24 +686,60 @@ class BatchSetup(object):
                 else:
                     return True
             return True
+        else:
+            return True
 
     def check_readout_system(self):
         #TODO: check readout system ready logic. it's returning true when it's not ready to begin acquring.
         xp3_retry = 0
-        status = 0
+
         if self.XSPRESS3 is not None:
             acquiring = self.XSPRESS3.Acquire
             arr_cntr = self.XSPRESS3.ArrayCounter_RBV
-            # state = self.XSPRESS3
-
-            while acquiring == 1 and arr_cntr > 0:
-                status = self.XSPRESS3.Acquire_RBV
+            file_number = self.XSPRESS3.FileNumber
+            current_line = self.FscanH.CPT
+            capture_ready = self.XSPRESS3.Capture_RBV
+            state = self.XSPRESS3.DetectorState_RBV #[idle, acquire, readout, correct, saving, aborting, error, waiting, init, disconnected, aborted]
+            path_exists = self.XSPRESS3.filePathExists_RBV
+            xp3_retry = 0
+            if path_exists == 0:
+                print("file path does not exist.. attempting fix, cannot save to micdata or to local user.")
+                return False
+            if state == 9:
+                print("xspress3 disconnected.")
+                return False
+            if state == 6:
+                print("xspress3 in error state")
+                return False
+            while xp3_retry <=10:
+                if acquiring==1 and arr_cntr==0 and file_number==current_line and capture_ready==1:
+                    return True
+                if arr_cntr!=0:
+                    self.XSPRESS3.ERASE=1
+                if file_number!=current_line:
+                    self.XSPRESS3.FileNumber = self.FscanH.CPT
+                if capture_ready!=1:
+                    self.XSPRESS3.Acquire=1
+                acquiring = self.XSPRESS3.Acquire
+                arr_cntr = self.XSPRESS3.ArrayCounter_RBV
+                file_number = self.XSPRESS3.FileNumber
+                current_line = self.FscanH.CPT
+                capture_ready = self.XSPRESS3.Capture_RBV
                 xp3_retry+=1
-                if xp3_retry >=0:
-                    self.XSPRESS3.stop()
+
+            while acquiring == 1: #if num frames read at the start of acquisition is not 0, reset it.
+                arr_cntr = self.XSPRESS3.ArrayCounter_RBV
+                if arr_cntr > 0:
+                    self.XSPRESS3.Acquire = 0
+                    # self.XSPRESS3.
+                    xp3_retry += 1
+                elif xp3_retry >=10:
                     return False
+
                 else:
                     return True
+                xp3_retry+=1
+
             return True
 
         if self.XMAP is not None:
@@ -719,30 +799,16 @@ class BatchSetup(object):
         #TODO: sometimes scan is stuck and scan record never sets busy to 1.
         if val == 1:
             not_paused = (self.Fscan1.pause != 1 and self.FscanH.WCNT == 0 and self.Fscan1.WCNT == 0)
-            detector_ready = self.check_readout_system()
-            if self.STRUCK is not None:
-                struck_ready = self.check_struck()
-                ready = not_paused and struck_ready and detector_ready
-            else:
-                ready = not_paused and detector_ready
-
+            struck_ready = self.check_struck()
+            ready = not_paused and struck_ready
             retry = 0
             while not ready:
                 retry+=1
                 not_paused = (self.Fscan1.pause != 1 and self.FscanH.WCNT == 0 and self.Fscan1.WCNT == 0)
-                detector_ready = self.check_readout_system()
-                if self.STRUCK is not None:
-                    struck_ready = self.check_struck()
-                    ready = not_paused and struck_ready and detector_ready
-                else:
-                    ready = not_paused and detector_ready
-
+                struck_ready = self.check_struck()
+                ready = not_paused and struck_ready
                 if retry >=10:
                     print("before outer retry >10")
-
-                    if self.STRUCK is not None:
-                        self.STRUCK.StopAll = 0
-                    self.XSPRESS3.stop()
             self.x_motor.VELO = self.scan_speed
             self.outer_before_wait.value = 0
         else:
@@ -754,20 +820,13 @@ class BatchSetup(object):
         #TODO: sometimes scan is stuck and scan record never sets busy to 1.
         if val == 1:
             not_paused = (self.Scan1.pause != 1 and self.ScanH.WCNT == 0 and self.Scan1.WCNT == 0)
-            # detector_ready = self.check_readout_system()
-            if self.STRUCK is not None:
-                struck_ready = self.check_struck()
-                ready = not_paused and struck_ready
-            else:
-                ready = True
-
+            struck_ready = self.check_struck()
+            ready = not_paused and struck_ready
             retry = 0
             while not ready:
                 retry+=1
                 if retry >=10:
-                    if self.STRUCK is not None:
-                        self.STRUCK.StopAll = 0
-                    self.XSPRESS3.stop()
+                    print("before outer retry >10")
             self.x_motor.VELO = self.scan_speed
             self.outer_before_wait.value = 0
         else:
