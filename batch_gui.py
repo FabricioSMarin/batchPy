@@ -1,9 +1,11 @@
 
 try:
     from PyQt6 import QtCore, QtGui, QtWidgets
+    from PyQt6.QtGui import *
 except:
     print("pyqt6 not installed, trying pyqt5...")
     from PyQt5 import QtCore, QtGui, QtWidgets
+    from PyQt5.QtWidgets import *
 
 import pyqtgraph
 import os
@@ -62,39 +64,39 @@ class BatchScanGui(QtWidgets.QMainWindow):
         self.wid.setLayout(layout)
         self.wid.setStyleSheet("background: white")
         self.line_0.current_line.setChecked(True)
-        self.closeAction = QtGui.QAction(' &close', self)
+        self.closeAction = QAction(' &close', self)
         self.closeAction.setShortcut(' Ctrl+Q')
-        self.initRecordAction = QtGui.QAction(" &init scan record", self)
-        self.initPVsAction = QtGui.QAction(" init PVs ", self)
-        self.openAction = QtGui.QAction(' &open PV config', self)
+        self.initRecordAction = QAction(" &init scan record", self)
+        self.initPVsAction = QAction(" init PVs ", self)
+        self.openAction = QAction(' &open PV config', self)
         self.openAction.setShortcut(' Ctrl+O')
-        self.saveAction = QtGui.QAction(' &save session', self)
+        self.saveAction = QAction(' &save session', self)
         self.saveAction.setShortcut(' Ctrl+S')
-        self.tomoAction = QtGui.QAction(' tomo view', self, checkable=True)
+        self.tomoAction = QAction(' tomo view', self, checkable=True)
         self.tomoAction.triggered.connect(self.tomoview_changed)
-        self.miscviewAction = QtGui.QAction(' misc view', self, checkable=True)
+        self.miscviewAction = QAction(' misc view', self, checkable=True)
         self.miscviewAction.triggered.connect(self.miscview_changed)
 
         show_lines = QtWidgets.QMenu("show N lines", self)
         show_lines.setStyleSheet("background-color: rgb(49,49,49); color: rgb(255,255,255); border: 1px solid #000;")
-        ag = QtGui.QActionGroup(show_lines)
+        ag = QActionGroup(show_lines)
         ag.setExclusive(True)
         show_lines_options = self.num_lines//5
         for i in range(1,show_lines_options+1):
             #dynamically create instance variable N_line_N and set it to an action
-            setattr(self, "N_line_{}".format(str(i*5)), ag.addAction(QtGui.QAction(str(i*5), show_lines, checkable=True)))
+            setattr(self, "N_line_{}".format(str(i*5)), ag.addAction(QAction(str(i*5), show_lines, checkable=True)))
             show_lines.addAction(self.__dict__["N_line_{}".format(i*5)])
             self.__dict__["N_line_{}".format(i*5)].triggered.connect(self.num_lines_changed)
         self.num_lines_changed()
 
         update_interval = QtWidgets.QMenu("update interval (s)", self)
         update_interval.setStyleSheet("background-color: rgb(49,49,49); color: rgb(255,255,255); border: 1px solid #000;")
-        ag2 = QtGui.QActionGroup(update_interval)
+        ag2 = QActionGroup(update_interval)
         ag2.setExclusive(True)
 
         for i in range(3):
             #dynamically create instance variable interval_S and connect it to action
-            setattr(self, "interval_{}".format(str(i)), ag2.addAction(QtGui.QAction(str(list([10,30,60])[i]), update_interval, checkable=True)))
+            setattr(self, "interval_{}".format(str(i)), ag2.addAction(QAction(str(list([10,30,60])[i]), update_interval, checkable=True)))
             update_interval.addAction(self.__dict__["interval_{}".format(i)])
             self.__dict__["interval_{}".format(i)].triggered.connect(self.update_interval_changed)
         self.update_interval_changed()

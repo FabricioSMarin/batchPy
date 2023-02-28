@@ -1,10 +1,13 @@
 try:
     from PyQt6 import QtCore, QtGui, QtWidgets
+    from PyQt6.QtGui import *
     from PyQt6.QtCore import pyqtSignal
 except:
     print("pyqt6 not installed, trying pyqt5...")
     from PyQt5 import QtCore, QtGui, QtWidgets
+    from PyQt5.QtWidgets import *
     from PyQt5.QtCore import pyqtSignal
+
 
 from epics import *
 # import batch_settings
@@ -38,15 +41,15 @@ class ScanSettings(QtWidgets.QMainWindow):
                     item.setStyleSheet("background-color : default")
                     self.var_dict[item] = item.objectName()
 
-        closeAction = QtGui.QAction(' &close', self)
+        closeAction = QAction(' &close', self)
         closeAction.triggered.connect(sys.exit)
         closeAction.setShortcut(' Ctrl+Q')
 
-        openAction = QtGui.QAction(' &open config', self)
+        openAction = QAction(' &open config', self)
         openAction.triggered.connect(self.openfile)
         openAction.setShortcut(' Ctrl+O')
 
-        saveAction = QtGui.QAction(' &save config', self)
+        saveAction = QAction(' &save config', self)
         saveAction.triggered.connect(self.savefile)
         saveAction.setShortcut(' Ctrl+S')
 
