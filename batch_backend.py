@@ -73,7 +73,7 @@ class BatchSetup(object):
 
             self.XSPRESS3 = self.create_xspress3(self.xp3)
             self.XSPRESS3.TriggerMode = 3
-            self.XSPRESS3.FilePath = self.savePath
+            self.XSPRESS3.FilePath = epics.caget(self.savePath,as_string=True)
 
         except:
             self.XSPRESS3 = None
@@ -820,7 +820,7 @@ class BatchSetup(object):
                     if not struck_ready:
                         self.STRUCK.StopAll= 0
                     if not detector_ready:
-                        self.XSPRESS3.stop()
+                        self.XSPRESS3.Acquire = 0
                     if not in_position:
                         self.inner_before_wait.value = 1
                         return
@@ -867,7 +867,7 @@ class BatchSetup(object):
                     if not struck_ready:
                         self.STRUCK.StopAll= 0
                     if not detector_ready:
-                        self.XSPRESS3.stop()
+                        self.XSPRESS3.Acquire = 0
                     if not in_position:
                         self.inner_before_wait.value = 1
                         return
@@ -883,7 +883,7 @@ class BatchSetup(object):
     def after_inner(self):
         val = self.inner_after_wait.value
         if val == 1:
-            self.XSPRESS3.stop()
+            self.XSPRESS3.Acquire = 0
             # self.XSPRESS3.ERASE = 1
             if self.STRUCK is not None:
                 self.STRUCK.StopAll = 1
@@ -898,7 +898,7 @@ class BatchSetup(object):
     def after_inner_step(self):
         val = self.inner_after_wait.value
         if val == 1:
-            self.XSPRESS3.stop()
+            self.XSPRESS3.Acquire = 0
             # self.XSPRESS3.ERASE = 1
             if self.STRUCK is not None:
                 self.STRUCK.StopAll = 1
@@ -957,7 +957,7 @@ class BatchSetup(object):
 
     def reset_detector(self):
         if self.XSPRESS3 is not None:
-            self.XSPRESS3.stop()
+            self.XSPRESS3.Acquire = 0
             self.XSPRESS3.ERASE = 1
 
         if self.STRUCK is not None:
