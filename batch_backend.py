@@ -41,16 +41,38 @@ class BatchSetup(object):
         self.backend_ready = False
         self.done = False
 
+
+    def create_xspress3(self,prefix):
+        timeout = 0.05
+        xp3 = epics.Device("xspress3")
+        pv_list = ["CONNECTED","DetectorState_RBV", "StatusMessage_RBV", "NumImages", "NumImages_RBV", "AcquireTime", "AcquireTime_RBV",
+                   "EraseOnStart", "EraseOnStart_RBV", "TriggerMode", "TriggerMode_RBV", "Acquire", "ERASE"]
+
+        writer_list = ["Capture", "Capture_RBV", "FilePath", "FileName", "FileName"]
+
+        for pv in pv_list:
+            xp3.add_pv("{}det1:{}".format(prefix,pv), attr=pv)
+
+        for pv in writer_list:
+            xp3.add_pv("{}HDF1:{}".format(prefix,pv), attr=pv)
+
+        return xp3
     def connect_pvs(self):
         timeout = 0.1
         try:
+
             #TODO: might need to configure EPICS_CA_ADDR_LIST in client computer to talk to xspress3 PVS
             #do this in ~/.tcshrc file along with any other aliases and
             # os.environ["EPICS_CA_ADDR_LIST"] = "164.54.108.30"
             os.environ["EPICS_CA_ADDR_LIST"] = "164.54.113.18"
-            self.XSPRESS3 = epics.devices.xspress3.Xspress310(self.xp3)
-            self.XSPRESS3._pvs["HDF5:FilePath"].put(self.savePath)
-            self.XSPRESS3.TriggerMode = 3  # 3 = external, 1=internal
+            #TODO: rewrite XSPRESS3 device becuse epics support not working
+
+            # self.XSPRESS3 = epics.devices.xspress3.Xspress310(self.xp3)
+            # self.XSPRESS3._pvs["HDF5:FilePath"].put(self.savePath)
+            # self.XSPRESS3.TriggerMode = 3  # 3 = external, 1=internal
+
+            self.XSPRESS3 = self.create_xspress3(self.xp3)
+
         except:
             self.XSPRESS3 = None
             print("xspress3  not connected")
