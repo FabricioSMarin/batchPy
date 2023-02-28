@@ -56,6 +56,8 @@ class BatchSetup(object):
         for pv in writer_list:
             xp3.add_pv("{}HDF1:{}".format(prefix,pv), attr=pv)
 
+        xp3._prefix = prefix
+
         return xp3
     def connect_pvs(self):
         timeout = 0.1
@@ -64,12 +66,8 @@ class BatchSetup(object):
             #TODO: might need to configure EPICS_CA_ADDR_LIST in client computer to talk to xspress3 PVS
             #do this in ~/.tcshrc file along with any other aliases and
             # os.environ["EPICS_CA_ADDR_LIST"] = "164.54.108.30"
-            os.environ["EPICS_CA_ADDR_LIST"] = "164.54.113.18"
+            # os.environ["EPICS_CA_ADDR_LIST"] = "164.54.113.18"
             #TODO: rewrite XSPRESS3 device becuse epics support not working
-
-            # self.XSPRESS3 = epics.devices.xspress3.Xspress310(self.xp3)
-            # self.XSPRESS3._pvs["HDF5:FilePath"].put(self.savePath)
-            # self.XSPRESS3.TriggerMode = 3  # 3 = external, 1=internal
 
             self.XSPRESS3 = self.create_xspress3(self.xp3)
             self.XSPRESS3.TriggerMode = 3
@@ -78,14 +76,6 @@ class BatchSetup(object):
         except:
             self.XSPRESS3 = None
             print("xspress3  not connected")
-
-        # if epics.devices.xspress3.Xspress310.PV(epics.Device,self.xp3+"det1:CONNECTED",timeout=timeout).value is not None:
-        #     self.XSPRESS3 = epics.devices.xspress3.Xspress310(self.xp3)
-        #     self.XSPRESS3._pvs["HDF1:FilePath"].put(self.savePath)
-        #     self.XSPRESS3.TriggerMode = 1  # 3 = external, 1=internal
-        # else:
-        #     self.XSPRESS3 = None
-        #     print("xspress3  not connected")
 
         try:
             try:
