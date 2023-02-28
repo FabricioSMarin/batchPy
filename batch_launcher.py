@@ -1,6 +1,11 @@
-from PyQt6 import QtCore, QtGui, QtWidgets
-# from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt6.QtCore import pyqtSignal
+try:
+    from PyQt6 import QtCore, QtGui, QtWidgets
+    from PyQt6.QtCore import pyqtSignal
+except:
+    print("pyqt6 not installed, trying pyqt5...")
+    from PyQt5 import QtCore, QtGui, QtWidgets
+    from PyQt5.QtCore import pyqtSignal
+
 # from PyQt5.QtCore import pyqtSignal
 
 import batch_gui

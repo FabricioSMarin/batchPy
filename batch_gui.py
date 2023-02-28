@@ -2,10 +2,9 @@ import matplotlib.figure
 
 try:
     from PyQt6 import QtCore, QtGui, QtWidgets
-    # from PyQt5 import QtCore, QtGui, QtWidgets
 except:
     print("pyqt6 not installed, trying pyqt5...")
-    # from PyQt5 import QtCore, QtGui, QtWidgets
+    from PyQt5 import QtCore, QtGui, QtWidgets
 
 import pyqtgraph
 import os

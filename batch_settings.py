@@ -1,9 +1,14 @@
-from PyQt6 import QtCore, QtGui, QtWidgets
-# from PyQt5 import QtCore, QtGui, QtWidgets
+try:
+    from PyQt6 import QtCore, QtGui, QtWidgets
+    from PyQt6.QtCore import pyqtSignal
+except:
+    print("pyqt6 not installed, trying pyqt5...")
+    from PyQt5 import QtCore, QtGui, QtWidgets
+    from PyQt5.QtCore import pyqtSignal
+
 from epics import *
 # import batch_settings
 import time
-from PyQt6.QtCore import pyqtSignal
 import pickle
 import os
 from datetime import datetime
