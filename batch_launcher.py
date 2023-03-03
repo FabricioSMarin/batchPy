@@ -48,8 +48,9 @@ class Launcher(object):
         sys.stdout = Stream(newText=self.onUpdateText)
         self.threading_mode = 1
         self.backend = batch_backend.BatchSetup()
-        if self.backend.backend_ready:
-            self.backend.init_scan_record()
+        self.backend.connect_pvs()
+        # if self.backend.backend_ready:
+        #     self.backend.init_scan_record()
         # self.connect_backend
         self.start_threads()
         sys.exit(app.exec())
