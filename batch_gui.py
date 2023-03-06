@@ -153,10 +153,16 @@ class BatchScanGui(QtWidgets.QMainWindow):
     def miscview_changed(self):
         #TODO: third and fourth condition where if tomo view is checked/unchecked
         for line in range(self.num_lines):
+            self.header.start_time.setVisible(False)
+            self.header.finish_time.setVisible(False)
+            self.header.save_message.setVisible(False)
             self.__dict__[self.line_names[line]].save_message.setVisible(False)
             self.__dict__[self.line_names[line]].start_time.setVisible(False)
             self.__dict__[self.line_names[line]].finish_time.setVisible(False)
         if self.miscviewAction.isChecked():
+            self.header.start_time.setVisible(True)
+            self.header.finish_time.setVisible(True)
+            self.header.save_message.setVisible(True)
             for line in range(self.show_lines):
                 self.__dict__[self.line_names[line]].save_message.setVisible(True)
                 self.__dict__[self.line_names[line]].start_time.setVisible(True)

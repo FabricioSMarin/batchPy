@@ -343,11 +343,7 @@ class BatchSetup(object):
                 f.close()
         return
 
-
-
-    # for each scan: run it.
     def run_scan(self,scan, scan_type):
-
         if scan_type == "fly":
             self.reset_detector()
             is_ready = self.init_scan(scan, scan_type)
@@ -370,7 +366,6 @@ class BatchSetup(object):
             read_history_xp3 = np.zeros(10)
             read_history_struck = np.zeros(10)
             while not self.done:
-                # TODO: motor starts canning before "before_inner" is even ready.
                 self.before_outer()
                 self.before_inner()
                 self.after_inner()
@@ -378,6 +373,7 @@ class BatchSetup(object):
                 self.check_struck_done()
                 read_history_xp3, xp3_stuck = self.check_detector_stuck(cycle, read_history_xp3)
                 read_history_struck, struck_stuck = self.check_struck_stuck(cycle, read_history_struck)
+
                 if xp3_stuck or struck_stuck:
                     self.abort_scan()
                     read_history_xp3 = np.zeros(10)
@@ -393,8 +389,6 @@ class BatchSetup(object):
                         print("scan terminated early going back to while loop")
                         break
 
-                    #TODO: SCANS still terminating prematurely ugh
-                    #TODO: check threading method, it fails when threading.
                     self.FscanH.NPTS = 1
                     self.Fscan1.NPTS = 1
                     time.sleep(1)
@@ -603,12 +597,12 @@ class BatchSetup(object):
             #TODO: abort button may vary from scan to scan
             # abort_PV = self.FscanH._prefix.split(":")[0]+":PSAbortScans.PROC"
             abort_PV = self.FscanH._prefix.split(":")[0]+":FAbortScans.PROC"
-            #TODO: check scan FAZE if not 0 (idle) or 12 (scan done), caput abort 3x
-            epics.caput(abort_PV,1)
-            time.sleep(0.1)
-            epics.caput(abort_PV,1)
-            time.sleep(0.1)
-            epics.caput(abort_PV,1)
+            if not (self.FscanH.FAZE ==0 or self.FscanH.FAZE ==12):
+                epics.caput(abort_PV,1)
+                time.sleep(0.1)
+                epics.caput(abort_PV,1)
+                time.sleep(0.1)
+                epics.caput(abort_PV,1)
 
             self.FscanH.NPTS = x_npts           #set number of points
             self.FscanH.P1WD = xwidth                               #set width
@@ -746,7 +740,7 @@ class BatchSetup(object):
                 self.STRUCK.Acquiring = 0
                 return True
 
-    def check_struck_stuck(self,cycle,read_history):
+    def check_struck_stuck(self, cycle, read_history):
         cycle_frequency = 15
         if self.STRUCK is None:
             return read_history, False
@@ -757,7 +751,7 @@ class BatchSetup(object):
                 i = cycle//cycle_frequency%10
                 read_history[i] = self.STRUCK.CurrentChannel
                 if cycle//cycle_frequency >=cycle_frequency:
-                    if read_history[0] == read_history[-1] and self.FscanH.FAZE !=0 and self.FscanH.FAZE!=12:
+                    if read_history[0] == read_history[-1] and self.FscanH.FAZE !=0 and self.FscanH.FAZE!=12 and not self.is_paused():
                         print("STRUCK may be stuck.. ")
                         return read_history, True
                     else:
@@ -767,9 +761,8 @@ class BatchSetup(object):
             else:
                 return read_history, False
 
-    def check_detector_stuck(self,cycle, read_history):
+    def check_detector_stuck(self, cycle, read_history):
         cycle_frequency = 15
-
         try:
             alive = epics.caget(self.XSPRESS3._prefix + "det1:CONNECTED")
             if not alive:
@@ -780,7 +773,7 @@ class BatchSetup(object):
                     i = cycle//cycle_frequency%10 #every thenth cycle revolving index
                     read_history[i] = epics.caget(self.XSPRESS3._prefix+"det1:ArrayCounter_RBV")
                     if cycle//cycle_frequency >=cycle_frequency:
-                        if read_history[0] == read_history[-1] and self.FscanH.FAZE !=0 and self.FscanH.FAZE!=12:
+                        if read_history[0] == read_history[-1] and self.FscanH.FAZE !=0 and self.FscanH.FAZE!=12 and not self.is_paused():
                             print("detector may be stuck.. ")
                             return read_history, True
                         else:
@@ -949,7 +942,7 @@ class BatchSetup(object):
         val = self.inner_before_wait.value
         if val == 1:
             in_position = self.check_position()
-            not_paused = (self.Fscan1.pause != 1 and self.FscanH.WCNT == 0 and self.Fscan1.WCNT == 0)
+            not_paused = (self.FscanH.pause != 1 and self.FscanH.WCNT == 0 and self.Fscan1.WCNT == 0)
             detector_ready = self.check_readout_system()
             struck_ready = self.check_struck()
             ready = not_paused and detector_ready and struck_ready and in_position
@@ -1084,6 +1077,12 @@ class BatchSetup(object):
         self.FscanH.WAIT = 1
         self.Scan1.WAIT = 1
         return
+
+    def is_paused(self):
+        if self.FscanH.WCNT > 0 or self.Scan1.WCNT > 0 or self.FscanH.pause == 1:
+            return True
+        else:
+            return False
 
     def continue_scan(self):
         self.FscanH.WAIT = 0
