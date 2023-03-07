@@ -40,6 +40,7 @@ class BatchSetup(object):
         self.restore_settings()
         self.backend_ready = False
         self.done = False
+        self.saveData_message = ""
 
 
     def create_xspress3(self,prefix):
@@ -344,6 +345,7 @@ class BatchSetup(object):
         return
 
     def run_scan(self,scan, scan_type):
+        self.saveData_message = epics.caget(self.savePath.split(":")[0]+":saveData_message.VAL", as_string=True)
         if scan_type == "fly":
             self.reset_detector()
             is_ready = self.init_scan(scan, scan_type)

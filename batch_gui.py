@@ -1,11 +1,7 @@
 
-try:
-    from PyQt6 import QtCore, QtGui, QtWidgets
-    from PyQt6.QtGui import *
-except:
-    print("pyqt6 not installed, trying pyqt5...")
-    from PyQt5 import QtCore, QtGui, QtWidgets
-    from PyQt5.QtWidgets import *
+
+from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtWidgets import *
 
 import pyqtgraph
 import os
@@ -37,7 +33,7 @@ class BatchScanGui(QtWidgets.QMainWindow):
             setattr(self, v, Line())
         self.initUI()
         self.restore_session()
-        self.setFixedWidth(1200)
+        self.setFixedWidth(1230)
         self.show()
 
     def initUI(self):
@@ -141,14 +137,14 @@ class BatchScanGui(QtWidgets.QMainWindow):
                 self.__dict__[self.line_names[line]].r_points.setVisible(True)
                 self.__dict__[self.line_names[line]].r_width.setVisible(True)
             if self.miscviewAction.isChecked():
-                self.setFixedWidth(1750)
+                self.setFixedWidth(1970)
             else:
-                self.setFixedWidth(1400)
+                self.setFixedWidth(1620)
         else:
             if self.miscviewAction.isChecked():
-                self.setFixedWidth(1500)
+                self.setFixedWidth(1720)
             else:
-                self.setFixedWidth(1200)
+                self.setFixedWidth(1230)
 
     def miscview_changed(self):
         #TODO: third and fourth condition where if tomo view is checked/unchecked
@@ -168,14 +164,14 @@ class BatchScanGui(QtWidgets.QMainWindow):
                 self.__dict__[self.line_names[line]].start_time.setVisible(True)
                 self.__dict__[self.line_names[line]].finish_time.setVisible(True)
             if self.tomoAction.isChecked():
-                self.setFixedWidth(1750)
+                self.setFixedWidth(1970)
             else:
-                self.setFixedWidth(1500)
+                self.setFixedWidth(1620)
         else:
             if self.tomoAction.isChecked():
-                self.setFixedWidth(1400)
+                self.setFixedWidth(1720)
             else:
-                self.setFixedWidth(1200)
+                self.setFixedWidth(1230)
 
     def line_changed(self):
         checked_lines = []
@@ -616,7 +612,7 @@ class Header(QtWidgets.QWidget):
 
     def setupUi(self):
         size1 = 30
-        size2 = 75
+        size2 = 85
         size3 = 200
         line = QtWidgets.QHBoxLayout()
         self.line = QtWidgets.QLabel("line")
@@ -698,7 +694,7 @@ class Line(QtWidgets.QWidget):
 
     def setupUi(self):
         size1 = 30
-        size2 = 75
+        size2 = 85
         size3 = 200
         line = QtWidgets.QHBoxLayout()
         self.setStyleSheet("background: white")
@@ -750,6 +746,7 @@ class Line(QtWidgets.QWidget):
         self.r_width.setVisible(False)
         self.line_eta = QtWidgets.QLabel("00:00:00")
         self.line_eta.setFixedWidth(size2)
+
 
         for key in self.__dict__:
             item = getattr(self,key)
@@ -853,6 +850,9 @@ class Line(QtWidgets.QWidget):
                 pass
 
     def make_pretty(self):
+        myFont = QtGui.QFont()
+        myFont.setBold(True)
+        myFont.setPointSize(6)
 
         for key in self.__dict__:
             item = getattr(self,key)
@@ -860,6 +860,9 @@ class Line(QtWidgets.QWidget):
                 item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
             elif isinstance(item,QtWidgets.QLabel):
                 item.setStyleSheet("background: lightgray;color: black; border-radius: 4; border-color: white")
+                if key == "finish_time" or key == "start_time":
+                    item.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+                    item.setFont(myFont)
             elif isinstance(item,QtWidgets.QComboBox):
                 # item.setStyleSheet("background: lightyellow;border: 2px red; color: black")
                 item.setStyleSheet("background: lightyellow; color: black")

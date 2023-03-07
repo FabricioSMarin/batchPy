@@ -1,10 +1,6 @@
-try:
-    from PyQt6 import QtCore, QtGui, QtWidgets
-    from PyQt6.QtCore import pyqtSignal
-except:
-    print("pyqt6 not installed, trying pyqt5...")
-    from PyQt5 import QtCore, QtGui, QtWidgets
-    from PyQt5.QtCore import pyqtSignal
+
+from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtCore import pyqtSignal
 
 # from PyQt5.QtCore import pyqtSignal
 
@@ -12,6 +8,7 @@ import batch_gui
 import batch_backend
 import sys
 import time
+import calendar
 import subprocess
 import os
 from datetime import datetime, timedelta
@@ -46,7 +43,7 @@ class Launcher(object):
         self.gui.controls.points_all.clicked.connect(self.calculate_all_points_clicked)
 
         sys.stdout = Stream(newText=self.onUpdateText)
-        self.threading_mode = 0
+        self.threading_mode = 1
         self.backend = batch_backend.BatchSetup()
         self.backend.connect_pvs()
         # if self.backend.backend_ready:
@@ -264,6 +261,9 @@ class Launcher(object):
             return
 
         line = lines[first_line]
+        format_datetime = self.get_datetime()
+        line.start_time.setText(format_datetime)
+
         scan_type = line.scan_type.text()
         dwell = eval(line.dwell_time.text())
         x_center = eval(line.x_center.text())
@@ -306,6 +306,17 @@ class Launcher(object):
                 self.backend.run_scan(scan, scan_type)
                 self.line_finished_sig()
         return
+    def get_datetime(self):
+        day = calendar.day_abbr[datetime.now().day]
+        cal_day = datetime.now().day
+        month = datetime.now().month
+        year = datetime.now().year
+        time = datetime.today().time()
+        hour = time.hour
+        minute = time.minute
+        second = time.second
+        formatted = "{} {}-{}-{} {}:{}:{}".format(day, month, cal_day, year, hour, minute, second)
+        return formatted
 
     def tomo_valid(self, line_idx):
         lines = [vars(self.gui)[i] for i in self.gui.line_names]
@@ -338,8 +349,13 @@ class Launcher(object):
             print("exception")
             return
         lines[current_line].status = "done"
+        line = lines[current_line]
+        format_datetime = self.get_datetime()
+        line.finish_time.setText(format_datetime)
+        save_message = self.backend.saveData_message
+        line.save_message.setText(save_message)
+
         lines[current_line].line_action.setCurrentIndex(0)
-        #TODO: set current line.status to "done"
         line_actions = [line.line_action.currentText() for line in lines]
         if "normal" in line_actions:
             next_line = line_actions.index("normal")
@@ -521,10 +537,12 @@ class myThreads(QtCore.QThread):
             r_width = self.params[2]
             scan = self.params[3]
             scan_type = self.params[4]
+            #TODO: update "start_time"
             self.parent.backend.run_tomo(r_center, r_npts, r_width, scan, scan_type)
         elif len(self.params) == 2:
             scan = self.params[0]
             scan_type = self.params[1]
+            #TODO: update "start_time"
             self.parent.backend.run_scan(scan, scan_type)
         else:
             print("invalid param settings")
@@ -534,6 +552,8 @@ class myThreads(QtCore.QThread):
             #if abort or abort_all
             if self.exit_flag == 1:
                 print("aborting scan")
+                #TODO: update savedata message with "Aborted" + "save_data_message" PV
+                #TODO: update finish_time
                 break
             else:
                 if self.parent.backend.done == True:
