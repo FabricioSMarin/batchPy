@@ -21,7 +21,6 @@ class BatchScanGui(QtWidgets.QMainWindow):
         self.app = app
         self.session_file = "default_session.pkl"
         self.setWindowTitle("Batch Py V1.0.0")
-        #TODO: load gui config file
 
         self.update_interval = 10
         self.num_lines = 20
@@ -33,7 +32,12 @@ class BatchScanGui(QtWidgets.QMainWindow):
             setattr(self, v, Line())
         self.initUI()
         self.restore_session()
-        self.setFixedWidth(1230)
+        self.view1 = 1100
+        self.view2 = 1600
+        self.view3 = 1330
+        self.view4 = 1830
+        # self.view2 =
+        self.setFixedWidth(self.view1)
         self.show()
 
     def initUI(self):
@@ -69,9 +73,9 @@ class BatchScanGui(QtWidgets.QMainWindow):
         self.saveAction = QAction(' &save session', self)
         self.saveAction.setShortcut(' Ctrl+S')
         self.tomoAction = QAction(' tomo view', self, checkable=True)
-        self.tomoAction.triggered.connect(self.tomoview_changed)
+        self.tomoAction.triggered.connect(self.view_changed)
         self.miscviewAction = QAction(' misc view', self, checkable=True)
-        self.miscviewAction.triggered.connect(self.miscview_changed)
+        self.miscviewAction.triggered.connect(self.view_changed)
 
         show_lines = QtWidgets.QMenu("show N lines", self)
         show_lines.setStyleSheet("background-color: rgb(49,49,49); color: rgb(255,255,255); border: 1px solid #000;")
@@ -119,15 +123,21 @@ class BatchScanGui(QtWidgets.QMainWindow):
         viewMenu.addAction(self.tomoAction)
         viewMenu.addAction(self.miscviewAction)
 
-    def tomoview_changed(self):
-        #TODO: third and fourth condition where if Misc view is checked/unchecked
-        for line in range(self.num_lines):
-            self.__dict__[self.line_names[line]].r_center.setVisible(False)
-            self.__dict__[self.line_names[line]].r_points.setVisible(False)
-            self.__dict__[self.line_names[line]].r_width.setVisible(False)
+    def view_changed(self):
+        self.header.start_time.setVisible(False)
+        self.header.finish_time.setVisible(False)
+        self.header.save_message.setVisible(False)
         self.header.r_center.setVisible(False)
         self.header.r_points.setVisible(False)
         self.header.r_width.setVisible(False)
+        for line in range(self.num_lines):
+            self.__dict__[self.line_names[line]].save_message.setVisible(False)
+            self.__dict__[self.line_names[line]].start_time.setVisible(False)
+            self.__dict__[self.line_names[line]].finish_time.setVisible(False)
+            self.__dict__[self.line_names[line]].r_center.setVisible(False)
+            self.__dict__[self.line_names[line]].r_points.setVisible(False)
+            self.__dict__[self.line_names[line]].r_width.setVisible(False)
+
         if self.tomoAction.isChecked():
             self.header.r_center.setVisible(True)
             self.header.r_points.setVisible(True)
@@ -136,25 +146,7 @@ class BatchScanGui(QtWidgets.QMainWindow):
                 self.__dict__[self.line_names[line]].r_center.setVisible(True)
                 self.__dict__[self.line_names[line]].r_points.setVisible(True)
                 self.__dict__[self.line_names[line]].r_width.setVisible(True)
-            if self.miscviewAction.isChecked():
-                self.setFixedWidth(1970)
-            else:
-                self.setFixedWidth(1620)
-        else:
-            if self.miscviewAction.isChecked():
-                self.setFixedWidth(1720)
-            else:
-                self.setFixedWidth(1230)
 
-    def miscview_changed(self):
-        #TODO: third and fourth condition where if tomo view is checked/unchecked
-        for line in range(self.num_lines):
-            self.header.start_time.setVisible(False)
-            self.header.finish_time.setVisible(False)
-            self.header.save_message.setVisible(False)
-            self.__dict__[self.line_names[line]].save_message.setVisible(False)
-            self.__dict__[self.line_names[line]].start_time.setVisible(False)
-            self.__dict__[self.line_names[line]].finish_time.setVisible(False)
         if self.miscviewAction.isChecked():
             self.header.start_time.setVisible(True)
             self.header.finish_time.setVisible(True)
@@ -163,15 +155,15 @@ class BatchScanGui(QtWidgets.QMainWindow):
                 self.__dict__[self.line_names[line]].save_message.setVisible(True)
                 self.__dict__[self.line_names[line]].start_time.setVisible(True)
                 self.__dict__[self.line_names[line]].finish_time.setVisible(True)
-            if self.tomoAction.isChecked():
-                self.setFixedWidth(1970)
-            else:
-                self.setFixedWidth(1620)
+
+        if not self.tomoAction.isChecked() and not self.miscviewAction.isChecked():
+            self.setFixedWidth(self.view1)
+        elif not self.tomoAction.isChecked() and self.miscviewAction.isChecked():
+            self.setFixedWidth(self.view2)
+        elif self.tomoAction.isChecked() and not self.miscviewAction.isChecked():
+            self.setFixedWidth(self.view3)
         else:
-            if self.tomoAction.isChecked():
-                self.setFixedWidth(1720)
-            else:
-                self.setFixedWidth(1230)
+            self.setFixedWidth(self.view4)
 
     def line_changed(self):
         checked_lines = []
@@ -262,9 +254,8 @@ class BatchScanGui(QtWidgets.QMainWindow):
         for i in range(3):
             if self.__dict__["interval_{}".format(i)].isChecked():
                 self.update_interval = intervals[i]
+                self.parent.thread2.timer = intervals[i]
                 break
-
-        #TODO: udate threading counter
         return
 
     def closeEvent(self,event):
@@ -301,19 +292,6 @@ class BatchScanGui(QtWidgets.QMainWindow):
             with open(cwd+file, 'wb') as f:
                 pickle.dump(["session",datetime.now(),settings], f)
                 f.close()
-
-            #TODO: save csv file as wel for easy access
-            # header = ["type", "trajectory", "action", "dwell", "x center", "x points", "x width", "y center", "y points",
-            #           "y width", "r center", "r points", "r width", "comments", "eta", "start", "finish"]
-            #for i,line in self.gui.lines:
-            #if i == self.gui.show_lines
-            #break
-            #else:
-            #settings = [line.scan_type.text(), line.trajectory.currentText(), line.action.currentText(), line.dwell.text(), ...
-
-            # with open(cwd+file, 'wb') as f:
-            #save csv header
-            #for line in "
 
         except IOError as e:
             print(e)
@@ -532,6 +510,7 @@ class Controls(QtWidgets.QWidget):
                                    "border-style: solid;"
                                    "border-color: rgb(10, 10, 10)}")
         controlframe.setContentsMargins(0,0,0,0) #left, top,right, bottom
+        controlframe.setFixedWidth(700)
 
         combined = QtWidgets.QVBoxLayout()
         combined.addWidget(controlframe)
@@ -540,13 +519,6 @@ class Controls(QtWidgets.QWidget):
 
         combined2 = QtWidgets.QHBoxLayout()
         combined2.addLayout(combined)
-        # try:
-            # self.view_box = MplCanvas(self, width=5, height=4, dpi=100)
-            # self.view_box.axes.plot([0, 1, 2, 3, 4], [10, 1, 20, 3, 40])
-            # combined2.addWidget(self.view_box)
-        # except:
-        #     self.view_box = ImageView()
-        #     combined2.addWidget(self.view_box)
 
         self.view_box = ImageView()
         combined2.addWidget(self.view_box)
@@ -612,17 +584,19 @@ class Header(QtWidgets.QWidget):
 
     def setupUi(self):
         size1 = 30
-        size2 = 85
-        size3 = 200
+        size2 = 60
+        size3 = 220
+        size4 = 120
+        size5 = 75
         line = QtWidgets.QHBoxLayout()
         self.line = QtWidgets.QLabel("line")
         self.line.setFixedWidth(size1)
         self.scan_type = QtWidgets.QLabel("scan \ntype")
         self.scan_type.setFixedWidth(size1)
         self.trajectory = QtWidgets.QLabel("trajectory")
-        self.trajectory.setFixedWidth(size2)
+        self.trajectory.setFixedWidth(size5)
         self.line_action = QtWidgets.QLabel("action")
-        self.line_action.setFixedWidth(size2)
+        self.line_action.setFixedWidth(size5)
         self.dwell_time = QtWidgets.QLabel("dwell \n(ms)")
         self.dwell_time.setFixedWidth(size1)
         self.x_center = QtWidgets.QLabel("x center")
@@ -643,10 +617,10 @@ class Header(QtWidgets.QWidget):
         self.save_message.setFixedWidth(size3)
         self.save_message.setVisible(False)
         self.start_time = QtWidgets.QLabel("start time")
-        self.start_time.setFixedWidth(size2)
+        self.start_time.setFixedWidth(size4)
         self.start_time.setVisible(False)
         self.finish_time = QtWidgets.QLabel("finish time")
-        self.finish_time.setFixedWidth(size2)
+        self.finish_time.setFixedWidth(size4)
         self.finish_time.setVisible(False)
         self.r_center = QtWidgets.QLabel("r center")
         self.r_center.setFixedWidth(size2)
@@ -689,13 +663,15 @@ class Line(QtWidgets.QWidget):
         self.make_pretty()
         self.trajectory_arr = []
         self.eta = timedelta(seconds=int(0))
-        self.status = "idle" # 0=idle, 1 = done, 2 = scanning
+        self.active_line = 0
 
 
     def setupUi(self):
         size1 = 30
-        size2 = 85
-        size3 = 200
+        size2 = 60
+        size3 = 220
+        size4 = 120
+        size5 = 75
         line = QtWidgets.QHBoxLayout()
         self.setStyleSheet("background: white")
         self.current_line = QtWidgets.QRadioButton()
@@ -705,11 +681,11 @@ class Line(QtWidgets.QWidget):
         self.trajectory = QtWidgets.QComboBox()
         trajectories = ["raster","snake","spiral","lissajous","custom"]
         self.trajectory.addItems(trajectories)
-        self.trajectory.setFixedWidth(size2)
+        self.trajectory.setFixedWidth(size5)
         self.line_action = QtWidgets.QComboBox()
         actions = ["skip","normal", "pause"]
         self.line_action.addItems(actions)
-        self.line_action.setFixedWidth(size2)
+        self.line_action.setFixedWidth(size5)
         self.dwell_time = QtWidgets.QLineEdit("0")
         self.dwell_time.setFixedWidth(size1)
         self.x_center = QtWidgets.QLineEdit("0")
@@ -730,10 +706,10 @@ class Line(QtWidgets.QWidget):
         self.save_message.setFixedWidth(size3)
         self.save_message.setVisible(False)
         self.start_time = QtWidgets.QLabel("")
-        self.start_time.setFixedWidth(size2)
+        self.start_time.setFixedWidth(size4)
         self.start_time.setVisible(False)
         self.finish_time = QtWidgets.QLabel("")
-        self.finish_time.setFixedWidth(size2)
+        self.finish_time.setFixedWidth(size4)
         self.finish_time.setVisible(False)
         self.r_center = QtWidgets.QLineEdit("0")
         self.r_center.setFixedWidth(size2)
@@ -852,7 +828,7 @@ class Line(QtWidgets.QWidget):
     def make_pretty(self):
         myFont = QtGui.QFont()
         myFont.setBold(True)
-        myFont.setPointSize(6)
+        myFont.setPointSize(9)
 
         for key in self.__dict__:
             item = getattr(self,key)
@@ -954,7 +930,6 @@ class Line(QtWidgets.QWidget):
         except:
             return
         self.eta = timedelta(seconds=total_s)
-        #TODO: calculate and update x&y step size for that line
         return
 
 class ImageView(pyqtgraph.GraphicsLayoutWidget):
