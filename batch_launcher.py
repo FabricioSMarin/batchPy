@@ -395,10 +395,14 @@ class Launcher(object):
             self.gui.controls.status_bar.setText("pausing on line {}".format(current_line))
             self.backend.pause_scan()
             print("pausing on  scanline:  {}".format(current_line))
+            format_datetime = self.get_datetime()
+            line.start_time.setText(format_datetime)
 
         if line.line_action.currentText() == "normal":
             self.gui.controls.status_bar.setText("scanning line {}".format(current_line))
             print("running scanline:  {}".format(current_line))
+            format_datetime = self.get_datetime()
+            line.start_time.setText(format_datetime)
 
         if self.gui.tomoAction.isChecked():
             r_center = eval(line.r_center.text())
