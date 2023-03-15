@@ -24,6 +24,7 @@ class Launcher(object):
     def __init__(self):
 
         app = QtWidgets.QApplication(sys.argv)
+        app.setStyle('Fusion')
         self.gui = batch_gui.BatchScanGui(app)
         self.gui.closeAction.triggered.connect(sys.exit)
         self.gui.initRecordAction.triggered.connect(self.initialize_record)
@@ -41,9 +42,11 @@ class Launcher(object):
         self.gui.controls.abort_all_btn.clicked.connect(self.abort_all_clicked)
         self.gui.controls.points.clicked.connect(self.calculate_points_clicked)
         self.gui.controls.points_all.clicked.connect(self.calculate_all_points_clicked)
+        lines = [vars(self.gui)[i] for i in self.gui.line_names]
+        for line in lines:
+            line.paramsChangedSig.connect(self.scan_settings_changed)
 
         sys.stdout = Stream(newText=self.onUpdateText)
-        self.threading_mode = 1
         self.backend = batch_backend.BatchSetup()
         self.backend.connect_pvs()
         # if self.backend.backend_ready:
@@ -71,6 +74,7 @@ class Launcher(object):
         # date = datetime.now()
         # filename = date.strftime('%Y-%m-%d_%H-%M-%S.jpg')
         # app = QApplication(sys.argv)
+        # app = QApplication(sys.argv)
         # QScreen.grabWindow(app.primaryScreen(),
         # QApplication.desktop().winId()).save(filename, 'png')
         #TODO: toggle savedata message, and start/stop time, then screenshot and save current view.
@@ -80,10 +84,36 @@ class Launcher(object):
         #TODO might move this to threading class
         #TODO: save session
         # global_eta = self.calculate_global_eta()
-
         pass
 
-    def scan_settings_changed(self):
+    def scan_settings_changed(self, line_idx):
+        line = [vars(self.gui)[i] for i in self.gui.line_names][line_idx]
+        valid = line.valid
+        if not valid:
+            return
+
+        type = line.scan_type.text()
+        trajectory = line.trajectory.currentText()
+        action = line.line_action.currentText()
+        dwell = eval(line.dwell_time.text())
+        x_center = eval(line.x_center.text())
+        x_npts = eval(line.x_points.text())
+        x_width = eval(line.x_width.text())
+        y_center = eval(line.y_center.text())
+        y_npts = eval(line.y_points.text())
+        y_width = eval(line.y_width.text())
+        r_center = eval(line.r_center.text())
+        r_npts = eval(line.r_points.text())
+        r_width = eval(line.r_width.text())
+        scan = [x_center, y_center, x_width, y_width, x_npts, y_npts, dwell]
+        if self.gui.tomoAction.isChecked() and self.tomo_valid(line_idx):
+            pass
+        if self.check_motor_limits(scan):
+            self.line_color(line_idx,"white")
+        else:
+            self.line_color(line_idx,"lightsalmon")
+
+
         #TODO: check if settings violate motor limits, if all good. calculate ETAs
         #TODO: check motor_limits(), check_velocity_limits()
         #TODO: call clculate_line_eta()
@@ -91,11 +121,34 @@ class Launcher(object):
         #TODO: if not good, highlight line RED
         pass
 
-    def check_motor_limits(self):
-        #TODO: get x_width, x_center, y_center, y_width for line
-        #TODO: if ends violate softlimits, highlight that row RED, indicating that that line will not be scanned.
-        #TODO: print message
-        pass
+    def check_motor_limits(self, scan):
+        x_hlm = self.backend.x_motor.HLM
+        x_llm = self.backend.x_motor.LLM
+        x_vmax = self.backend.x_motor.VMAX
+        y_hlm = self.backend.y_motor.HLM
+        y_llm = self.backend.y_motor.LLM
+        velocity_violation = False
+
+        try:
+            x_step = abs(scan[2]/scan[4])
+            y_step = abs(scan[3]/scan[5])
+            if x_vmax == 0:
+                velocity_violation = False
+            elif x_step/(scan[6]/1000) > x_vmax:
+                velocity_violation = True
+        except ZeroDivisionError:
+            velocity_violation = True
+            pass
+
+        if (scan[0] - scan[2]/2) <x_llm or (scan[0] + scan[2]/2) > x_hlm or (scan[1] - scan[3]/2) < y_llm or (scan[1] + scan[3]/2) > y_hlm :
+            print("scan outside motor limits")
+            return False
+        if velocity_violation:
+            print("step size / dwell time exceeds positioner velocity")
+            return False
+        else:
+            return True
+
 
     def check_motor_velocity_limit(self):
         #TODO: get dwell, x_step, and y_step step for line.
@@ -226,44 +279,57 @@ class Launcher(object):
     def zero_clicked(self):
         lines = [vars(self.gui)[i] for i in self.gui.line_names]
         checked = [line.current_line.isChecked() for line in lines].index(True)
-        #use step scan record inner loop
+        lines[checked].dwell_time.setText("0")
         lines[checked].x_center.setText("0")
         lines[checked].x_points.setText("0")
         lines[checked].x_width.setText("0")
         lines[checked].y_center.setText("0")
         lines[checked].y_points.setText("0")
         lines[checked].y_width.setText("0")
+        lines[checked].r_center.setText("0")
+        lines[checked].r_points.setText("0")
+        lines[checked].r_width.setText("0")
+        lines[checked].save_message.setText("")
+        lines[checked].start_time.setText("")
+        lines[checked].finish_time.setText("")
 
     def zero_all_clicked(self):
         lines = [vars(self.gui)[i] for i in self.gui.line_names]
-        checked = [line.current_line.isChecked() for line in lines].index(True)
-        #use step scan record inner loop
         for line in lines:
+            line.dwell_time.setText("0")
             line.x_center.setText("0")
             line.x_points.setText("0")
             line.x_width.setText("0")
             line.y_center.setText("0")
             line.y_points.setText("0")
             line.y_width.setText("0")
+            line.r_center.setText("0")
+            line.r_points.setText("0")
+            line.r_width.setText("0")
+            line.save_message.setText("")
+            line.start_time.setText("")
+            line.finish_time.setText("")
 
     def begin_clicked(self):
-        #TODO: return warning message if already scaning.
+        if self.gui.active_line != -1:
+            # self.gui.controls.begin_btn.setEnabled(False)
+            print("batch already started")
+            return
         if not self.backend.backend_ready:
             print("scan record not connected")
             return
         lines = [vars(self.gui)[i] for i in self.gui.line_names]
         line_actions = [line.line_action.currentText() for line in lines]
-
         if "normal" in line_actions:
             first_line = line_actions.index("normal")
         else:
             return
-
         line = lines[first_line]
         self.gui.active_line = first_line
         format_datetime = self.get_datetime()
         line.start_time.setText(format_datetime)
-
+        line.setStyleSheet("background: yellow")
+        line.setAutoFillBackground(True)
         scan_type = line.scan_type.text()
         dwell = eval(line.dwell_time.text())
         x_center = eval(line.x_center.text())
@@ -272,41 +338,27 @@ class Launcher(object):
         y_center = eval(line.y_center.text())
         y_npts = eval(line.y_points.text())
         y_width = eval(line.y_width.text())
+        r_center = eval(line.r_center.text())
+        r_npts = eval(line.r_points.text())
+        r_width = eval(line.r_width.text())
         scan = [x_center, y_center, x_width, y_width, x_npts, y_npts, dwell]
         self.gui.controls.status_bar.setText("scanning line {}".format(first_line))
         print("running scanline: {}".format(first_line))
         self.backend.done = False
+        self.thread3 = myThreads(self, 3, "run_scan")
+        self.thread3.lineFinishSig.connect(self.line_finished_sig)
+        # self.thread3.lineAbortedSig.connect()
+        self.thread3.xp3StuckSig.connect(self.line_color(self.gui.active_line,"red"))
+        self.thread3.struckStuckSig.connect(self.line_color(self.gui.active_line,"red"))
+        self.thread3.exit_scan = 0
 
         if self.gui.tomoAction.isChecked() and self.tomo_valid(first_line):
-            r_center = eval(line.r_center.text())
-            r_npts = eval(line.r_points.text())
-            r_width = eval(line.r_width.text())
-            if self.threading_mode == 1:
-                print("h1")
-                self.thread3 = myThreads(self, 3, "run_scan")
-                self.thread3.lineFinishSig.connect(self.line_finished_sig)
-                self.thread3.lineAbortedSig.connect(self.line_aborted_sig)
-                self.thread3.params = [r_center, r_npts, r_width, scan, scan_type]
-                self.thread3.exit_flag = 0
-                self.thread3.start()
-            else:
-                print("h2")
-                self.backend.run_tomo(r_center, r_npts, r_width, scan, scan_type)
-                self.line_finished_sig()
-
+            self.thread3.params = [r_center, r_npts, r_width, scan, scan_type]
+            self.thread3.start()
         else:
-            if self.threading_mode == 1:
-                print("h3")
-                self.thread3 = myThreads(self, 3, "run_scan")
-                self.thread3.lineFinishSig.connect(self.line_finished_sig)
-                self.thread3.lineAbortedSig.connect(self.line_aborted_sig)
-                self.thread3.params = [scan, scan_type]
-                self.thread3.exit_flag = 0
-                self.thread3.start()
-            else:
-                print("h4")
-                self.backend.run_scan(scan, scan_type)
-                self.line_finished_sig()
+            self.thread3.params = [scan, scan_type]
+            self.thread3.start()
+
         return
     def get_datetime(self):
         now = datetime.now()
@@ -327,7 +379,6 @@ class Launcher(object):
         invalid = 0
         if line.r_center.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
             invalid = 1
-
         if line.r_points.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
             invalid = 1
         else:
@@ -343,11 +394,6 @@ class Launcher(object):
         else:
             return True
 
-    def line_aborted_sig(self):
-        self.backend.saveData_message = "Aborted {}".format(self.backend.saveData_message)
-        self.backend.pause_scan()
-        self.line_finished_sig()
-
     def line_finished_sig(self):
         print("starting next line")
         lines = [vars(self.gui)[i] for i in self.gui.line_names]
@@ -358,6 +404,8 @@ class Launcher(object):
             return
 
         line = lines[current_line]
+        line.setStyleSheet("background: white")
+        line.setAutoFillBackground(True)
         format_datetime = self.get_datetime()
         line.finish_time.setText(format_datetime)
         save_message = self.backend.saveData_message
@@ -369,6 +417,8 @@ class Launcher(object):
             current_line +=1
             line = lines[current_line]
             self.gui.active_line = current_line
+            line.setStyleSheet("background: yellow")
+            line.setAutoFillBackground(True)
             scan_type = line.scan_type.text()
             dwell = eval(line.dwell_time.text())
             x_center = eval(line.x_center.text())
@@ -380,7 +430,7 @@ class Launcher(object):
             scan = [x_center, y_center, x_width, y_width, x_npts, y_npts, dwell]
         else:
             self.gui.controls.status_bar.setText("batch finished")
-            self.gui.active_line = 0
+            self.gui.active_line = -1
             self.backend.cleanup()
             print("cleaning up")
             return
@@ -404,39 +454,31 @@ class Launcher(object):
             format_datetime = self.get_datetime()
             line.start_time.setText(format_datetime)
 
-        if self.gui.tomoAction.isChecked():
+        self.thread3 = myThreads(self, 3, "run_scan")
+        self.thread3.lineFinishSig.connect(self.line_finished_sig)
+        # self.thread3.lineAbortedSig.connect()
+        self.thread3.xp3StuckSig.connect(self.line_color(self.gui.active_line,"red"))
+        self.thread3.struckStuckSig.connect(self.line_color(self.gui.active_line,"red"))
+
+        if self.gui.tomoAction.isChecked() and self.tomo_valid(current_line):
             r_center = eval(line.r_center.text())
             r_npts = eval(line.r_points.text())
             r_width = eval(line.r_width.text())
-
-            if self.tomo_valid(current_line) and self.threading_mode == 1:
-                print("l1")
-                self.thread3 = myThreads(self, 3, "run_scan")
-                self.thread3.lineFinishSig.connect(self.line_finished_sig)
-                self.thread3.lineAbortedSig.connect(self.line_aborted_sig)
-                self.thread3.params = [r_center, r_npts, r_width, scan, scan_type]
-                self.thread3.exit_flag = 0
-                self.thread3.start()
-
-            elif self.tomo_valid(current_line) and self.threading_mode == 0:
-                print("l2")
-                self.backend.run_tomo(r_center,r_npts,r_width,scan,scan_type)
-                self.line_finished_sig()
+            self.thread3.params = [r_center, r_npts, r_width, scan, scan_type]
+            self.thread3.start()
         else:
-            print("l3")
-            if self.threading_mode == 1:
-                self.thread3 = myThreads(self, 3, "run_scan")
-                self.thread3.lineFinishSig.connect(self.line_finished_sig)
-                self.thread3.lineAbortedSig.connect(self.line_aborted_sig)
-                self.thread3.params = [scan, scan_type]
-                self.thread3.exit_flag = 0
-                self.thread3.start()
-            else:
-                print("l4")
-                self.backend.run_scan(scan, scan_type)
-                self.line_finished_sig()
+            self.thread3.params = [scan, scan_type]
+            self.thread3.start()
 
         return
+    def line_color(self, line_idx, color="white"):
+        if color == "red" or color == "white":
+            line = [vars(self.gui)[i] for i in self.gui.line_names][line_idx]
+            line.setStyleSheet("background: {}".format(color))
+            line.setAutoFillBackground(True)
+        else:
+            return
+
     def pause_clicked(self):
         if not self.backend.backend_ready:
             print("scan record not connected")
@@ -474,16 +516,26 @@ class Launcher(object):
         if not self.backend.backend_ready:
             print("scan record not connected")
             return
+        self.backend.abort_scan()
+        # self.backend.pause_scan()
+        self.gui.controls.status_bar.setText("Aborting Line")
+        # self.gui.controls.pause_btn.setText("Paused")
+        # self.gui.controls.pause_btn.setStyleSheet("QPushButton {background: lightgreen;color: red; border-radius: 4;}" "QPushButton::pressed {background-color: darkgreen;}")
         try:
-            self.thread3.exit_flag = 1
-            self.thread3.quit()
-            # self.thread3.wait()
-            print("thread3 exit flag set")
+            if self.gui.active_line != -1:
+                self.line_color(self.gui.active_line, color="white")
+
+                self.thread3.exit_scan = 1
+                self.thread3.quit()
+                saveDate_message = self.backend.saveData_message.split("to")[1]
+                self.backend.saveData_message = "Aborted {}".format(saveDate_message)
+                lines = [vars(self.gui)[i] for i in self.gui.line_names]
+                line = lines[self.gui.active_line]
+                line.save_message.setText(self.backend.saveData_message)
         except:
             print("error aborting scan, try not pressing abort repeatedly")
             pass
-        self.backend.abort_scan()
-        self.gui.controls.status_bar.setText("Aborting Line")
+        self.gui.active_line = -1
         return
 
     def abort_all_clicked(self):
@@ -491,7 +543,7 @@ class Launcher(object):
             print("scan record not connected")
             return
         try:
-            self.thread3.exit_flag = 1
+            self.thread3.exit_scan = 1
         except:
             pass
         self.backend.abort_scan()
@@ -531,10 +583,10 @@ class Launcher(object):
         self.thread2.start()
 
     def stop_thread(self):
-        self.thread1.exit_flag=1
+        self.thread1.exit_save=1
         self.thread1.quit()
         self.thread1.wait()
-        self.thread2.exit_flag=1
+        self.thread2.exit_eta=1
         self.thread2.quit()
         self.thread2.wait()
         pass
@@ -544,6 +596,8 @@ class myThreads(QtCore.QThread):
     etaSig = pyqtSignal()
     lineFinishSig = pyqtSignal()
     lineAbortedSig = pyqtSignal()
+    xp3StuckSig = pyqtSignal(str)
+    struckStuckSig = pyqtSignal(str)
     # pvSig = pyqtSignal()
 
     def __init__(self, parent, threadID, name):
@@ -556,7 +610,9 @@ class myThreads(QtCore.QThread):
         self.params = None
         self.timer = 10
         # self.pv_dict = pv_dict
-        self.exit_flag = 0
+        self.exit_scan = 0
+        self.exit_save = 0
+        self.exit_eta = 0
 
     def run(self):
         print ("Starting " + self.name)
@@ -567,7 +623,6 @@ class myThreads(QtCore.QThread):
             self.eta_countdown(int(timer))
         elif self.name == "run_scan":
             self.run_scan()
-        print("Exiting " + self.name)
 
     def run_scan(self):
         if len(self.params) == 5:
@@ -583,21 +638,22 @@ class myThreads(QtCore.QThread):
             self.parent.backend.run_scan(scan, scan_type)
         else:
             print("invalid param settings")
-            self.exit_flag = 1
+            self.exit_scan = 1
         while True:
             time.sleep(1)
-            #if abort or abort_all
-            if self.exit_flag == 1:
+            if self.exit_scan == 1:
                 print("aborting scan")
                 self.lineAbortedSig.emit()
                 break
             else:
                 if self.parent.backend.done == True:
-                    print("line finished")
                     self.lineFinishSig.emit()
-                    print("sending signal")
-
+                    print("line finished")
                     break
+                if self.parent.backend.xp3_struck:
+                    self.xp3StuckSig.emit("red")
+                if self.parent.backend.struck_struck:
+                    self.struckStuckSig.emit("red")
         return
 
     def save_countdown(self, t):
@@ -605,10 +661,10 @@ class myThreads(QtCore.QThread):
         while t:
             time.sleep(1)
             t -= 1
-            if t==0 and self.exit_flag==0:
+            if t==0 and self.exit_save==0:
                 self.saveSig.emit()  # update counter
                 t=t_original
-            if self.exit_flag:
+            if self.exit_save:
                 break
             else:
                 pass
@@ -618,10 +674,10 @@ class myThreads(QtCore.QThread):
         while t:
             time.sleep(1)
             t -= 1
-            if t==0 and self.exit_flag==0:
+            if t==0 and self.exit_eta==0:
                 self.etaSig.emit()   #update counter
                 t=t_original
-            if self.exit_flag:
+            if self.exit_eta:
                 break
             else:
                 pass

@@ -2,6 +2,8 @@
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import *
+from PyQt5.QtCore import pyqtSignal
+
 
 import pyqtgraph
 import os
@@ -19,6 +21,11 @@ class BatchScanGui(QtWidgets.QMainWindow):
     def __init__(self,app):
         super(QtWidgets.QMainWindow, self).__init__()
         self.app = app
+        self.view1 = 1100
+        self.view2 = 1600
+        self.view3 = 1330
+        self.view4 = 1830
+        self.active_line = -1
         self.session_file = "default_session.pkl"
         self.setWindowTitle("Batch Py V1.0.0")
 
@@ -32,12 +39,7 @@ class BatchScanGui(QtWidgets.QMainWindow):
             setattr(self, v, Line())
         self.initUI()
         self.restore_session()
-        self.view1 = 1100
-        self.view2 = 1600
-        self.view3 = 1330
-        self.view4 = 1830
-        # self.view2 =
-        self.setFixedWidth(self.view1)
+        # self.setFixedWidth(self.view1)
         self.show()
 
     def initUI(self):
@@ -47,7 +49,11 @@ class BatchScanGui(QtWidgets.QMainWindow):
         lineframe = QtWidgets.QFrame()
         tmp_layout = QtWidgets.QVBoxLayout()
         for i in range(self.num_lines):
-            tmp_layout.addWidget(self.__dict__[self.line_names[i]])
+            line = self.__dict__[self.line_names[i]]
+            line.objectName = str(i)
+            line.setAutoFillBackground(True)
+            tmp_layout.addWidget(line)
+
         lineframe.setLayout(tmp_layout)
         lineframe.setStyleSheet("QFrame {background-color: rgb(255, 255, 255);border-width: 1;border-radius: 3;border-style: solid;border-color: rgb(10, 10, 10)}")
         lineframe.setContentsMargins(0,0,0,0) #left, top,right, bottom
@@ -58,6 +64,7 @@ class BatchScanGui(QtWidgets.QMainWindow):
         layout.addWidget(self.controls)
         layout.setSpacing(0)
         layout.setContentsMargins(10,5,10,10) #left, top,right, bottom
+        # layout.setContentsMargins(0,0,0,0) #left, top,right, bottom
 
         self.wid = QtWidgets.QWidget()
         self.setCentralWidget(self.wid)
@@ -76,6 +83,8 @@ class BatchScanGui(QtWidgets.QMainWindow):
         self.tomoAction.triggered.connect(self.view_changed)
         self.miscviewAction = QAction(' misc view', self, checkable=True)
         self.miscviewAction.triggered.connect(self.view_changed)
+        self.miscviewAction.setChecked(True)
+        self.view_changed()
 
         show_lines = QtWidgets.QMenu("show N lines", self)
         show_lines.setStyleSheet("background-color: rgb(49,49,49); color: rgb(255,255,255); border: 1px solid #000;")
@@ -173,7 +182,6 @@ class BatchScanGui(QtWidgets.QMainWindow):
 
         for line in range(self.show_lines):
             self.__dict__[self.line_names[line]].current_line.setChecked(False)
-
         last_clicked.setChecked(True)
 
     def update_npts(self, line_number):
@@ -247,6 +255,7 @@ class BatchScanGui(QtWidgets.QMainWindow):
         if last_checked > self.show_lines:
             self.__dict__[self.line_names[last_checked]].current_line.setChecked(False)
             self.__dict__[self.line_names[self.show_lines-1]].current_line.setChecked(True)
+        self.view_changed()
         return
 
     def update_interval_changed(self):
@@ -265,7 +274,7 @@ class BatchScanGui(QtWidgets.QMainWindow):
 
     def save_session(self):
         try:
-            print("autosaving session")
+            # print("autosaving session")
             cwd = os.path.dirname(os.path.abspath(__file__))+"/"
             file = self.session_file
             settings = {}
@@ -490,7 +499,7 @@ class Controls(QtWidgets.QWidget):
         self.message_window = QtWidgets.QTextEdit("")
         self.message_window.setFixedWidth(700)
         self.message_window.setStyleSheet("background: beige; color: black")
-        self.message_window.setDisabled(False)
+        self.message_window.setReadOnly(True)
 
         self.status_bar = QtWidgets.QLabel("status bar")
         self.status_bar.setFixedWidth(700)
@@ -565,7 +574,6 @@ class Controls(QtWidgets.QWidget):
                             item.setStyleSheet("background: lightcoral; color: black; border-radius: 4")
                         else:
                             item.setStyleSheet("background: lightblue; color: lightblue; border-radius: 4")
-
                     else:
                         if item.isEnabled():
                             item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
@@ -576,6 +584,7 @@ class Controls(QtWidgets.QWidget):
                     item.setStyleSheet("background: lightcoral; color: black; border-radius: 4")
             else:
                 pass
+
 
 class Header(QtWidgets.QWidget):
     def __init__(self):
@@ -657,14 +666,14 @@ class Header(QtWidgets.QWidget):
         self.setLayout(line)
 
 class Line(QtWidgets.QWidget):
+    paramsChangedSig = QtCore.pyqtSignal(int)
     def __init__(self):
         super(Line, self).__init__()
         self.setupUi()
         self.make_pretty()
         self.trajectory_arr = []
         self.eta = timedelta(seconds=int(0))
-        self.active_line = 0
-
+        self.valid = True
 
     def setupUi(self):
         size1 = 30
@@ -728,14 +737,21 @@ class Line(QtWidgets.QWidget):
             item = getattr(self,key)
             if key == "trajectory":
                 item.currentIndexChanged.connect(self.trajector_changed)
+            if key == "line_action":
+                item.currentIndexChanged.connect(self.line_valid)
             if isinstance(item, QtWidgets.QLineEdit):
                 item.textChanged.connect(self.validate_params)
                 item.textChanged.connect(self.calculate_line_eta)
                 item.returnPressed.connect(self.calculate_line_eta)
+                item.editingFinished.connect(self.params_changed)
+
+
             elif isinstance(item,QtWidgets.QPushButton):
                 item.clicked.connect(self.scan_type_clicked)
                 item.clicked.connect(self.calculate_line_eta)
             if isinstance(item, QtWidgets.QHBoxLayout):
+                pass
+            if isinstance(item, QtCore.pyqtSignal):
                 pass
             else:
                 line.addWidget(item)
@@ -795,6 +811,9 @@ class Line(QtWidgets.QWidget):
             trajectories = ["raster", "snake", "spiral", "lissajous", "custom"]
             self.trajectory.addItems(trajectories)
 
+    def params_changed(self):
+        self.paramsChangedSig.emit(eval(self.objectName))
+
     def validate_params(self):
         for key in self.__dict__:
             item = getattr(self, key)
@@ -802,28 +821,66 @@ class Line(QtWidgets.QWidget):
                 try:
                     if key == "comments":
                         pass
+                    elif not item.isEnabled():
+                        item.setStyleSheet("background: lightblue; color: lightblue; border-radius: 4")
+
+                    elif eval(item.text())%1>=0 and (key == "r_center" or key == "x_center" or key == "y_center" or key == "x_width" or key == "y_width" or key == "r_width"):
+                        item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
+
+                    elif (eval(item.text())>=0 and int(item.text())%1==0) and (key == "x_points" or key == "y_points" or key == "r_points"):
+                        item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
+
+                    elif eval(item.text())>0 and key == "dwell_time":
+                        item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
                     else:
-                        value = eval(item.text())
-                        if value<0:
-                            if item.isEnabled():
-                                if key == "r_center" or key == "x_center" or key == "y_center" or key == "x_width" or key == "y_width":
-                                    item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
-                                else:
-                                    item.setStyleSheet("background: lightcoral; color: black; border-radius: 4")
-                            else:
-                                item.setStyleSheet("background: lightblue; color: lightblue; border-radius: 4")
-
-
-                        else:
-                            if item.isEnabled():
-                                item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
-                            else:
-                                item.setStyleSheet("background: lightblue; color: lightblue; border-radius: 4")
-
+                        item.setStyleSheet("background: lightcoral; color: black; border-radius: 4")
                 except:
                     item.setStyleSheet("background: lightcoral; color: black; border-radius: 4")
-            else:
-                pass
+
+
+            #
+            #
+            #         else:
+            #             value = eval(item.text())
+            #             if value <0 and item.isEnabled() and (key == "r_center" or key == "x_center" or key == "y_center" or key == "x_width" or key == "y_width"):
+            #
+            #             elif value <0 and item.isEnabled() and not (key == "r_center" or key == "x_center" or key == "y_center" or key == "x_width" or key == "y_width"):
+            #                 item.setStyleSheet("background: lightcoral; color: black; border-radius: 4")
+            #             elif not item.isEnabled():
+            #                 item.setStyleSheet("background: lightblue; color: lightblue; border-radius: 4")
+            #             elif value >= 0 and item.isEnabled() and (key == "r_center" or key == "x_center" or key == "y_center" or key == "x_width" or key == "y_width"):
+            #                 item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
+            #                 if key == "x_points" or key == "y_points" or key == "r_points":
+            #                     if value
+            #             elif value >= 0 and not item.isEnabled():
+            #                 item.setStyleSheet("background: lightblue; color: lightblue; border-radius: 4")
+            #     except:
+            #         item.setStyleSheet("background: lightcoral; color: black; border-radius: 4")
+            # else:
+            #     pass
+        self.line_valid()
+
+    def line_valid(self):
+        print("validatig line")
+        self.valid = True
+        self.setStyleSheet("background: white")
+        self.setAutoFillBackground(True)
+
+        if self.line_action.currentText() == "normal" or self.line_action.currentText() == "pause":
+            for key in self.__dict__:
+                item = getattr(self, key)
+                if isinstance(item, QtWidgets.QLineEdit) and key != "comments" and item.isEnabled() and item.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+                    self.valid = False
+                    self.setStyleSheet("background: lightsalmon")
+                    self.setAutoFillBackground(True)
+                    return
+
+                if isinstance(item, QtWidgets.QLineEdit) and (key == "dwell_time" or key == "x_width" or key == "y_width" or key == "x_points" or key == "y_points") and item.isEnabled():
+                    if eval(item.text()) == 0:
+                        self.valid = False
+                        self.setStyleSheet("background: lightsalmon")
+                        self.setAutoFillBackground(True)
+                        return
 
     def make_pretty(self):
         myFont = QtGui.QFont()

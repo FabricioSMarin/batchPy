@@ -41,7 +41,8 @@ class BatchSetup(object):
         self.backend_ready = False
         self.done = False
         self.saveData_message = ""
-
+        self.xp3_stuck = False
+        self.struck_stuck = False
 
     def create_xspress3(self,prefix):
         try:
@@ -60,7 +61,6 @@ class BatchSetup(object):
     def setup_xspress3_filesaving(self):
         print("setting up xspress3 file saving... \n")
         if self.XSPRESS3 is not None:
-            #TODO: may need to redefine file path to account for mount point discrepancy
             file_path = epics.caget(self.savePath,as_string=True).split("mda")[0]+"flyXRF"
             saveDate_fileName = self.savePath.split(":")[0]+(":saveData_fileName.VAL")
             file_name = epics.caget(saveDate_fileName,as_string=True).split(".")[0]+"_"
@@ -124,7 +124,6 @@ class BatchSetup(object):
                 self.XSPRESS3.FileNumber = 0
 
     def connect_pvs(self):
-        #TODO: This function takes ~10-20 seconds...
         timeout = 0.1
         try:
             tic = time.time()
@@ -262,7 +261,6 @@ class BatchSetup(object):
 
         except:
             pass
-
         return
 
     def alt_scanning(self):
@@ -345,8 +343,7 @@ class BatchSetup(object):
         return
 
     def run_scan(self,scan, scan_type):
-        print(self.done)
-        self.saveData_message = epics.caget(self.savePath.split(":")[0]+":saveData_message.VAL", as_string=True)
+        self.done = False
         if scan_type == "fly":
             self.reset_detector()
             is_ready = self.init_scan(scan, scan_type)
@@ -362,12 +359,10 @@ class BatchSetup(object):
 
             self.x_motor.VELO = self.scan_speed
             time.sleep(1)
-            #TODO: done flag may need to be set in the threading setup because thread terminates as soon as run is called due to the previous done flag being true.
             tick = time.time()
             self.cycle = 0
             read_history_xp3 = np.zeros(10)
             read_history_struck = np.zeros(10)
-            #TODO: adding WAIT before starting scan will not pause scan at the beginning. Scan record overwrits WAIT =1 with 0, need to set PAUSE
             self.Fscan1.EXSC = 1
             while not self.done:
                 self.before_outer()
@@ -375,26 +370,24 @@ class BatchSetup(object):
                 self.after_inner()
                 self.after_outer()
                 self.check_struck_done()
-                read_history_xp3, xp3_stuck = self.check_detector_stuck(self.cycle, read_history_xp3)
-                read_history_struck, struck_stuck = self.check_struck_stuck(self.cycle, read_history_struck)
+                read_history_xp3, self.xp3_stuck = self.check_detector_stuck(self.cycle, read_history_xp3)
+                read_history_struck, self.struck_stuck = self.check_struck_stuck(self.cycle, read_history_struck)
 
-                if xp3_stuck or struck_stuck:
-                    self.abort_scan()
+                if self.xp3_stuck or self.struck_stuck:
                     read_history_xp3 = np.zeros(10)
                     read_history_struck = np.zeros(10)
-                    self.done = True
 
                 time.sleep(0.1)
                 self.cycle+=1
                 done = self.check_done()
-                #only check done status after 20th cycle to avoid early termination
+                #only check done status after 100th cycle to avoid early termination
                 if done and self.cycle>=100:
-                    print(done, self.done)
                     tock = time.time() - tick
                     if tock < 5:
                         print("scan terminated early going back to while loop")
                         self.done = False
                     else:
+                        self.saveData_message = epics.caget(self.savePath.split(":")[0] + ":saveData_message.VAL", as_string=True)
                         self.FscanH.NPTS = 1
                         self.Fscan1.NPTS = 1
                         time.sleep(1)
@@ -403,7 +396,6 @@ class BatchSetup(object):
                         print("finished in {} seconds.".format(finish))
                         self.cleanup()
                         self.done = True
-
 
         if scan_type == "step":
             self.reset_detector()
@@ -586,8 +578,11 @@ class BatchSetup(object):
         unit_sf = 1
         xcenter, ycenter, xwidth, ywidth, x_npts, y_npts, dwell = scan[0]*unit_sf, scan[1]*unit_sf, scan[2]*unit_sf, \
                                                                 scan[3]*unit_sf, scan[4], scan[5], scan[6]/1000
-        x_step = abs(xwidth/x_npts)
-        y_step = abs(ywidth/y_npts)
+        try:
+            x_step = abs(xwidth/x_npts)
+            y_step = abs(ywidth/y_npts)
+        except ZeroDivisionError:
+            return
 
         if x_step < self.x_motor.MRES:
             print("step size smaller than x_motor resolution, cannot run scan. ")
@@ -610,9 +605,8 @@ class BatchSetup(object):
             self.outer_after_wait.value = 0
 
         if scan_type == "fly":
-            #TODO: abort button may vary from scan to scan
-            # abort_PV = self.FscanH._prefix.split(":")[0]+":PSAbortScans.PROC"
-            abort_PV = self.FscanH._prefix.split(":")[0]+":FAbortScans.PROC"
+            abort_PV = self.FscanH._prefix.split("Abort")[0] + 'AbortScans.VAL'
+
             if not (self.FscanH.FAZE ==0 or self.FscanH.FAZE ==12):
                 epics.caput(abort_PV,1)
                 time.sleep(0.1)
@@ -676,7 +670,7 @@ class BatchSetup(object):
         self.after_outer_step()
 
     def check_done(self):
-        is_done = self.Fscan1.FAZE == 0 or self.Fscan1.FAZE == 12 or self.Fscan1.SMSG == "SCAN Complete"
+        # is_done = self.Fscan1.FAZE == 0 or self.Fscan1.FAZE == 12 or self.Fscan1.SMSG == "SCAN Complete"
         is_done = self.Fscan1.SMSG == "SCAN Complete"
         # is_done = self.Fscan1.CPT == self.Fscan1.NPTS and self.Fscan1.EXSC == 0 and self.FscanH.CPT == self.FscanH.NPTS and self.FscanH.EXSC == 0
         return is_done
@@ -805,9 +799,7 @@ class BatchSetup(object):
             return read_history, True
 
     def check_readout_system(self):
-        #TODO: check readout system ready logic. it's returning true when it's not ready to begin acquring.
         xp3_retry = 0
-
         if self.XSPRESS3 is not None:
             acquiring = self.XSPRESS3.Acquire
             arr_cntr = self.XSPRESS3.ArrayCounter_RBV
@@ -1007,7 +999,6 @@ class BatchSetup(object):
         val = self.inner_before_wait.value
         if val == 1:
             in_position = self.check_position()
-            #TODO: reset Struck current channel
             not_paused = (self.Scan1.pause != 1 and self.ScanH.WCNT == 0 and self.Scan1.WCNT == 0)
             detector_ready = self.check_readout_system()
             if self.STRUCK is not None:
@@ -1118,11 +1109,9 @@ class BatchSetup(object):
         epics.caput(pause_pv,0)
         pause_pv_step = self.ScanH._prefix.split("scan")[0]+'scanPause.VAL'
         epics.caput(pause_pv_step,0)
-
         return
 
     def abort_scan(self):
-        #TODO: abort PV may differ from beamline to beamline
         abort_PV = self.fscanH.split("scan")[0]+"AbortScans.PROC"
         epics.caput(abort_PV,1)
         time.sleep(0.1)
@@ -1135,7 +1124,7 @@ class BatchSetup(object):
         epics.caput(abort_PV,1)
         time.sleep(0.1)
         epics.caput(abort_PV,1)
-
+        self.saveData_message = epics.caget(self.savePath.split(":")[0] + ":saveData_message.VAL", as_string=True)
         self.reset_detector()
         return
 
@@ -1163,6 +1152,4 @@ class BatchSetup(object):
         self.inner_after_wait.value = 0
         self.outer_before_wait.value = 0
         self.outer_after_wait.value = 0
-
-
         return
