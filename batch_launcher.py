@@ -42,9 +42,9 @@ class Launcher(object):
         self.gui.controls.abort_all_btn.clicked.connect(self.abort_all_clicked)
         self.gui.controls.points.clicked.connect(self.calculate_points_clicked)
         self.gui.controls.points_all.clicked.connect(self.calculate_all_points_clicked)
-        lines = [vars(self.gui)[i] for i in self.gui.line_names]
-        for line in lines:
-            line.paramsChangedSig.connect(self.scan_settings_changed)
+        # lines = [vars(self.gui)[i] for i in self.gui.line_names]
+        # for line in lines:
+        #     line.paramsChangedSig.connect(self.scan_settings_changed)
 
         sys.stdout = Stream(newText=self.onUpdateText)
         self.backend = batch_backend.BatchSetup()
@@ -52,6 +52,7 @@ class Launcher(object):
         # if self.backend.backend_ready:
         #     self.backend.init_scan_record()
         # self.connect_backend
+        self.update_motor_limits()
         self.start_threads()
         sys.exit(app.exec())
 
@@ -120,6 +121,28 @@ class Launcher(object):
         #TODO: call calculate_global_eta()
         #TODO: if not good, highlight line RED
         pass
+
+
+    def update_motor_limits(self):
+        try:
+            x_hlm = self.backend.x_motor.HLM
+            x_llm = self.backend.x_motor.LLM
+            x_vmax = self.backend.x_motor.VMAX
+            y_hlm = self.backend.y_motor.HLM
+            r_llm = self.backend.r_motor.LLM
+            r_hlm = self.backend.r_motor.HLM
+
+            lines = [vars(self.gui)[i] for i in self.gui.line_names]
+            for line in lines:
+                line.x_hlm = x_hlm
+                line.x_llm = x_llm
+                line.x_vmax = x_vmax
+                line.y_hlm = y_hlm
+                line.r_llm = r_llm
+                line.r_hlm = r_hlm
+        except:
+            pass
+
 
     def check_motor_limits(self, scan):
         x_hlm = self.backend.x_motor.HLM
@@ -279,7 +302,7 @@ class Launcher(object):
     def zero_clicked(self):
         lines = [vars(self.gui)[i] for i in self.gui.line_names]
         checked = [line.current_line.isChecked() for line in lines].index(True)
-        lines[checked].dwell_time.setText("0")
+        lines[checked].dwell_time.setText("10")
         lines[checked].x_center.setText("0")
         lines[checked].x_points.setText("0")
         lines[checked].x_width.setText("0")

@@ -674,7 +674,13 @@ class Line(QtWidgets.QWidget):
         self.trajectory_arr = []
         self.eta = timedelta(seconds=int(0))
         self.valid = True
-
+        self.x_hlm = 100
+        self.x_llm = -100
+        self.x_vmax = 5
+        self.y_hlm = 100
+        self.y_llm = -100
+        self.r_hlm = 1000
+        self.r_llm = -1000
     def setupUi(self):
         size1 = 30
         size2 = 60
@@ -837,27 +843,6 @@ class Line(QtWidgets.QWidget):
                 except:
                     item.setStyleSheet("background: lightcoral; color: black; border-radius: 4")
 
-
-            #
-            #
-            #         else:
-            #             value = eval(item.text())
-            #             if value <0 and item.isEnabled() and (key == "r_center" or key == "x_center" or key == "y_center" or key == "x_width" or key == "y_width"):
-            #
-            #             elif value <0 and item.isEnabled() and not (key == "r_center" or key == "x_center" or key == "y_center" or key == "x_width" or key == "y_width"):
-            #                 item.setStyleSheet("background: lightcoral; color: black; border-radius: 4")
-            #             elif not item.isEnabled():
-            #                 item.setStyleSheet("background: lightblue; color: lightblue; border-radius: 4")
-            #             elif value >= 0 and item.isEnabled() and (key == "r_center" or key == "x_center" or key == "y_center" or key == "x_width" or key == "y_width"):
-            #                 item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
-            #                 if key == "x_points" or key == "y_points" or key == "r_points":
-            #                     if value
-            #             elif value >= 0 and not item.isEnabled():
-            #                 item.setStyleSheet("background: lightblue; color: lightblue; border-radius: 4")
-            #     except:
-            #         item.setStyleSheet("background: lightcoral; color: black; border-radius: 4")
-            # else:
-            #     pass
         self.line_valid()
 
     def line_valid(self):
@@ -881,6 +866,55 @@ class Line(QtWidgets.QWidget):
                         self.setStyleSheet("background: lightsalmon")
                         self.setAutoFillBackground(True)
                         return
+
+            if not self.motor_limits_valid():
+                self.valid = False
+                self.setStyleSheet("background: lightsalmon")
+                self.setAutoFillBackground(True)
+                return
+
+    def motor_limits_valid(self):
+        x_hlm = self.x_hlm
+        x_llm = self.x_llm
+        x_vmax = self.x_vmax
+        y_hlm = self.y_hlm
+        y_llm = self.y_llm
+        r_hlm = self.r_hlm
+        r_llm = self.r_llm
+        x_center = eval(self.x_center.text())
+        y_center = eval(self.y_center.text())
+        r_center = eval(self.r_center.text())
+        x_width = eval(self.x_width.text())
+        y_width = eval(self.y_width.text())
+        r_width = eval(self.r_width.text())
+        x_points = eval(self.x_points.text())
+        y_points = eval(self.y_points.text())
+        r_points = eval(self.r_points.text())
+        dwell_time = eval(self.dwell_time.text())
+
+        velocity_violation = False
+        scan = [self.x_center, self.y_center, self.x_width, self.y_width, self.x_points, self.y_points, self.dwell_time]
+
+        try:
+            x_step = abs(x_width/x_points)
+            y_step = abs(y_width/y_points)
+            if x_vmax == 0:
+                velocity_violation = False
+            elif x_step/(dwell_time/1000) > x_vmax:
+                velocity_violation = True
+        except ZeroDivisionError:
+            velocity_violation = True
+            pass
+
+        if (x_center - x_width/2) < x_llm or (x_center + x_width/2) > x_hlm or (y_center - y_width/2) < y_llm or \
+                (y_center + y_width/2) > y_hlm or (r_center - r_width/2) < r_llm or (r_center + r_width/2) > r_hlm:
+            print("scan outside motor limits")
+            return False
+        if velocity_violation:
+            print("step size / dwell time exceeds positioner velocity")
+            return False
+        else:
+            return True
 
     def make_pretty(self):
         myFont = QtGui.QFont()
