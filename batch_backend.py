@@ -35,6 +35,7 @@ class BatchSetup(object):
         self.scan1 = ""
         self.scan2 = ""
         self.scanH = ""
+        self.ca_addr_list = ""
         self.settings_vars = self.__dict__
         self.settings_vars = list(self.settings_vars)[:-1]
         self.restore_settings()
@@ -129,7 +130,7 @@ class BatchSetup(object):
             tic = time.time()
             #TODO: might need to configure EPICS_CA_ADDR_LIST in client computer to talk to xspress3 PVS
             #do this in ~/.tcshrc file along with any other aliases and
-            # os.environ["EPICS_CA_ADDR_LIST"] = "164.54.108.30"
+            os.environ["EPICS_CA_ADDR_LIST"] = self.ca_addr_list
             # os.environ["EPICS_CA_ADDR_LIST"] = "164.54.113.18"
             self.XSPRESS3 = self.create_xspress3(self.xp3)
             if self.XSPRESS3 is None:

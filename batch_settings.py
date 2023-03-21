@@ -289,6 +289,8 @@ class ScanSettings(QtWidgets.QMainWindow):
                 for i, key in enumerate(self.var_dict):
                     try:
                         key.setText(settings[i])
+                    except IndexError:
+                        print("settings list changed, ned to discard and update new settings file")
                     except:
                         print("cannot put {} in {}".format(settings[i], key))
         return
@@ -372,6 +374,7 @@ class Setup(QtWidgets.QWidget):
         self.scan1_lbl = QtWidgets.QLabel("scan1")
         self.scan2_lbl = QtWidgets.QLabel("scan2")
         self.scanH_lbl = QtWidgets.QLabel("scanH")
+        self.ca_addr = QtWidgets.QLabel("ca_addr_list")
 
         self.ibw = QtWidgets.QLineEdit("")
         self.iaw = QtWidgets.QLineEdit("")
@@ -391,21 +394,11 @@ class Setup(QtWidgets.QWidget):
         self.scan1 = QtWidgets.QLineEdit("")
         self.scan2 = QtWidgets.QLineEdit("")
         self.scanH = QtWidgets.QLineEdit("")
+        self.CA_ADDR_LIST = QtWidgets.QLineEdit("")
 
         self.save_btn = QtWidgets.QPushButton("save settings")
         self.update_btn.setCheckable(True)
         self.update_btn.setStyleSheet("background-color : lightblue")
-
-        # self.scan_type =QtWidgets.QPushButton(self.gridLayoutWidget)
-        # self.scan_type.setCheckable(True)
-        #
-        # self.trajectory = QtWidgets.QComboBox()
-        # self.trajectory.placeholderText = "trajectory"
-        # self.trajectory.toolTip = "Scan trajectory"
-        # self.trajectory.addItems("raster")
-        # self.trajectory.addItems("snake")
-        # self.trajectory.addItems("spiral")
-        # self.trajectory.addItems("lissajous")
 
         self.column1 = QtWidgets.QVBoxLayout()
         self.column1.addWidget(self.desc)
@@ -428,6 +421,7 @@ class Setup(QtWidgets.QWidget):
         self.column1.addWidget(self.scan1_lbl)
         self.column1.addWidget(self.scan2_lbl)
         self.column1.addWidget(self.scanH_lbl)
+        self.column1.addWidget(self.ca_addr)
 
         self.column2 = QtWidgets.QVBoxLayout()
         self.column2.addWidget(self.config_file)
@@ -450,6 +444,7 @@ class Setup(QtWidgets.QWidget):
         self.column2.addWidget(self.scan1)
         self.column2.addWidget(self.scan2)
         self.column2.addWidget(self.scanH)
+        self.column2.addWidget(self.CA_ADDR_LIST)
 
         row = QtWidgets.QHBoxLayout()
         row.addLayout(self.column1)
