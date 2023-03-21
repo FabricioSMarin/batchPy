@@ -43,6 +43,7 @@ class BatchSetup(object):
         self.saveData_message = ""
         self.xp3_stuck = False
         self.struck_stuck = False
+        self.event = False
 
     def create_xspress3(self,prefix):
         try:
@@ -67,7 +68,6 @@ class BatchSetup(object):
             file_template = "%s%s_%d.hdf5"
             self.XSPRESS3.FilePath = file_path
             time.sleep(1)
-            #TODO: filePathExists flag does not update immediately after defining a new path so the previous valid path might incorrectly return a valid flag before the flag is correctly set.
             if self.XSPRESS3.FilePathExists_RBV!=1:
                 print("file path does not exist!")
                 try:
@@ -342,17 +342,28 @@ class BatchSetup(object):
                 f.close()
         return
 
-    def run_scan(self,scan, scan_type):
+    def timer_event(self, cycle):
+        cycle_frequency = 15
+        try:
+            if cycle%cycle_frequency == 0: #check every tenth cycle
+                self.event = True
+            else:
+                self.event = False
+        except:
+            self.event = False
+        return
+
+    def run_scan(self,scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell):
         self.done = False
         if scan_type == "fly":
             self.reset_detector()
-            is_ready = self.init_scan(scan, scan_type)
+            is_ready = self.init_scan(scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell)
             self.x_motor.VELO = self.fast_speed
             self.x_motor.VAL = self.FscanH.P1SP
             self.y_motor.VAL = self.Fscan1.P1SP
             in_position = self.check_position()
             while not is_ready and not in_position:
-                is_ready = self.init_scan(scan, scan_type)
+                is_ready = self.init_scan(scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell)
                 in_position = self.check_position()
                 time.sleep(1)
                 print("waiting for struck and motor")
@@ -379,6 +390,9 @@ class BatchSetup(object):
 
                 time.sleep(0.1)
                 self.cycle+=1
+                if self.cycle>100:
+                    self.timer_event(self.cycle)
+
                 done = self.check_done()
                 #only check done status after 100th cycle to avoid early termination
                 if done and self.cycle>=100:
@@ -399,7 +413,7 @@ class BatchSetup(object):
 
         if scan_type == "step":
             self.reset_detector()
-            self.init_scan(scan, scan_type)
+            self.init_scan(scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell)
             self.x_motor.VELO = self.fast_speed
             self.x_motor.VAL = self.ScanH.P1SP
             self.y_motor.VAL = self.Scan1.P1SP
@@ -421,12 +435,12 @@ class BatchSetup(object):
                     print("finished in {} seconds.".format(finish))
         return True
 
-    def run_tomo(self,r_center,r_npts,r_width,scan,scan_type):
+    def run_tomo(self,scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell, r_center, r_width, r_npts):
         start = r_center - r_width//2
         end = r_center + r_width//2
         angles= np.linspace(start, end, r_npts)
         if len(angles)==0:
-            self.run_scan(scan, scan_type)
+            self.run_scan(scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell)
         else:
             for i in angles:
                 self.r_motor.VELO = 5
@@ -442,7 +456,7 @@ class BatchSetup(object):
                         print("rotation stage not in position, aborting current line and pausing at next line. ")
                         self.done = True
                         return
-                self.run_scan(scan,scan_type)
+                self.run_scan(scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell)
 
     #check pvs and update
     def update_ui(self):
@@ -573,14 +587,13 @@ class BatchSetup(object):
         else: self.Scan1.BSPV = ""
 
 
-    def init_scan(self, scan, scan_type):
+    def init_scan(self, scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell):
         # unit_sf = 1/1000
         unit_sf = 1
-        xcenter, ycenter, xwidth, ywidth, x_npts, y_npts, dwell = scan[0]*unit_sf, scan[1]*unit_sf, scan[2]*unit_sf, \
-                                                                scan[3]*unit_sf, scan[4], scan[5], scan[6]/1000
+        dwell = dwell/1000
         try:
-            x_step = abs(xwidth/x_npts)
-            y_step = abs(ywidth/y_npts)
+            x_step = abs(x_width/x_npts)
+            y_step = abs(y_width/y_npts)
         except ZeroDivisionError:
             return
 
@@ -615,16 +628,16 @@ class BatchSetup(object):
                 epics.caput(abort_PV,1)
 
             self.FscanH.NPTS = x_npts           #set number of points
-            self.FscanH.P1WD = xwidth                               #set width
-            self.FscanH.P1CP = xcenter                              #set center
+            self.FscanH.P1WD = x_width                               #set width
+            self.FscanH.P1CP = x_center                              #set center
 
             self.Fscan1.NPTS = y_npts
-            self.Fscan1.P1WD = ywidth
-            self.Fscan1.P1CP = ycenter
+            self.Fscan1.P1WD = y_width
+            self.Fscan1.P1CP = y_center
             self.Fscan1.PDLY = 0.25
 
             self.fast_speed = 5
-            self.scan_speed = (xwidth / x_npts) / dwell
+            self.scan_speed = (x_width / x_npts) / dwell
 
             if self.XSPRESS3 is not None:
                 self.XSPRESS3.NumImages = x_npts - 2
@@ -642,16 +655,16 @@ class BatchSetup(object):
             time.sleep(0.1)
             epics.caput(abort_PV,1)
 
-            self.ScanH.P1CP = xcenter
-            self.ScanH.P1WD = xwidth
+            self.ScanH.P1CP = x_center
+            self.ScanH.P1WD = x_width
             self.ScanH.NPTS = x_npts
 
-            self.Scan1.P1CP = ycenter
-            self.Scan1.P1WD = ywidth
+            self.Scan1.P1CP = y_center
+            self.Scan1.P1WD = y_width
             self.Scan1.NPTS = y_npts
 
             self.fast_speed = 5
-            self.scan_speed = (xwidth / x_npts) / dwell
+            self.scan_speed = (x_width / x_npts) / dwell
 
             if self.XSPRESS3 is not None:
                 self.XSPRESS3.NumImages = x_npts - 2
@@ -915,7 +928,6 @@ class BatchSetup(object):
 
     def before_outer(self):
         val = self.outer_before_wait.value
-        #TODO: sometimes scan is stuck and scan record never sets busy to 1.
         if val == 1:
             not_paused = (self.Fscan1.pause != 1 and self.FscanH.WCNT == 0 and self.Fscan1.WCNT == 0)
             print(not_paused)
@@ -935,7 +947,6 @@ class BatchSetup(object):
 
     def before_outer_step(self):
         val = self.outer_before_wait.value
-        #TODO: sometimes scan is stuck and scan record never sets busy to 1.
         if val == 1:
             not_paused = (self.Scan1.pause != 1 and self.ScanH.WCNT == 0 and self.Scan1.WCNT == 0)
             ready = not_paused
