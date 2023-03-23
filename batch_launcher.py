@@ -46,9 +46,6 @@ class Launcher(object):
         sys.stdout = Stream(newText=self.onUpdateText)
         self.backend = batch_backend.BatchSetup()
         self.backend.connect_pvs()
-        # if self.backend.backend_ready:
-        #     self.backend.init_scan_record()
-        # self.connect_backend
         self.update_motor_limits()
         self.start_threads()
         sys.exit(self.app.exec())
@@ -111,7 +108,7 @@ class Launcher(object):
                 sec = int(eta_str.split(":")[2])
                 total_s = sec + min + hrs
                 if line["line_action"].currentText() == "normal":
-                    if line["scan_type"].text() == "fly":
+                    if line["scan_type"].text() == "step":
                         line_eta = (self.backend.Scan1.CPT/self.backend.Scan1.NPTS) * total_s
                     else:
                         line_eta = (self.backend.Fscan1.CPT/self.backend.Fscan1.NPTS) * total_s
@@ -141,8 +138,8 @@ class Launcher(object):
         self.gui.controls.view_box.p1.plot(y_arr[:idx],x_arr[:idx])
         return
     def get_scan_progress(self):
-        curret_x_pos = self.backend.FscanH.CPT
-        current_y_pos = self.backend.Fscan1.CPT
+        curret_x_pos = self.backend.inner.CPT
+        current_y_pos = self.backend.outer.CPT
         return curret_x_pos, current_y_pos
     def get_trajectory(self):
         line = [vars(self.gui)[i] for i in self.gui.line_names][self.gui.active_line]
@@ -178,8 +175,6 @@ class Launcher(object):
                 y_coords[:i] = np.ones(scan[3]) * y_line[i]
             y_coords = np.ndarray.flatten(y_coords)
             return x_coords, y_coords
-
-
         else:
             return
 

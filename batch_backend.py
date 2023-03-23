@@ -45,6 +45,8 @@ class BatchSetup(object):
         self.xp3_stuck = False
         self.struck_stuck = False
         self.event = False
+        self.inner = None
+        self.outer = None
 
     def create_xspress3(self,prefix):
         try:
@@ -357,83 +359,67 @@ class BatchSetup(object):
     def run_scan(self,scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell):
         self.done = False
         if scan_type == "fly":
-            self.reset_detector()
+            self.inner = self.FscanH
+            self.outer = self.Fscan1
+        elif scan_type == "step":
+            self.inner = self.ScanH
+            self.outer = self.Scan1
+
+        self.reset_detector()
+        is_ready = self.init_scan(scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell)
+        self.x_motor.VELO = self.fast_speed
+        self.x_motor.VAL = self.inner.P1SP
+        self.y_motor.VAL = self.outer.P1SP
+        in_position = self.check_position()
+        while not is_ready and not in_position:
             is_ready = self.init_scan(scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell)
-            self.x_motor.VELO = self.fast_speed
-            self.x_motor.VAL = self.FscanH.P1SP
-            self.y_motor.VAL = self.Fscan1.P1SP
             in_position = self.check_position()
-            while not is_ready and not in_position:
-                is_ready = self.init_scan(scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell)
-                in_position = self.check_position()
-                time.sleep(1)
-                print("waiting for struck and motor")
-
-            self.x_motor.VELO = self.scan_speed
             time.sleep(1)
-            tick = time.time()
-            self.cycle = 0
-            read_history_xp3 = np.zeros(10)
-            read_history_struck = np.zeros(10)
-            self.Fscan1.EXSC = 1
-            while not self.done:
-                self.before_outer()
-                self.before_inner()
-                self.after_inner()
-                self.after_outer()
-                self.check_struck_done()
-                read_history_xp3, self.xp3_stuck = self.check_detector_stuck(self.cycle, read_history_xp3)
-                read_history_struck, self.struck_stuck = self.check_struck_stuck(self.cycle, read_history_struck)
+            print("waiting for struck and motor")
 
-                if self.xp3_stuck or self.struck_stuck:
-                    read_history_xp3 = np.zeros(10)
-                    read_history_struck = np.zeros(10)
+        self.x_motor.VELO = self.scan_speed
+        time.sleep(1)
+        tick = time.time()
+        self.cycle = 0
+        read_history_xp3 = np.zeros(10)
+        read_history_struck = np.zeros(10)
+        self.outer.EXSC = 1
+        while not self.done:
+            self.before_outer()
+            self.before_inner()
+            self.after_inner()
+            self.after_outer()
+            self.check_struck_done()
+            read_history_xp3, self.xp3_stuck = self.check_detector_stuck(self.cycle, read_history_xp3)
+            read_history_struck, self.struck_stuck = self.check_struck_stuck(self.cycle, read_history_struck)
 
-                time.sleep(0.1)
-                self.cycle+=1
-                if self.cycle>100:
-                    self.timer_event(self.cycle)
+            if self.xp3_stuck or self.struck_stuck:
+                read_history_xp3 = np.zeros(10)
+                read_history_struck = np.zeros(10)
 
-                done = self.check_done()
-                #only check done status after 100th cycle to avoid early termination
-                if done and self.cycle>=100:
-                    tock = time.time() - tick
-                    if tock < 5:
-                        print("scan terminated early going back to while loop")
-                        self.done = False
-                    else:
-                        self.saveData_message = epics.caget(self.savePath.split(":")[0] + ":saveData_message.VAL", as_string=True)
-                        self.FscanH.NPTS = 1
-                        self.Fscan1.NPTS = 1
-                        time.sleep(1)
-                        finish = time.time() - tick
-                        finish = round(finish,2)
-                        print("finished in {} seconds.".format(finish))
-                        self.cleanup()
-                        self.done = True
+            time.sleep(0.1)
+            self.cycle+=1
+            if self.cycle>100:
+                self.timer_event(self.cycle)
 
-        if scan_type == "step":
-            self.reset_detector()
-            self.init_scan(scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell)
-            self.x_motor.VELO = self.fast_speed
-            self.x_motor.VAL = self.ScanH.P1SP
-            self.y_motor.VAL = self.Scan1.P1SP
-            self.check_position()
-            self.x_motor.VELO = self.scan_speed
-            self.Scan1.EXSC = 1
-            time.sleep(1)
-            tick = time.time()
-            while not self.done:
-                self.check_busy_step()
-                time.sleep(0.1)
-                if self.check_done_step():
-                    self.ScanH.NPTS = 1
-                    self.Scan1.NPTS = 1
+            done = self.check_done()
+            #only check done status after 100th cycle to avoid early termination
+            if done and self.cycle>=100:
+                tock = time.time() - tick
+                if tock < 5:
+                    print("scan terminated early going back to while loop")
+                    self.done = False
+                else:
+                    self.saveData_message = epics.caget(self.savePath.split(":")[0] + ":saveData_message.VAL", as_string=True)
+                    self.inner.NPTS = 1
+                    self.outer.NPTS = 1
                     time.sleep(1)
-                    self.done = True
                     finish = time.time() - tick
                     finish = round(finish,2)
                     print("finished in {} seconds.".format(finish))
+                    self.cleanup()
+                    self.done = True
+
         return True
 
     def run_tomo(self,scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell, r_center, r_width, r_npts):
@@ -619,23 +605,23 @@ class BatchSetup(object):
             self.outer_after_wait.value = 0
 
         if scan_type == "fly":
-            abort_PV = self.FscanH._prefix.split("Abort")[0] + 'AbortScans.VAL'
+            abort_PV = self.inner._prefix.split("Abort")[0] + 'AbortScans.VAL'
 
-            if not (self.FscanH.FAZE ==0 or self.FscanH.FAZE ==12):
+            if not (self.inner.FAZE ==0 or self.inner.FAZE ==12):
                 epics.caput(abort_PV,1)
                 time.sleep(0.1)
                 epics.caput(abort_PV,1)
                 time.sleep(0.1)
                 epics.caput(abort_PV,1)
 
-            self.FscanH.NPTS = x_npts           #set number of points
-            self.FscanH.P1WD = x_width                               #set width
-            self.FscanH.P1CP = x_center                              #set center
+            self.inner.NPTS = x_npts           #set number of points
+            self.inner.P1WD = x_width                               #set width
+            self.inner.P1CP = x_center                              #set center
 
-            self.Fscan1.NPTS = y_npts
-            self.Fscan1.P1WD = y_width
-            self.Fscan1.P1CP = y_center
-            self.Fscan1.PDLY = 0.25
+            self.outer.NPTS = y_npts
+            self.outer.P1WD = y_width
+            self.outer.P1CP = y_center
+            self.outer.PDLY = 0.25
 
             self.fast_speed = 5
             self.scan_speed = (x_width / x_npts) / dwell
@@ -649,23 +635,23 @@ class BatchSetup(object):
 
 
         elif scan_type == "step":
-            abort_PV = self.ScanH._prefix.split(":")[0]+":AbortScans.PROC"
+            abort_PV = self.inner._prefix.split("Abort")[0] + 'AbortScans.VAL'
             epics.caput(abort_PV,1)
             time.sleep(0.1)
             epics.caput(abort_PV,1)
             time.sleep(0.1)
             epics.caput(abort_PV,1)
 
-            self.ScanH.P1CP = x_center
-            self.ScanH.P1WD = x_width
-            self.ScanH.NPTS = x_npts
+            self.inner.P1CP = x_center
+            self.inner.P1WD = x_width
+            self.inner.NPTS = x_npts
 
-            self.Scan1.P1CP = y_center
-            self.Scan1.P1WD = y_width
-            self.Scan1.NPTS = y_npts
+            self.outer.P1CP = y_center
+            self.outer.P1WD = y_width
+            self.outer.NPTS = y_npts
 
             self.fast_speed = 5
-            self.scan_speed = (x_width / x_npts) / dwell
+            self.fast_speed = 5
 
             if self.XSPRESS3 is not None:
                 self.XSPRESS3.NumImages = x_npts - 2
@@ -677,26 +663,12 @@ class BatchSetup(object):
 
         return True
 
-    def check_busy_step(self):
-        self.before_outer_step()
-        self.before_inner_step()
-        self.after_inner_step()
-        self.after_outer_step()
-
     def check_done(self):
         # is_done = self.Fscan1.FAZE == 0 or self.Fscan1.FAZE == 12 or self.Fscan1.SMSG == "SCAN Complete"
-        is_done = self.Fscan1.SMSG == "SCAN Complete"
+        is_done = self.outer.SMSG == "SCAN Complete"
         # is_done = self.Fscan1.CPT == self.Fscan1.NPTS and self.Fscan1.EXSC == 0 and self.FscanH.CPT == self.FscanH.NPTS and self.FscanH.EXSC == 0
         return is_done
-    def check_done_step(self):
-        is_done = self.Scan1.FAZE == 0 or self.Scan1.FAZE == 12
-
-        # is_done = self.Scan1.CPT == self.Scan1.NPTS and self.Scan1.EXSC == 0 and self.ScanH.CPT == self.ScanH.NPTS and self.ScanH.EXSC == 0
-        return is_done
-
     def check_busy(self):
-        # if self.beamline == "2ide":
-        #     self.beamline
         self.before_outer()
         self.before_inner()
         self.after_inner()
@@ -778,7 +750,7 @@ class BatchSetup(object):
                 i = cycle//cycle_frequency%10
                 read_history[i] = self.STRUCK.CurrentChannel
                 if cycle//cycle_frequency >=cycle_frequency:
-                    if read_history[0] == read_history[-1] and self.FscanH.FAZE !=0 and self.FscanH.FAZE!=12 and not self.is_paused():
+                    if read_history[0] == read_history[-1] and self.inner.FAZE !=0 and self.inner.FAZE!=12 and not self.is_paused():
                         print("STRUCK may be stuck.. ")
                         return read_history, True
                     else:
@@ -800,7 +772,7 @@ class BatchSetup(object):
                     i = cycle//cycle_frequency%10 #every thenth cycle revolving index
                     read_history[i] = epics.caget(self.XSPRESS3._prefix+"det1:ArrayCounter_RBV")
                     if cycle//cycle_frequency >=cycle_frequency:
-                        if read_history[0] == read_history[-1] and self.FscanH.FAZE !=0 and self.FscanH.FAZE!=12 and not self.is_paused():
+                        if read_history[0] == read_history[-1] and self.inner.FAZE !=0 and self.inner.FAZE!=12 and not self.is_paused():
                             print("detector may be stuck.. ")
                             return read_history, True
                         else:
@@ -834,12 +806,12 @@ class BatchSetup(object):
                 print("xspress3 in error state")
                 return False
             while xp3_retry <=10:
-                if acquiring==1 and arr_cntr==0 and file_number==self.Fscan1.CPT and capture_ready==1:
+                if acquiring==1 and arr_cntr==0 and file_number==self.outer.CPT and capture_ready==1:
                     return True
                 if arr_cntr!=0:
                     self.XSPRESS3.ERASE=1
-                if file_number!=self.Fscan1.CPT:
-                    self.XSPRESS3.FileNumber = self.Fscan1.CPT
+                if file_number!=self.outer.CPT:
+                    self.XSPRESS3.FileNumber = self.outer.CPT
                 if capture_ready!=1:
                     self.XSPRESS3.Capture=1
                 if acquiring !=1:
@@ -847,7 +819,7 @@ class BatchSetup(object):
                 acquiring = self.XSPRESS3.Acquire
                 arr_cntr = self.XSPRESS3.ArrayCounter_RBV
                 file_number = self.XSPRESS3.FileNumber
-                current_line = self.Fscan1.CPT
+                current_line = self.outer.CPT
                 capture_ready = self.XSPRESS3.Capture_RBV
                 xp3_retry+=1
 
@@ -906,10 +878,10 @@ class BatchSetup(object):
 
     def setup_triggers(self):
 
-        innerScanStartingPoint = self.FscanH.P1SP
-        innerScanStepSize = self.FscanH.P1SI
-        innerScanWidth = self.FscanH.P1WD
-        innerScanNumPoints = self.FscanH.NPTS
+        innerScanStartingPoint = self.inner.P1SP
+        innerScanStepSize = self.inner.P1SI
+        innerScanWidth = self.inner.P1WD
+        innerScanNumPoints = self.inner.NPTS
         fastPositionerDial = self.x_motor.DVAL
 
         triggerStart = fastPositionerDial + innerScanStepSize
@@ -930,30 +902,14 @@ class BatchSetup(object):
     def before_outer(self):
         val = self.outer_before_wait.value
         if val == 1:
-            not_paused = (self.Fscan1.pause != 1 and self.FscanH.WCNT == 0 and self.Fscan1.WCNT == 0)
+            not_paused = (self.outer.pause != 1 and self.inner.WCNT == 0 and self.outer.WCNT == 0)
             print(not_paused)
             ready = not_paused
             retry = 0
             while not ready:
                 retry+=1
-                not_paused = (self.Fscan1.pause != 1 and self.FscanH.WCNT == 0 and self.Fscan1.WCNT == 0)
+                not_paused = (self.outer.pause != 1 and self.inner.WCNT == 0 and self.outer.WCNT == 0)
                 ready = not_paused
-                if retry >=10:
-                    print("before outer retry >10")
-            self.x_motor.VELO = self.scan_speed
-            self.outer_before_wait.value = 0
-        else:
-            pass
-        return
-
-    def before_outer_step(self):
-        val = self.outer_before_wait.value
-        if val == 1:
-            not_paused = (self.Scan1.pause != 1 and self.ScanH.WCNT == 0 and self.Scan1.WCNT == 0)
-            ready = not_paused
-            retry = 0
-            while not ready:
-                retry+=1
                 if retry >=10:
                     print("before outer retry >10")
             self.x_motor.VELO = self.scan_speed
@@ -966,7 +922,7 @@ class BatchSetup(object):
         val = self.inner_before_wait.value
         if val == 1:
             in_position = self.check_position()
-            not_paused = (self.FscanH.pause != 1 and self.FscanH.WCNT == 0 and self.Fscan1.WCNT == 0)
+            not_paused = (self.inner.pause != 1 and self.inner.WCNT == 0 and self.outer.WCNT == 0)
             detector_ready = self.check_readout_system()
             struck_ready = self.check_struck()
             ready = not_paused and detector_ready and struck_ready and in_position
@@ -985,55 +941,12 @@ class BatchSetup(object):
                     in_position = self.check_position()
                 if not not_paused:
                     print("paused")
-                    not_paused = (self.Scan1.pause != 1 and self.ScanH.WCNT == 0 and self.Scan1.WCNT == 0)
+                    not_paused = (self.outer.pause != 1 and self.inner.WCNT == 0 and self.outer.WCNT == 0)
                 ready = not_paused and detector_ready and struck_ready and in_position
 
                 retry+=1
                 if retry >=10:
                     print("before inner retrying...")
-                    if not struck_ready:
-                        self.STRUCK.StopAll= 0
-                    if not detector_ready:
-                        self.XSPRESS3.Acquire = 0
-                    if not in_position:
-                        self.inner_before_wait.value = 1
-                        return
-                    if not not_paused:
-                        return
-
-            self.x_motor.VELO = self.scan_speed
-            self.inner_before_wait.value = 0
-        else:
-            pass
-        return
-
-    def before_inner_step(self):
-        val = self.inner_before_wait.value
-        if val == 1:
-            in_position = self.check_position()
-            not_paused = (self.Scan1.pause != 1 and self.ScanH.WCNT == 0 and self.Scan1.WCNT == 0)
-            detector_ready = self.check_readout_system()
-            if self.STRUCK is not None:
-                struck_ready = self.check_struck()
-            else:
-                struck_ready = True
-
-            ready = not_paused and detector_ready and struck_ready and in_position
-            # ready = not_paused and detector_ready and in_position
-            retry = 0
-            while not ready:
-                if not struck_ready:
-                    struck_ready = self.check_struck()
-                if not detector_ready:
-                    detector_ready = self.check_readout_system()
-                if not in_position:
-                    in_position = self.check_position()
-                if not not_paused:
-                    not_paused = (self.Scan1.pause != 1 and self.ScanH.WCNT == 0 and self.Scan1.WCNT == 0)
-                ready = not_paused and detector_ready and struck_ready and in_position
-
-                retry+=1
-                if retry >=10:
                     if not struck_ready:
                         self.STRUCK.StopAll= 0
                     if not detector_ready:
@@ -1059,25 +972,12 @@ class BatchSetup(object):
                 self.STRUCK.StopAll = 1
 
             self.x_motor.VELO = self.fast_speed
-            self.x_motor.VAL = self.FscanH.P1SP
+            self.x_motor.VAL = self.inner.P1SP
             self.inner_after_wait.value = 0
         else:
             pass
         return
 
-    def after_inner_step(self):
-        val = self.inner_after_wait.value
-        if val == 1:
-            self.XSPRESS3.Acquire = 0
-            # self.XSPRESS3.ERASE = 1
-            if self.STRUCK is not None:
-                self.STRUCK.StopAll = 1
-            self.x_motor.VELO = self.fast_speed
-            self.x_motor.VAL = self.ScanH.P1SP
-            self.inner_after_wait.value = 0
-        else:
-            pass
-        return
     def after_outer(self):
         val = self.outer_after_wait.value
         if val == 1:
@@ -1087,50 +987,31 @@ class BatchSetup(object):
             pass
         return
 
-    def after_outer_step(self):
-        val = self.outer_after_wait.value
-        if val == 1:
-            self.reset_detector()
-            self.outer_after_wait.value = 0
-        else:
-            pass
-        return
-
     def add_wait(self):
-        self.FscanH.WAIT = 1
-        self.Scan1.WAIT = 1
+        self.inner.WAIT = 1
         return
     def pause_scan(self):
-        pause_pv = self.FscanH._prefix.split("scan")[0]+'scanPause.VAL'
+        pause_pv = self.inner._prefix.split("scan")[0]+'scanPause.VAL'
         epics.caput(pause_pv,1)
         return
 
     def is_paused(self):
-        pause_pv = self.FscanH._prefix.split("scan")[0]+'scanPause.VAL'
+        pause_pv = self.inner._prefix.split("scan")[0]+'scanPause.VAL'
         paused = epics.caget(pause_pv)
-        if self.FscanH.WCNT > 0 or paused == 1:
+        if self.inner.WCNT > 0 or paused == 1:
             return True
         else:
             return False
 
     def continue_scan(self):
         self.cycle = 0
-        self.FscanH.WAIT = 0
-        self.Scan1.WAIT = 0
-        pause_pv = self.FscanH._prefix.split("scan")[0]+'scanPause.VAL'
+        self.inner.WAIT = 0
+        pause_pv = self.inner._prefix.split("scan")[0]+'scanPause.VAL'
         epics.caput(pause_pv,0)
-        pause_pv_step = self.ScanH._prefix.split("scan")[0]+'scanPause.VAL'
-        epics.caput(pause_pv_step,0)
         return
 
     def abort_scan(self):
-        abort_PV = self.fscanH.split("scan")[0]+"AbortScans.PROC"
-        epics.caput(abort_PV,1)
-        time.sleep(0.1)
-        epics.caput(abort_PV,1)
-        time.sleep(0.1)
-        epics.caput(abort_PV,1)
-        abort_PV = self.scanH.split(":")[0]+":AbortScans.PROC"
+        abort_PV = self.inner._prefix.split("scan")[0]+"AbortScans.PROC"
         epics.caput(abort_PV,1)
         time.sleep(0.1)
         epics.caput(abort_PV,1)
