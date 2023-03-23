@@ -1011,6 +1011,7 @@ class BatchSetup(object):
         return
 
     def abort_scan(self):
+        #TODO: if aborting at start of gui, self.inner will not be defined.
         abort_PV = self.inner._prefix.split("scan")[0]+"AbortScans.PROC"
         epics.caput(abort_PV,1)
         time.sleep(0.1)

@@ -130,6 +130,7 @@ class Launcher(object):
             self.backend.open_settings(file[0])
 
     def update_plot(self):
+        print("updating plot")
         self.gui.controls.view_box.p1.clear()
         x_pos, y_pos = self.get_scan_progress()
         idx = x_pos*y_pos + x_pos
@@ -142,25 +143,26 @@ class Launcher(object):
         current_y_pos = self.backend.outer.CPT
         return curret_x_pos, current_y_pos
     def get_trajectory(self):
+        #TODO: continue with figuring out how to plot trajectory 
         line = [vars(self.gui)[i] for i in self.gui.line_names][self.gui.active_line]
         scan = self.get_scan(self.gui.active_line)
         # scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell, r_center, r_width, r_npts
-        if line.trajectory.text() == "raster":
-            x_line = np.arange(scan[1] - scan[2]/2, scan[1] + scan[2]/2, scan[1]/scan[3])
+        if line.trajectory.currentText() == "raster":
+            x_line = np.arange(scan[1] - scan[2]/2, scan[1] + scan[2]/2, scan[2]/scan[3])
             x_coords = np.zeros((scan[6],scan[3]))
             for i in range(scan[6]):
                 x_coords[:i] = x_line
             x_coords = np.ndarray.flatten(x_coords)
 
-            y_line = np.arange(scan[4] - scan[5]/2, scan[4] + scan[5]/2, scan[4]/scan[6])
+            y_line = np.arange(scan[4] - scan[5]/2, scan[4] + scan[5]/2, scan[5]/scan[6])
             y_coords = np.zeros((scan[6], scan[3]))
             for i in range(scan[6]):
                 y_coords[:i] = np.ones(scan[3])*y_line[i]
             y_coords = np.ndarray.flatten(y_coords)
             return x_coords, y_coords
 
-        elif line.trajectory.text() == "snake":
-            x_line = np.arange(scan[1] - scan[2] / 2, scan[1] + scan[2] / 2, scan[1] / scan[3])
+        elif line.trajectory.currentText() == "snake":
+            x_line = np.arange(scan[1] - scan[2] / 2, scan[1] + scan[2] / 2, scan[2] / scan[3])
             x_coords = np.zeros((scan[6], scan[3]))
             for i in range(scan[6]):
                 if i%2 == 1:
@@ -313,11 +315,14 @@ class Launcher(object):
         self.backend.done = False
         self.thread3 = myThreads(self, 3, "run_scan")
         self.thread3.lineFinishSig.connect(self.line_finished_sig)
-        # self.thread3.lineAbortedSig.connect()
-        self.thread3.xp3StuckSig.connect(self.stuck_flag)
-        self.thread3.struckStuckSig.connect(self.stuck_flag)
-        self.thread3.plotSig.connect(self.update_plot)
         self.thread3.exit_scan = 0
+        self.timer_thread = myThreads(self, 4, "timer event")
+        self.timer_thread.plotSig.connect(self.update_plot)
+        self.timer_thread.xp3StuckSig.connect(self.stuck_flag)
+        self.timer_thread.struckStuckSig.connect(self.stuck_flag)
+        self.timer_thread.exit_flag = 0
+        self.timer_thread.start()
+
         if self.gui.tomoAction.isChecked() and self.tomo_valid(first_line):
             self.thread3.params = scan
         else:
@@ -432,10 +437,13 @@ class Launcher(object):
 
         self.thread3 = myThreads(self, 3, "run_scan")
         self.thread3.lineFinishSig.connect(self.line_finished_sig)
-        # self.thread3.lineAbortedSig.connect()
-        self.thread3.xp3StuckSig.connect(self.stuck_flag)
-        self.thread3.struckStuckSig.connect(self.stuck_flag)
-        self.thread3.plotSig.connect(self.update_plot)
+        self.timer_thread = myThreads(self, 4, "timer event")
+        self.timer_thread.plotSig.connect(self.update_plot)
+        self.timer_thread.xp3StuckSig.connect(self.stuck_flag)
+        self.timer_thread.struckStuckSig.connect(self.stuck_flag)
+        self.timer_thread.exit_flag = 0
+        self.timer_thread.start()
+
         if self.gui.tomoAction.isChecked() and self.tomo_valid(current_line):
             self.thread3.params = scan
         else:
@@ -498,9 +506,11 @@ class Launcher(object):
             line.save_message.setText(self.backend.saveData_message)
         self.gui.controls.status_bar.setText("Aborting Line")
         self.gui.active_line = -1
+        self.backend.done = True
         try:
                 self.thread3.exit_scan = 1
                 self.thread3.quit()
+                self.timer_thread.exit_flag = 1
         except:
             print("error aborting scan, try not pressing abort repeatedly")
             pass
@@ -512,6 +522,7 @@ class Launcher(object):
             return
         try:
             self.thread3.exit_scan = 1
+            self.timer_thread.exit_flag = 1
         except:
             pass
         self.backend.abort_scan()
@@ -560,14 +571,13 @@ class Launcher(object):
         pass
 
 class myThreads(QtCore.QThread):
-    saveSig = pyqtSignal()
-    etaSig = pyqtSignal()
-    lineFinishSig = pyqtSignal()
-    lineAbortedSig = pyqtSignal()
-    xp3StuckSig = pyqtSignal()
-    struckStuckSig = pyqtSignal()
-    plotSig = pyqtSignal()
-    # pvSig = pyqtSignal()
+    saveSig = pyqtSignal(name="saveSig")
+    etaSig = pyqtSignal(name="etaSig")
+    lineFinishSig = pyqtSignal(name="lineFinishedSig")
+    lineAbortedSig = pyqtSignal(name="lineAbortedSig")
+    xp3StuckSig = pyqtSignal(name="xp3StuckSig")
+    struckStuckSig = pyqtSignal(name="struckStruckSig")
+    plotSig = pyqtSignal(name="plotSig")
 
     def __init__(self, parent, threadID, name):
         super(myThreads, self).__init__()
@@ -580,6 +590,7 @@ class myThreads(QtCore.QThread):
         self.timer = 10
         # self.pv_dict = pv_dict
         self.exit_scan = 0
+        self.exit_flag = 0
         self.exit_save = 0
         self.exit_eta = 0
 
@@ -590,10 +601,13 @@ class myThreads(QtCore.QThread):
             self.save_countdown(int(timer))
         if self.name == "eta countdown":
             self.eta_countdown(int(timer))
-        elif self.name == "run_scan":
+        if self.name == "run_scan":
             self.run_scan()
+        elif self.name == "timer event":
+            self.run_timer_action()
 
     def run_scan(self):
+
         if len(self.params) == 10:
             #scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell, r_center, r_width, r_npts
             self.parent.backend.run_tomo(self.params[0],self.params[1],self.params[2],self.params[3],self.params[4],self.params[5],self.params[6],self.params[7],self.params[8],self.params[9],self.params[10])
@@ -602,6 +616,7 @@ class myThreads(QtCore.QThread):
         else:
             print("invalid param settings")
             self.exit_scan = 1
+            self.exit_flag = 1
         while True:
             time.sleep(1)
             if self.exit_scan == 1:
@@ -612,17 +627,20 @@ class myThreads(QtCore.QThread):
                 self.lineFinishSig.emit()
                 print("line finished")
                 break
-            elif self.parent.backend.xp3_struck == True:
+        return
+
+    def run_timer_action(self):
+        while self.exit_flag ==0:
+            time.sleep(1)
+            if self.parent.backend.xp3_stuck == True:
                 self.xp3StuckSig.emit()
-            elif self.parent.backend.struck_struck == True:
+            elif self.parent.backend.struck_stuck == True:
                 self.struckStuckSig.emit()
             elif self.parent.backend.event == True:
                 print("timer event")
                 self.plotSig.emit()
             else:
-                print("no event")
-        return
-
+                pass
     def save_countdown(self, t):
         t_original = t
         while t:
