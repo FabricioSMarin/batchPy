@@ -674,11 +674,7 @@ class BatchSetup(object):
         is_done = self.outer.SMSG == "SCAN Complete"
         # is_done = self.Fscan1.CPT == self.Fscan1.NPTS and self.Fscan1.EXSC == 0 and self.FscanH.CPT == self.FscanH.NPTS and self.FscanH.EXSC == 0
         return is_done
-    def check_busy(self):
-        self.before_outer()
-        self.before_inner()
-        self.after_inner()
-        self.after_outer()
+
 
     def check_position(self):
         ready = abs(self.x_motor.VAL - self.x_motor.RBV) < 0.1 and abs(self.y_motor.VAL - self.y_motor.RBV) < 0.1
@@ -796,6 +792,9 @@ class BatchSetup(object):
             acquiring = self.XSPRESS3.Acquire
             arr_cntr = self.XSPRESS3.ArrayCounter_RBV
             file_number = self.XSPRESS3.FileNumber
+            saveDate_fileName = self.savePath.split(":")[0]+(":saveData_fileName.VAL")
+            file_name = epics.caget(saveDate_fileName,as_string=True).split(".")[0]+"_"
+            self.XSPRESS3.FileName = file_name
             # current_line = self.Fscan1.CPT
             capture_ready = self.XSPRESS3.Capture_RBV
             state = self.XSPRESS3.DetectorState_RBV #[idle, acquire, readout, correct, saving, aborting, error, waiting, init, disconnected, aborted]
