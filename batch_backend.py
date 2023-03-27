@@ -511,8 +511,8 @@ class BatchSetup(object):
         else:
             pass
         if self.XSPRESS3 is not None:
-            self.FscanH.T1PV = self.XSPRESS3._prefix + "det1:Capture"
-            self.FscanH.T2PV = self.XSPRESS3._prefix + "det1:Acquire"
+            self.Fscan1.T1PV = self.XSPRESS3._prefix + "det1:Capture"
+            self.Fscan1.T2PV = self.XSPRESS3._prefix + "det1:Acquire"
             self.Fscan1.T4PV = self.FscanH._prefix + "EXSC"
         else:
             pass
@@ -987,12 +987,12 @@ class BatchSetup(object):
     def after_outer(self):
         val = self.outer_after_wait.value
         if val == 1:
-            self.reset_detector()
+            # self.reset_detector()
             self.outer_after_wait.value = 0
         else:
             pass
         return
-        return
+
 
     def add_wait(self):
         self.inner.WAIT = 1
