@@ -14,7 +14,6 @@ import os
 from datetime import datetime, timedelta
 import pickle
 
-
 class Stream(QtCore.QObject):
     newText = QtCore.pyqtSignal(str)
     def write(self, text):
@@ -65,12 +64,6 @@ class Launcher(object):
     def connect_pvs(self):
         self.backend.connect_pvs()
 
-    def timer_event(self):
-        #TODO might move this to threading class
-        #TODO: save session
-        # global_eta = self.calculate_global_eta()
-        pass
-
     def update_motor_limits(self):
         try:
             x_hlm = self.backend.x_motor.HLM
@@ -111,7 +104,10 @@ class Launcher(object):
                     if line["scan_type"].text() == "step":
                         line_eta = (self.backend.Scan1.CPT/self.backend.Scan1.NPTS) * total_s
                     else:
-                        line_eta = (self.backend.Fscan1.CPT/self.backend.Fscan1.NPTS) * total_s
+                        try:
+                            line_eta = (self.backend.Fscan1.CPT/self.backend.Fscan1.NPTS) * total_s
+                        except:
+                            line_eta = 0
                     eta.append(line_eta)
                 else:
                     eta.append(total_s)
@@ -130,54 +126,72 @@ class Launcher(object):
             self.backend.open_settings(file[0])
 
     def update_plot(self):
-        print("updating plot")
-        self.gui.controls.view_box.p1.clear()
-        x_pos, y_pos = self.get_scan_progress()
-        idx = x_pos*y_pos + x_pos
-        x_arr,y_arr = self.get_trajectory()
-        self.gui.controls.view_box.p1.plot(y_arr,x_arr)
-        self.gui.controls.view_box.p1.plot(y_arr[:idx],x_arr[:idx])
-        return
+        try:
+            print("updating plot")
+            self.gui.controls.view_box.p1.clear()
+            x_pos, y_pos = self.get_scan_progress()
+            scan = self.get_scan(self.gui.active_line)
+            # scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell, r_center, r_width, r_npts
+            idx = y_pos*scan[6]+x_pos
+            x_arr,y_arr = self.get_trajectory()
+            self.gui.controls.view_box.plot(x_arr[:idx],y_arr[:idx])
+            # self.gui.show()
+            return
+        except:
+            return
+
+    def set_plot(self):
+        try:
+            x_arr, y_arr = self.get_trajectory()
+            self.gui.controls.view_box.data_line.setData(x_arr, y_arr)
+        except:
+            return
     def get_scan_progress(self):
-        curret_x_pos = self.backend.inner.CPT
-        current_y_pos = self.backend.outer.CPT
-        return curret_x_pos, current_y_pos
+        try:
+            current_x_pos = self.backend.inner.CPT
+            current_y_pos = self.backend.outer.CPT
+            return current_x_pos, current_y_pos
+        except:
+            return
     def get_trajectory(self):
-        #TODO: continue with figuring out how to plot trajectory 
+        #TODO: continue with figuring out how to plot trajectory
         line = [vars(self.gui)[i] for i in self.gui.line_names][self.gui.active_line]
         scan = self.get_scan(self.gui.active_line)
         # scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell, r_center, r_width, r_npts
-        if line.trajectory.currentText() == "raster":
-            x_line = np.arange(scan[1] - scan[2]/2, scan[1] + scan[2]/2, scan[2]/scan[3])
-            x_coords = np.zeros((scan[6],scan[3]))
-            for i in range(scan[6]):
-                x_coords[:i] = x_line
-            x_coords = np.ndarray.flatten(x_coords)
+        try:
+            if line.trajectory.currentText() == "raster":
+                x_line = np.arange(scan[1] - abs(scan[2])/2, scan[1] + abs(scan[2])/2, abs(scan[2])/scan[3])
+                x_coords = np.zeros((scan[6],scan[3]))
+                for i in range(scan[6]):
+                    x_coords[i] = x_line
+                x_coords = np.ndarray.flatten(x_coords)
 
-            y_line = np.arange(scan[4] - scan[5]/2, scan[4] + scan[5]/2, scan[5]/scan[6])
-            y_coords = np.zeros((scan[6], scan[3]))
-            for i in range(scan[6]):
-                y_coords[:i] = np.ones(scan[3])*y_line[i]
-            y_coords = np.ndarray.flatten(y_coords)
-            return x_coords, y_coords
+                y_line = np.arange(scan[4] - abs(scan[5])/2, scan[4] + abs(scan[5])/2, abs(scan[5])/scan[6])
+                y_coords = np.zeros((scan[6], scan[3]))
+                for i in range(scan[6]):
+                    y_coords[i] = np.ones(scan[3])*y_line[i]
+                y_coords = np.ndarray.flatten(y_coords)
+                return x_coords, y_coords
 
-        elif line.trajectory.currentText() == "snake":
-            x_line = np.arange(scan[1] - scan[2] / 2, scan[1] + scan[2] / 2, scan[2] / scan[3])
-            x_coords = np.zeros((scan[6], scan[3]))
-            for i in range(scan[6]):
-                if i%2 == 1:
-                    x_coords[:i] = np.fliplr(x_line)
-                else:
-                    x_coords[:i] = x_line
-            x_coords = np.ndarray.flatten(x_coords)
+            elif line.trajectory.currentText() == "snake":
+                x_line = np.arange(scan[1] - scan[2] / 2, scan[1] + scan[2] / 2, scan[2] / scan[3])
+                x_coords = np.zeros((scan[6], scan[3]))
+                for i in range(scan[6]):
+                    if i%2 == 1:
+                        x_coords[:i] = np.fliplr(x_line)
+                    else:
+                        x_coords[:i] = x_line
+                x_coords = np.ndarray.flatten(x_coords)
 
-            y_line = np.arange(scan[4] - scan[5] / 2, scan[4] + scan[5] / 2, scan[4] / scan[6])
-            y_coords = np.zeros((scan[6], scan[3]))
-            for i in range(scan[6]):
-                y_coords[:i] = np.ones(scan[3]) * y_line[i]
-            y_coords = np.ndarray.flatten(y_coords)
-            return x_coords, y_coords
-        else:
+                y_line = np.arange(scan[4] - scan[5] / 2, scan[4] + scan[5] / 2, scan[4] / scan[6])
+                y_coords = np.zeros((scan[6], scan[3]))
+                for i in range(scan[6]):
+                    y_coords[:i] = np.ones(scan[3]) * y_line[i]
+                y_coords = np.ndarray.flatten(y_coords)
+                return x_coords, y_coords
+            else:
+                return
+        except:
             return
 
     def spiral_selected(self):
@@ -317,10 +331,14 @@ class Launcher(object):
         self.thread3.lineFinishSig.connect(self.line_finished_sig)
         self.thread3.exit_scan = 0
         self.timer_thread = myThreads(self, 4, "timer event")
-        self.timer_thread.plotSig.connect(self.update_plot)
         self.timer_thread.xp3StuckSig.connect(self.stuck_flag)
         self.timer_thread.struckStuckSig.connect(self.stuck_flag)
         self.timer_thread.exit_flag = 0
+        self.timer = QtCore.QTimer()
+        self.timer.setInterval(1000)
+        self.timer.timeout.connect(self.update_plot)
+
+        self.timer.start()
         self.timer_thread.start()
 
         if self.gui.tomoAction.isChecked() and self.tomo_valid(first_line):
@@ -438,7 +456,7 @@ class Launcher(object):
         self.thread3 = myThreads(self, 3, "run_scan")
         self.thread3.lineFinishSig.connect(self.line_finished_sig)
         self.timer_thread = myThreads(self, 4, "timer event")
-        self.timer_thread.plotSig.connect(self.update_plot)
+
         self.timer_thread.xp3StuckSig.connect(self.stuck_flag)
         self.timer_thread.struckStuckSig.connect(self.stuck_flag)
         self.timer_thread.exit_flag = 0
@@ -511,6 +529,7 @@ class Launcher(object):
                 self.thread3.exit_scan = 1
                 self.thread3.quit()
                 self.timer_thread.exit_flag = 1
+                self.timer.stop()
         except:
             print("error aborting scan, try not pressing abort repeatedly")
             pass
@@ -558,10 +577,16 @@ class Launcher(object):
 
         self.thread1.saveSig.connect(self.gui.save_session)
         self.thread2.etaSig.connect(self.calculate_global_eta)
+        self.timer = QtCore.QTimer()
+        self.timer.setInterval(1000)
+        self.timer.timeout.connect(self.update_plot)
+
+        self.timer.start()
         self.thread1.start()
         self.thread2.start()
 
     def stop_thread(self):
+        self.timer.stop()
         self.thread1.exit_save=1
         self.thread1.quit()
         self.thread1.wait()

@@ -346,9 +346,9 @@ class BatchSetup(object):
         return
 
     def timer_event(self, cycle):
-        cycle_frequency = 15
+        cycle_frequency = 5
         try:
-            if cycle%cycle_frequency == 0: #check every tenth cycle
+            if cycle%cycle_frequency == 0:
                 self.event = True
             else:
                 self.event = False
@@ -399,7 +399,7 @@ class BatchSetup(object):
 
             time.sleep(0.1)
             self.cycle+=1
-            if self.cycle>100:
+            if self.cycle>50:
                 self.timer_event(self.cycle)
 
             done = self.check_done()

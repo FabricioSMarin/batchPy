@@ -1029,11 +1029,25 @@ class ImageView(pyqtgraph.GraphicsLayoutWidget):
 
     def initUI(self):
         self.p1 = self.addPlot(title="current scan")
+        styles = {'color': 'r', 'font-size': '20px'}
+        self.p1.setLabel('left', 'Y-pos', **styles)
+        self.p1.setLabel('bottom', 'X-pos', **styles)
+        self.p1.setTitle("scan trajectory", color="b", size="20pt")
+
+        self.p1.x = [0,0,0,0]
+        self.p1.y = [0,0,0,0]
+        pen = pyqtgraph.mkPen(color="w")
+        self.p1.plot(self.p1.x, self.p1.y, pen=pen, symbol='o', symbolSize=5, symbolBrush="r")
+
         self.projView = pyqtgraph.ImageItem(axisOrder = "row-major")
         self.p1.setMouseEnabled(x=False, y=False)
         self.vb = self.p1.getViewBox()
         self.vb.setBackgroundColor((255,255,255))
         self.setBackground("w")
+
+    def plot(self, x, y, color):
+        pen = pyqtgraph.mkPen(color="w")
+        self.p1.setData(x, y, pen=pen, symbol='o', symbolSize=5, symbolBrush=(color))
 
     def wheelEvent(self, ev):
         #empty function, but leave it as it overrides some other unwanted functionality.

@@ -26,7 +26,9 @@ class ScanSettings(QtWidgets.QMainWindow):
         self.var_dict = {}
         self.fname = ""
         self.initUI()
+        self.make_pretty()
         self.start_threads()
+
 
     def initUI(self):
         self.setup_window = Setup()
@@ -38,7 +40,7 @@ class ScanSettings(QtWidgets.QMainWindow):
                 item.installEventFilter(self)
                 if isinstance(item, QtWidgets.QLineEdit):
                     item.returnPressed.connect(self.line_edit_entered)
-                    item.setStyleSheet("background-color : default")
+                    # item.setStyleSheet("background-color : default")
                     self.var_dict[item] = item.objectName()
 
         closeAction = QAction(' &close', self)
@@ -67,7 +69,30 @@ class ScanSettings(QtWidgets.QMainWindow):
         wid.setLayout(layout)
         self.show()
         self.restoresettings()
+    def make_pretty(self):
+        myFont = QtGui.QFont()
+        myFont.setBold(True)
+        myFont.setPointSize(9)
 
+        for key in self.__dict__:
+            item = getattr(self,key)
+            if isinstance(item, QtWidgets.QLineEdit):
+                item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
+            elif isinstance(item,QtWidgets.QLabel):
+                item.setStyleSheet("background: lightgray;color: black; border-radius: 4; border-color: white")
+                if key == "finish_time" or key == "start_time":
+                    item.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+                    item.setFont(myFont)
+            elif isinstance(item,QtWidgets.QComboBox):
+                # item.setStyleSheet("background: lightyellow;border: 2px red; color: black")
+                item.setStyleSheet("background: lightyellow; color: black")
+            elif isinstance(item, QtWidgets.QPushButton):
+                item.setStyleSheet("QPushButton {background: lightgreen;color: black; border-radius: 4;}" "QPushButton::pressed {background-color: darkgreen;}")
+            elif isinstance(item,QtWidgets.QRadioButton):
+                item.setStyleSheet("background: white;color: black; border-radius: 4")
+            else:
+                pass
+        return
     def line_edit_entered(self):
         #check which widget has focus
         for key in self.var_dict:
