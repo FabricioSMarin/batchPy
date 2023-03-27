@@ -476,7 +476,7 @@ class BatchSetup(object):
         try:
             caput(self.delay_calc.split(".")[0] + ".OUTN", self.x_motor._prefix.split(".")[0] + ".VAL")
             caput(self.delay_calc.split(".")[0] + "EnableCalc.VAL",1)
-            caput(self.delay_calc.split(".")[0] + ".ODLY",3.5)
+            caput(self.delay_calc.split(".")[0] + ".ODLY",1.5)
         except:
             print("setup error")
             return
