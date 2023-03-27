@@ -83,7 +83,8 @@ class Launcher(object):
                 line.y_llm = y_llm
                 line.r_llm = r_llm
                 line.r_hlm = r_hlm
-        except:
+        except Exception as e:
+            print(e)
             pass
 
     def calculate_global_eta(self):
