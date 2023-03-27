@@ -907,6 +907,7 @@ class Line(QtWidgets.QWidget):
 
 
         if (x_center - abs(x_width)/2) <= x_llm or (x_center + abs(x_width)/2) >= x_hlm or (y_center - abs(y_width)/2) <= y_llm or (y_center + abs(y_width)/2) >= y_hlm:
+            print((x_center - abs(x_width)/2), x_llm, (x_center + abs(x_width)/2), x_hlm, (y_center - abs(y_width)/2), y_llm, (y_center + abs(y_width)/2), y_hlm)
             print("scan outside motor limits")
             #TODO: Figure out how to add r_motor logic.
             #(r_center - r_width / 2) <= r_llm or (r_center + r_width / 2) >= r_hlm:
