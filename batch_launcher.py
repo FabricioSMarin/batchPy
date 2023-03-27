@@ -71,8 +71,12 @@ class Launcher(object):
             x_vmax = self.backend.x_motor.VMAX
             y_hlm = self.backend.y_motor.HLM
             y_llm = self.backend.y_motor.LLM
-            r_llm = self.backend.r_motor.LLM
-            r_hlm = self.backend.r_motor.HLM
+            if self.backend.r == "empty":
+                r_llm = -1000
+                r_hlm = 1000
+            else:
+                r_llm = self.backend.r_motor.LLM
+                r_hlm = self.backend.r_motor.HLM
 
             lines = [vars(self.gui)[i] for i in self.gui.line_names]
             for line in lines:
