@@ -476,7 +476,7 @@ class BatchSetup(object):
         try:
             caput(self.delay_calc.split(".")[0] + ".OUTN", self.x_motor._prefix.split(".")[0] + ".VAL")
             caput(self.delay_calc.split(".")[0] + "EnableCalc.VAL",1)
-            caput(self.delay_calc.split(".")[0] + ".ODLY",1)
+            caput(self.delay_calc.split(".")[0] + ".ODLY",3.5)
         except:
             print("setup error")
             return
@@ -796,7 +796,7 @@ class BatchSetup(object):
             file_name = epics.caget(saveDate_fileName,as_string=True).split(".")[0]+"_"
             self.XSPRESS3.FileName = file_name
             # current_line = self.Fscan1.CPT
-            capture_ready = self.XSPRESS3.Capture_RBV
+            # capture_ready = self.XSPRESS3.Capture_RBV
             state = self.XSPRESS3.DetectorState_RBV #[idle, acquire, readout, correct, saving, aborting, error, waiting, init, disconnected, aborted]
             path_exists = self.XSPRESS3.FilePathExists_RBV
             xp3_retry = 0
@@ -811,34 +811,35 @@ class BatchSetup(object):
                 print("xspress3 in error state")
                 return False
             while xp3_retry <=10:
-                if acquiring==1 and arr_cntr==0 and file_number==self.outer.CPT and capture_ready==1:
+                # if acquiring==1 and arr_cntr==0 and file_number==self.outer.CPT and capture_ready==1:
+                if arr_cntr==0 and file_number==self.outer.CPT:
                     return True
                 if arr_cntr!=0:
                     self.XSPRESS3.ERASE=1
                 if file_number!=self.outer.CPT:
                     self.XSPRESS3.FileNumber = self.outer.CPT
-                if capture_ready!=1:
-                    self.XSPRESS3.Capture=1
-                if acquiring !=1:
-                    self.XSPRESS3.Acquire = 1
-                acquiring = self.XSPRESS3.Acquire
+                # if capture_ready!=1:
+                #     self.XSPRESS3.Capture=1
+                # if acquiring !=1:
+                #     self.XSPRESS3.Acquire = 1
+                # acquiring = self.XSPRESS3.Acquire
                 arr_cntr = self.XSPRESS3.ArrayCounter_RBV
                 file_number = self.XSPRESS3.FileNumber
                 current_line = self.outer.CPT
-                capture_ready = self.XSPRESS3.Capture_RBV
+                # capture_ready = self.XSPRESS3.Capture_RBV
                 xp3_retry+=1
 
-            while acquiring == 1: #if num frames read at the start of acquisition is not 0, reset it.
-                arr_cntr = self.XSPRESS3.ArrayCounter_RBV
-                if arr_cntr > 0:
-                    self.XSPRESS3.Acquire = 0
-                    # self.XSPRESS3.
-                    xp3_retry += 1
-                elif xp3_retry >=10:
-                    return False
+            # while acquiring == 1: #if num frames read at the start of acquisition is not 0, reset it.
+            #     arr_cntr = self.XSPRESS3.ArrayCounter_RBV
+            #     if arr_cntr > 0:
+            #         self.XSPRESS3.Acquire = 0
+            #         # self.XSPRESS3.
+            #         xp3_retry += 1
+            #     elif xp3_retry >=10:
+            #         return False
 
-                else:
-                    return True
+                # else:
+                #     return True
                 xp3_retry+=1
 
             return True
@@ -949,18 +950,18 @@ class BatchSetup(object):
                     not_paused = (self.outer.pause != 1 and self.inner.WCNT == 0 and self.outer.WCNT == 0)
                 ready = not_paused and detector_ready and struck_ready and in_position
 
-                retry+=1
-                if retry >=10:
-                    print("before inner retrying...")
-                    if not struck_ready:
-                        self.STRUCK.StopAll= 0
-                    if not detector_ready:
-                        self.XSPRESS3.Acquire = 0
-                    if not in_position:
-                        self.inner_before_wait.value = 1
-                        return
-                    if not not_paused:
-                        return
+                # retry+=1
+                # if retry >=10:
+                #     print("before inner retrying...")
+                #     if not struck_ready:
+                #         self.STRUCK.StopAll= 0
+                #     # if not detector_ready:
+                #     #     self.XSPRESS3.Acquire = 0
+                #     if not in_position:
+                #         self.inner_before_wait.value = 1
+                #         return
+                #     if not not_paused:
+                #         return
 
             self.x_motor.VELO = self.scan_speed
             self.inner_before_wait.value = 0
@@ -971,7 +972,7 @@ class BatchSetup(object):
     def after_inner(self):
         val = self.inner_after_wait.value
         if val == 1:
-            self.XSPRESS3.Acquire = 0
+            # self.XSPRESS3.Acquire = 0
             self.XSPRESS3.FileNumber +=1
             if self.STRUCK is not None:
                 self.STRUCK.StopAll = 1
@@ -990,6 +991,7 @@ class BatchSetup(object):
             self.outer_after_wait.value = 0
         else:
             pass
+        return
         return
 
     def add_wait(self):
