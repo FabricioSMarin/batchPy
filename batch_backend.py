@@ -511,7 +511,7 @@ class BatchSetup(object):
         else:
             pass
         if self.XSPRESS3 is not None:
-            self.FscanH.T1PV = self.XSPRESS3._prefix + "HDF1:Capture"
+            self.FscanH.T1PV = self.XSPRESS3._prefix + "det1:Capture"
             self.FscanH.T2PV = self.XSPRESS3._prefix + "det1:Acquire"
             self.Fscan1.T4PV = self.FscanH._prefix + "EXSC"
         else:
@@ -560,7 +560,7 @@ class BatchSetup(object):
             pass
 
         if self.XSPRESS3 is not None:
-            self.ScanH.T1PV = self.XSPRESS3._prefix + "HDF1:Capture"
+            self.ScanH.T1PV = self.XSPRESS3._prefix + "det1:Capture"
             self.ScanH.T2PV = self.XSPRESS3._prefix + "det1:Acquire"
             self.Scan1.T4PV = self.ScanH._prefix + "EXSC"
             #! self.Scan1.T1PV = self.XSPRESS3._prefix + "det1:ERASE"
