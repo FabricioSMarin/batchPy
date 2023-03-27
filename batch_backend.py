@@ -1048,7 +1048,7 @@ class BatchSetup(object):
 
     def cleanup(self):
         # self.restore_scan_record()
-        self.reset_detector()
+        # self.reset_detector()
         self.inner_before_wait.value = 0
         self.inner_after_wait.value = 0
         self.outer_before_wait.value = 0
