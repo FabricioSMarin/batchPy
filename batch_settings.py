@@ -106,11 +106,12 @@ class ScanSettings(QtWidgets.QMainWindow):
                         if new_val is None:
                             raise
                         self.current_text = proposed
-                        key.setStyleSheet("background-color : default")
+                        # key.setStyleSheet("background-color : default")
                     except:
                         self.current_text = proposed
                         if proposed == "":
-                            key.setStyleSheet("background-color : default")
+                            pass
+                            # key.setStyleSheet("background-color : default")
                         else:
                             key.setStyleSheet("border: 1px solid red;")
                             print("cannot caput pv {}".format(key.objectName()))

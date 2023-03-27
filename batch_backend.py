@@ -56,7 +56,12 @@ class BatchSetup(object):
             xp3._prefix = prefix
             epics.caput(prefix+"det1:TriggerMode",3)
             epics.caput(prefix+"det1:AutoIncrement",0)
-            epics.caput(prefix+"det1:EraseOnStart",0)
+            try:
+                #old IOC does not have EraseOnStart, adding this incase running on old ioc.
+                epics.caput(prefix+"det1:EraseOnStart",0)
+            except:
+
+                pass
 
         except:
             return None
@@ -139,7 +144,8 @@ class BatchSetup(object):
                 raise
             self.setup_xspress3_filesaving()
             print("xspress3 setup time took: {} seconds".format(time.time()-tic))
-        except:
+        except Exception as e:
+            print(e)
             self.XSPRESS3 = None
             print("xspress3  not connected")
 
