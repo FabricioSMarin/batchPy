@@ -905,10 +905,13 @@ class Line(QtWidgets.QWidget):
             velocity_violation = True
             pass
 
-        if (x_center - x_width/2) <= x_llm or (x_center + x_width/2) >= x_hlm or (y_center - y_width/2) <= y_llm or \
-                (y_center + y_width/2) >= y_hlm or (r_center - r_width/2) <= r_llm or (r_center + r_width/2) >= r_hlm:
+
+        if (x_center - x_width/2) <= x_llm or (x_center + x_width/2) >= x_hlm or (y_center - y_width/2) <= y_llm or (y_center + y_width/2) >= y_hlm:
             print("scan outside motor limits")
+            #TODO: Figure out how to add r_motor logic.
+            #(r_center - r_width / 2) <= r_llm or (r_center + r_width / 2) >= r_hlm:
             return False
+
         if velocity_violation:
             print("step size / dwell time exceeds positioner velocity")
             return False
