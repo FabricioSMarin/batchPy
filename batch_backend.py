@@ -47,6 +47,8 @@ class BatchSetup(object):
         self.event = False
         self.inner = None
         self.outer = None
+        self.mca = None
+        self.img = None
 
     def create_xspress3(self,prefix):
         try:
@@ -55,7 +57,7 @@ class BatchSetup(object):
                         "Capture", "Capture_RBV", "FilePath", "FileName", "FileTemplate", "FileNumber", "FilePathExists_RBV"))
             xp3._prefix = prefix
             epics.caput(prefix+"det1:TriggerMode",3)
-            epics.caput(prefix+"det1:AutoIncrement",0)
+            epics.caput(prefix+"det1:AutoIncrement",1)
             try:
                 #old IOC does not have EraseOnStart, adding this incase running on old ioc.
                 epics.caput(prefix+"det1:EraseOnStart",0)
@@ -71,8 +73,8 @@ class BatchSetup(object):
         print("setting up xspress3 file saving... \n")
         if self.XSPRESS3 is not None:
             file_path = epics.caget(self.savePath,as_string=True).split("mda")[0]+"flyXRF"
-            saveDate_fileName = self.savePath.split(":")[0]+(":saveData_fileName.VAL")
-            file_name = epics.caget(saveDate_fileName,as_string=True).split(".")[0]+"_"
+            # saveDate_fileName = self.savePath.split(":")[0]+(":saveData_fileName.VAL")
+            # file_name = epics.caget(saveDate_fileName,as_string=True).split(".")[0]+"_"
             file_template = "%s%s_%d.hdf5"
             self.XSPRESS3.FilePath = file_path
             time.sleep(1)
@@ -82,7 +84,7 @@ class BatchSetup(object):
                     mnt = os.listdir("/mnt")
                 except FileNotFoundError:
                     print("/mnt directory not found. batchpy needs to run on beamline machine. \n file saving setup failed")
-                    print("trying hardcoded path to /mnt/micdata1/2ide/2022-3/marin/flyXRF")
+                    print("enter flyXRF path manually: i.e: /mnt/micdata1/2ide/2022-3/marin/flyXRF")
                     self.XSPRESS3.FilePath = "/mnt/micdata1/2ide/2022-3/marin/flyXRF"
                     time.sleep(1)
                     if self.XSPRESS3.FilePathExists_RBV != 1:
@@ -92,9 +94,8 @@ class BatchSetup(object):
                     mnt = None
 
                 if mnt is None:
-                    self.XSPRESS3.FileName = file_name
+                    # self.XSPRESS3.FileName = file_name
                     self.XSPRESS3.FileTemplate = file_template
-                    self.XSPRESS3.FileNumber = 0
                     return
 
                 elif len(mnt) == 0:
@@ -127,9 +128,8 @@ class BatchSetup(object):
                                         except:
                                             print("cannot create file path, check file path or permissions")
 
-                self.XSPRESS3.FileName = file_name
+                # self.XSPRESS3.FileName = file_name
                 self.XSPRESS3.FileTemplate = file_template
-                self.XSPRESS3.FileNumber = 0
 
     def connect_pvs(self):
         timeout = 0.1
@@ -287,20 +287,21 @@ class BatchSetup(object):
     def restore_settings(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))+"/"
         file = "default_settings.pkl"
-        with open(current_dir+file,'rb') as f:
-            contents = pickle.load(f)
-            filetype = contents[0]
-            last_opened = contents[1]
-            settings = contents[2]
-            f.close()
+        if os.path.isfile(current_dir+file):
+            with open(current_dir+file,'rb') as f:
+                contents = pickle.load(f)
+                filetype = contents[0]
+                last_opened = contents[1]
+                settings = contents[2]
+                f.close()
 
-            for i, key in enumerate(self.settings_vars):
-                try:
-                    if settings[i] == "":
-                        settings[i] = "empty"
-                    self.__dict__[key] = settings[i]
-                except:
-                    print("cannot put {} in {}".format(settings[i], key))
+                for i, key in enumerate(self.settings_vars):
+                    try:
+                        if settings[i] == "":
+                            settings[i] = "empty"
+                        self.__dict__[key] = settings[i]
+                    except:
+                        print("cannot put {} in {}".format(settings[i], key))
         return
 
     def open_settings(self, path):
@@ -372,6 +373,7 @@ class BatchSetup(object):
             self.outer = self.Scan1
 
         self.reset_detector()
+
         is_ready = self.init_scan(scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell)
         self.x_motor.VELO = self.fast_speed
         self.x_motor.VAL = self.inner.P1SP
@@ -396,12 +398,12 @@ class BatchSetup(object):
             self.after_inner()
             self.after_outer()
             self.check_struck_done()
-            read_history_xp3, self.xp3_stuck = self.check_detector_stuck(self.cycle, read_history_xp3)
-            read_history_struck, self.struck_stuck = self.check_struck_stuck(self.cycle, read_history_struck)
+            # read_history_xp3, self.xp3_stuck = self.check_detector_stuck(self.cycle, read_history_xp3)
+            # read_history_struck, self.struck_stuck = self.check_struck_stuck(self.cycle, read_history_struck)
 
-            if self.xp3_stuck or self.struck_stuck:
-                read_history_xp3 = np.zeros(10)
-                read_history_struck = np.zeros(10)
+            # if self.xp3_stuck or self.struck_stuck:
+            #     read_history_xp3 = np.zeros(10)
+            #     read_history_struck = np.zeros(10)
 
             time.sleep(0.1)
             self.cycle+=1
@@ -530,9 +532,10 @@ class BatchSetup(object):
         else: self.Fscan1.BSPV = ""
 
         if self.ScanH is not None:
-            self.ScanH.P1SM = 0
+            self.ScanH.P1SM = 2
             self.ScanH.P1AR = 0
             self.ScanH.PASM = 1
+            self.ScanH.ACQT = 1
             self.ScanH.T1PV = ""
             self.ScanH.T2PV = ""
             self.ScanH.T3PV = ""
@@ -611,7 +614,7 @@ class BatchSetup(object):
             self.outer_after_wait.value = 0
 
         if scan_type == "fly":
-            abort_PV = self.inner._prefix.split("Abort")[0] + 'AbortScans.VAL'
+            abort_PV = self.inner._prefix.split("scan")[0] + 'AbortScans.VAL'
 
             if not (self.inner.FAZE ==0 or self.inner.FAZE ==12):
                 epics.caput(abort_PV,1)
@@ -641,7 +644,7 @@ class BatchSetup(object):
 
 
         elif scan_type == "step":
-            abort_PV = self.inner._prefix.split("Abort")[0] + 'AbortScans.VAL'
+            abort_PV = self.inner._prefix.split("scan")[0] + 'AbortScans.VAL'
             epics.caput(abort_PV,1)
             time.sleep(0.1)
             epics.caput(abort_PV,1)
@@ -656,12 +659,17 @@ class BatchSetup(object):
             self.outer.P1WD = y_width
             self.outer.NPTS = y_npts
 
-            self.fast_speed = 5
+            self.scan_speed = (x_width / x_npts) / dwell
             self.fast_speed = 5
 
             if self.XSPRESS3 is not None:
                 self.XSPRESS3.NumImages = x_npts - 2
                 self.XSPRESS3.AcquireTime = dwell
+                # self.XSPRESS3.TriggerMode = 1
+                # try:
+                    # epics.caput(self.XSPRESS3._prefix+"det1:EraseOnStart",1)
+                # except:
+                #     print("some PVs not available for this ioc")
 
         else:
             #TODO: reserve for future scan types
@@ -742,59 +750,56 @@ class BatchSetup(object):
                 self.STRUCK.Acquiring = 0
                 return True
 
-    def check_struck_stuck(self, cycle, read_history):
-        cycle_frequency = 15
-        if self.STRUCK is None:
-            return read_history, False
-        else:
-            pass
-            if cycle%cycle_frequency == 0:
-                i = cycle//cycle_frequency%10
-                read_history[i] = self.STRUCK.CurrentChannel
-                if cycle//cycle_frequency >=cycle_frequency:
-                    if read_history[0] == read_history[-1] and self.inner.FAZE !=0 and self.inner.FAZE!=12 and not self.is_paused():
-                        print("STRUCK may be stuck.. ")
-                        return read_history, True
-                    else:
-                        return read_history, False
-                else:
-                    return read_history, False
-            else:
-                return read_history, False
+    # def check_struck_stuck(self, cycle, read_history):
+    #     cycle_frequency = 15
+    #     if self.STRUCK is None:
+    #         return read_history, False
+    #     else:
+    #         pass
+    #         if cycle%cycle_frequency == 0:
+    #             i = cycle//cycle_frequency%10
+    #             read_history[i] = self.STRUCK.CurrentChannel
+    #             if cycle//cycle_frequency >=cycle_frequency:
+    #                 if read_history[0] == read_history[-1] and self.inner.FAZE !=0 and self.inner.FAZE!=12 and not self.is_paused():
+    #                     print("STRUCK may be stuck.. ")
+    #                     return read_history, True
+    #                 else:
+    #                     return read_history, False
+    #             else:
+    #                 return read_history, False
+    #         else:
+    #             return read_history, False
 
-    def check_detector_stuck(self, cycle, read_history):
-        cycle_frequency = 15
-        try:
-            alive = epics.caget(self.XSPRESS3._prefix + "det1:CONNECTED")
-            if not alive:
-                print("Xspress3 IOC is down. pausing scan...")
-                return read_history, True
-            else:
-                if cycle%cycle_frequency == 0: #check every tenth cycle
-                    i = cycle//cycle_frequency%10 #every thenth cycle revolving index
-                    read_history[i] = epics.caget(self.XSPRESS3._prefix+"det1:ArrayCounter_RBV")
-                    if cycle//cycle_frequency >=cycle_frequency:
-                        if read_history[0] == read_history[-1] and self.inner.FAZE !=0 and self.inner.FAZE!=12 and not self.is_paused():
-                            print("detector may be stuck.. ")
-                            return read_history, True
-                        else:
-                            return read_history, False
-                    else:
-                        return read_history, False
-                else:
-                    return read_history, False
-        except:
-            return read_history, True
+    # def check_detector_stuck(self, cycle, read_history):
+    #     cycle_frequency = 15
+    #     try:
+    #         alive = epics.caget(self.XSPRESS3._prefix + "det1:CONNECTED")
+    #         if not alive:
+    #             print("Xspress3 IOC is down. pausing scan...")
+    #             return read_history, True
+    #         else:
+    #             if cycle%cycle_frequency == 0: #check every tenth cycle
+    #                 i = cycle//cycle_frequency%10 #every thenth cycle revolving index
+    #                 read_history[i] = epics.caget(self.XSPRESS3._prefix+"det1:ArrayCounter_RBV")
+    #                 if cycle//cycle_frequency >=cycle_frequency:
+    #                     if read_history[0] == read_history[-1] and self.inner.FAZE !=0 and self.inner.FAZE!=12 and not self.is_paused():
+    #                         print("detector may be stuck.. ")
+    #                         return read_history, True
+    #                     else:
+    #                         return read_history, False
+    #                 else:
+    #                     return read_history, False
+    #             else:
+    #                 return read_history, False
+    #     except:
+    #         return read_history, True
 
     def check_readout_system(self):
         xp3_retry = 0
         if self.XSPRESS3 is not None:
             acquiring = self.XSPRESS3.Acquire
             arr_cntr = self.XSPRESS3.ArrayCounter_RBV
-            file_number = self.XSPRESS3.FileNumber
-            saveDate_fileName = self.savePath.split(":")[0]+(":saveData_fileName.VAL")
-            file_name = epics.caget(saveDate_fileName,as_string=True).split(".")[0]+"_"
-            self.XSPRESS3.FileName = file_name
+
             # current_line = self.Fscan1.CPT
             # capture_ready = self.XSPRESS3.Capture_RBV
             state = self.XSPRESS3.DetectorState_RBV #[idle, acquire, readout, correct, saving, aborting, error, waiting, init, disconnected, aborted]
@@ -812,19 +817,16 @@ class BatchSetup(object):
                 return False
             while xp3_retry <=10:
                 # if acquiring==1 and arr_cntr==0 and file_number==self.outer.CPT and capture_ready==1:
-                if arr_cntr==0 and file_number==self.outer.CPT:
+                if arr_cntr==0:
                     return True
                 if arr_cntr!=0:
                     self.XSPRESS3.ERASE=1
-                if file_number!=self.outer.CPT:
-                    self.XSPRESS3.FileNumber = self.outer.CPT
                 # if capture_ready!=1:
                 #     self.XSPRESS3.Capture=1
                 # if acquiring !=1:
                 #     self.XSPRESS3.Acquire = 1
                 # acquiring = self.XSPRESS3.Acquire
                 arr_cntr = self.XSPRESS3.ArrayCounter_RBV
-                file_number = self.XSPRESS3.FileNumber
                 current_line = self.outer.CPT
                 # capture_ready = self.XSPRESS3.Capture_RBV
                 xp3_retry+=1
@@ -840,7 +842,7 @@ class BatchSetup(object):
 
                 # else:
                 #     return True
-                xp3_retry+=1
+                # xp3_retry+=1
 
             return True
 
@@ -911,6 +913,7 @@ class BatchSetup(object):
             not_paused = (self.outer.pause != 1 and self.inner.WCNT == 0 and self.outer.WCNT == 0)
             print(not_paused)
             ready = not_paused
+
             retry = 0
             while not ready:
                 retry+=1
@@ -973,9 +976,10 @@ class BatchSetup(object):
         val = self.inner_after_wait.value
         if val == 1:
             # self.XSPRESS3.Acquire = 0
-            self.XSPRESS3.FileNumber +=1
             if self.STRUCK is not None:
                 self.STRUCK.StopAll = 1
+            #TODO: not sure if good idea to caget this after each loop... maybe better to read file after acquisition.
+            # self.mca = self.XSPRESS3.get("MCA1:ArrayData")
 
             self.x_motor.VELO = self.fast_speed
             self.x_motor.VAL = self.inner.P1SP
@@ -988,11 +992,22 @@ class BatchSetup(object):
         val = self.outer_after_wait.value
         if val == 1:
             # self.reset_detector()
+            self.img = self.get_scan_result()
             self.outer_after_wait.value = 0
         else:
             pass
         return
 
+    def get_scan_result(self):
+        pass
+        #TODO: get file path+name
+        # open as hdf5
+        # get array data
+        # close h5 file
+        # create empty array of size of scan
+        # sum each array per pixel
+        # fill empty array with new values
+        # return new array
 
     def add_wait(self):
         self.inner.WAIT = 1
@@ -1034,6 +1049,15 @@ class BatchSetup(object):
             self.XSPRESS3.Acquire = 0
             self.XSPRESS3.ERASE = 1
             self.XSPRESS3.Capture = 0
+            self.XSPRESS3.FileNumber = 0
+            saveDate_fileName = self.savePath.split(":")[0]+(":saveData_fileName.VAL")
+            scan_number_pv = self.savePath.split(":")[0]+(":saveData_scanNumber.VAL")
+            number = epics.caget(scan_number_pv, as_string=True)
+            scan_number = list("0000")
+            scan_number[-len(number):] = list(number)
+            scan_number = "".join(scan_number)
+            file_name = epics.caget(saveDate_fileName,as_string=True).split("_")[0]+"_"+str(scan_number)
+            self.XSPRESS3.FileName = file_name
 
         if self.STRUCK is not None:
             self.STRUCK.StopAll = 1

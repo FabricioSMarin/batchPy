@@ -938,6 +938,7 @@ class Line(QtWidgets.QWidget):
                 item.setStyleSheet("background: lightyellow; color: black")
             elif isinstance(item, QtWidgets.QPushButton):
                 item.setStyleSheet("QPushButton {background: lightgreen;color: black; border-radius: 4;}" "QPushButton::pressed {background-color: darkgreen;}")
+                item.setStyleSheet("QPushButton {background: lightgreen;color: black; border-radius: 4;}" "QPushButton::pressed {background-color: darkgreen;}")
             elif isinstance(item,QtWidgets.QRadioButton):
                 item.setStyleSheet("background: white;color: black; border-radius: 4")
             else:

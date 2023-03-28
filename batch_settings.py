@@ -106,12 +106,12 @@ class ScanSettings(QtWidgets.QMainWindow):
                         if new_val is None:
                             raise
                         self.current_text = proposed
-                        # key.setStyleSheet("background-color : default")
+                        key.setStyleSheet("border: none;")
                     except:
                         self.current_text = proposed
                         if proposed == "":
                             pass
-                            # key.setStyleSheet("background-color : default")
+                            key.setStyleSheet("border: none;")
                         else:
                             key.setStyleSheet("border: 1px solid red;")
                             print("cannot caput pv {}".format(key.objectName()))
@@ -324,7 +324,7 @@ class ScanSettings(QtWidgets.QMainWindow):
 # class myThreads(threading.Thread,QtCore.QObject):
 class myThreads(QtCore.QThread):
     countSig = pyqtSignal(int, name='countSig')
-    # pvSig = pyqtSignal()
+    pvSig = pyqtSignal()
 
     def __init__(self, threadID, name):
         QtCore.QThread.__init__(self)

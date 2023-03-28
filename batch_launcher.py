@@ -337,8 +337,9 @@ class Launcher(object):
         self.thread3.lineFinishSig.connect(self.line_finished_sig)
         self.thread3.exit_scan = 0
         self.timer_thread = myThreads(self, 4, "timer event")
-        self.timer_thread.xp3StuckSig.connect(self.stuck_flag)
-        self.timer_thread.struckStuckSig.connect(self.stuck_flag)
+        self.timer_thread.plotSig.connect(self.update_plot)
+        # self.timer_thread.xp3StuckSig.connect(self.stuck_flag)
+        # self.timer_thread.struckStuckSig.connect(self.stuck_flag)
         self.timer_thread.exit_flag = 0
         self.timer = QtCore.QTimer()
         self.timer.setInterval(1000)
@@ -355,8 +356,8 @@ class Launcher(object):
 
         return
 
-    def stuck_flag(self):
-        self.line_color(self.gui.active_line, "lightsalmon")
+    # def stuck_flag(self):
+    #     self.line_color(self.gui.active_line, "lightsalmon")
 
     def get_scan(self, line_idx):
         line = [vars(self.gui)[i] for i in self.gui.line_names][line_idx]
@@ -408,6 +409,7 @@ class Launcher(object):
             return True
 
     def line_finished_sig(self):
+        #TODO: plot last scan result
         print("starting next line")
         lines = [vars(self.gui)[i] for i in self.gui.line_names]
         try:
@@ -462,9 +464,9 @@ class Launcher(object):
         self.thread3 = myThreads(self, 3, "run_scan")
         self.thread3.lineFinishSig.connect(self.line_finished_sig)
         self.timer_thread = myThreads(self, 4, "timer event")
-
-        self.timer_thread.xp3StuckSig.connect(self.stuck_flag)
-        self.timer_thread.struckStuckSig.connect(self.stuck_flag)
+        self.timer_thread.plotSig.connect(self.update_plot)
+        # self.timer_thread.xp3StuckSig.connect(self.stuck_flag)
+        # self.timer_thread.struckStuckSig.connect(self.stuck_flag)
         self.timer_thread.exit_flag = 0
         self.timer_thread.start()
 
@@ -606,8 +608,8 @@ class myThreads(QtCore.QThread):
     etaSig = pyqtSignal(name="etaSig")
     lineFinishSig = pyqtSignal(name="lineFinishedSig")
     lineAbortedSig = pyqtSignal(name="lineAbortedSig")
-    xp3StuckSig = pyqtSignal(name="xp3StuckSig")
-    struckStuckSig = pyqtSignal(name="struckStruckSig")
+    # xp3StuckSig = pyqtSignal(name="xp3StuckSig")
+    # struckStuckSig = pyqtSignal(name="struckStruckSig")
     plotSig = pyqtSignal(name="plotSig")
 
     def __init__(self, parent, threadID, name):
@@ -663,12 +665,12 @@ class myThreads(QtCore.QThread):
     def run_timer_action(self):
         while self.exit_flag ==0:
             time.sleep(1)
-            if self.parent.backend.xp3_stuck == True:
-                self.xp3StuckSig.emit()
-            elif self.parent.backend.struck_stuck == True:
-                self.struckStuckSig.emit()
-            elif self.parent.backend.event == True:
-                print("timer event")
+            # if self.parent.backend.xp3_stuck == True:
+            #     self.xp3StuckSig.emit()
+            # elif self.parent.backend.struck_stuck == True:
+            #     self.struckStuckSig.emit()
+            if self.parent.backend.event == True:
+                # print("timer event")
                 self.plotSig.emit()
             else:
                 pass
