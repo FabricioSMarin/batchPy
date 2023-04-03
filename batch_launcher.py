@@ -69,8 +69,10 @@ class Launcher(object):
             x_hlm = self.backend.x_motor.HLM
             x_llm = self.backend.x_motor.LLM
             x_vmax = self.backend.x_motor.VMAX
+            x_res = self.backend.x_motor.MRES
             y_hlm = self.backend.y_motor.HLM
             y_llm = self.backend.y_motor.LLM
+            y_res = self.backend.y_motor.MRES
             if self.backend.r == "empty":
                 r_llm = -1000
                 r_hlm = 1000
@@ -83,8 +85,10 @@ class Launcher(object):
                 line.x_hlm = x_hlm
                 line.x_llm = x_llm
                 line.x_vmax = x_vmax
+                line.x_res = x_res
                 line.y_hlm = y_hlm
                 line.y_llm = y_llm
+                line.y_res = y_res
                 line.r_llm = r_llm
                 line.r_hlm = r_hlm
         except Exception as e:
@@ -134,14 +138,14 @@ class Launcher(object):
 
     def update_plot(self):
         try:
-            self.gui.controls.view_box.p1.clear()
+            # self.gui.controls.view_box.p1.clear()
             x_pos, y_pos = self.get_scan_progress()
             scan = self.get_scan(self.gui.active_line)
             # scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell, r_center, r_width, r_npts
-            idx = y_pos*scan[6]+x_pos
+            print(x_pos)
+            idx = y_pos*scan[3]+x_pos
             x_arr,y_arr = self.get_trajectory()
-            self.gui.controls.view_box.plot(x_arr[:idx],y_arr[:idx])
-            # self.gui.show()
+            self.gui.controls.view_box.plott(x_arr[:idx],y_arr[:idx])
             return
         except:
             return
@@ -149,18 +153,30 @@ class Launcher(object):
     def set_plot(self):
         try:
             x_arr, y_arr = self.get_trajectory()
-            self.gui.controls.view_box.data_line.setData(x_arr, y_arr)
+            self.gui.controls.view_box.data_trajectory.setData(x_arr, y_arr)
+            self.gui.controls.view_box.p1.setXRange(x_arr.min(),x_arr.max())
+            self.gui.controls.view_box.p1.setYRange(y_arr.min(),y_arr.max())
         except:
             return
     def get_scan_progress(self):
         try:
-            current_x_pos = self.backend.inner.CPT
+            x_pos = self.backend.x_motor.RBV
+            start = self.backend.inner.P1SP
+            end = self.backend.inner.P1EP
+            width = self.backend.inner.P1WD
+            points = self.backend.inner.NPTS
+            faze = self.backend.inner.FAZE
+
+
+            if faze == 8:
+                current_x_pos = int(points)
+            else:
+                current_x_pos = int(points*(x_pos - start)/(width))
             current_y_pos = self.backend.outer.CPT
             return current_x_pos, current_y_pos
         except:
             return
     def get_trajectory(self):
-        #TODO: continue with figuring out how to plot trajectory
         line = [vars(self.gui)[i] for i in self.gui.line_names][self.gui.active_line]
         scan = self.get_scan(self.gui.active_line)
         # scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell, r_center, r_width, r_npts
@@ -329,7 +345,7 @@ class Launcher(object):
         line.setStyleSheet("background: yellow")
         line.setAutoFillBackground(True)
         scan = self.get_scan(first_line)
-
+        self.set_plot()
         self.gui.controls.status_bar.setText("scanning line {}".format(first_line))
         print("running scanline: {}".format(first_line))
         self.backend.done = False
@@ -409,7 +425,6 @@ class Launcher(object):
             return True
 
     def line_finished_sig(self):
-        #TODO: plot last scan result
         print("starting next line")
         lines = [vars(self.gui)[i] for i in self.gui.line_names]
         try:
@@ -461,6 +476,7 @@ class Launcher(object):
             format_datetime = self.get_datetime()
             line.start_time.setText(format_datetime)
 
+        self.set_plot()
         self.thread3 = myThreads(self, 3, "run_scan")
         self.thread3.lineFinishSig.connect(self.line_finished_sig)
         self.timer_thread = myThreads(self, 4, "timer event")

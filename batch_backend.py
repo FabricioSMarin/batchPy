@@ -375,6 +375,10 @@ class BatchSetup(object):
         self.reset_detector()
 
         is_ready = self.init_scan(scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell)
+        if not is_ready:
+            self.cleanup()
+            self.done = True
+            return
         self.x_motor.VELO = self.fast_speed
         self.x_motor.VAL = self.inner.P1SP
         self.y_motor.VAL = self.outer.P1SP

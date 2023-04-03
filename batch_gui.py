@@ -6,6 +6,7 @@ from PyQt5.QtCore import pyqtSignal
 
 
 import pyqtgraph
+from pyqtgraph import PlotWidget, plot
 import os
 import pickle
 from datetime import datetime, timedelta
@@ -681,6 +682,8 @@ class Line(QtWidgets.QWidget):
         self.y_llm = -100
         self.r_hlm = 1000
         self.r_llm = -1000
+        self.x_res = 0.01
+        self.y_res = 0.01
     def setupUi(self):
         size1 = 30
         size2 = 60
@@ -876,8 +879,10 @@ class Line(QtWidgets.QWidget):
         x_hlm = self.x_hlm
         x_llm = self.x_llm
         x_vmax = self.x_vmax
+        x_res = self.x_res
         y_hlm = self.y_hlm
         y_llm = self.y_llm
+        y_res = self.y_res
         r_hlm = self.r_hlm
         r_llm = self.r_llm
         x_center = eval(self.x_center.text())
@@ -901,9 +906,18 @@ class Line(QtWidgets.QWidget):
                 velocity_violation = False
             elif x_step/(dwell_time/1000) > x_vmax:
                 velocity_violation = True
+
+            if x_step < x_res:
+                print("step size smaller than x_motor resolution, cannot run scan. ")
+                return False
+
+            if y_step < y_res:
+                print("step size smaller than y_motor resolution, cannot run scan. ")
+                return False
         except ZeroDivisionError:
             velocity_violation = True
             pass
+
 
 
         if (x_center - abs(x_width)/2) <= x_llm or (x_center + abs(x_width)/2) >= x_hlm or (y_center - abs(y_width)/2) <= y_llm or (y_center + abs(y_width)/2) >= y_hlm:
@@ -1042,17 +1056,18 @@ class ImageView(pyqtgraph.GraphicsLayoutWidget):
         self.p1.x = [0,0,0,0]
         self.p1.y = [0,0,0,0]
         pen = pyqtgraph.mkPen(color="w")
-        self.p1.plot(self.p1.x, self.p1.y, pen=pen, symbol='o', symbolSize=5, symbolBrush="r")
-
+        # self.p1.setXRange(0, 10, padding=0)
+        # self.p1.setYRange(0,10, padding=0)
+        self.data_trajectory = self.p1.plot([0,1,2,3],[0,0,0,0], pen=pen, symbol='o', symbolSize=5, symbolBrush="r")
+        self.data_line = self.p1.plot([0,1,2,3],[0,1,2,3], pen=pen, symbol='o', symbolSize=5, symbolBrush="b")
         self.projView = pyqtgraph.ImageItem(axisOrder = "row-major")
         self.p1.setMouseEnabled(x=False, y=False)
         self.vb = self.p1.getViewBox()
         self.vb.setBackgroundColor((255,255,255))
         self.setBackground("w")
 
-    def plot(self, x, y, color):
-        pen = pyqtgraph.mkPen(color="w")
-        self.p1.setData(x, y, pen=pen, symbol='o', symbolSize=5, symbolBrush=(color))
+    def plott(self, x, y):
+        self.data_line.setData(x, y)
 
     def wheelEvent(self, ev):
         #empty function, but leave it as it overrides some other unwanted functionality.
