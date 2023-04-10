@@ -82,7 +82,7 @@ class BatchScanGui(QtWidgets.QMainWindow):
         self.saveAction.setShortcut(' Ctrl+S')
         self.exportScanParamsAction = QAction(' &export scan parameters', self)
         self.exportScanParamsAction.triggered.connect(self.export_scan_params)
-        self.importScanParamsAction(' &import scan parameters', self)
+        self.importScanParamsAction = QAction(' &import scan parameters', self)
         self.exportScanParamsAction.triggered.connect(self.import_scan_params)
 
         self.tomoAction = QAction(' tomo view', self, checkable=True)
