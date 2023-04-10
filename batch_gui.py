@@ -3,7 +3,7 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import pyqtSignal
-
+import csv
 
 import pyqtgraph
 from pyqtgraph import PlotWidget, plot
@@ -80,6 +80,11 @@ class BatchScanGui(QtWidgets.QMainWindow):
         self.openAction.setShortcut(' Ctrl+O')
         self.saveAction = QAction(' &save session', self)
         self.saveAction.setShortcut(' Ctrl+S')
+        self.exportScanParamsAction = QAction(' &export scan parameters', self)
+        self.exportScanParamsAction.triggered.connect(self.export_scan_params)
+        self.importScanParamsAction(' &import scan parameters', self)
+        self.exportScanParamsAction.triggered.connect(self.import_scan_params)
+
         self.tomoAction = QAction(' tomo view', self, checkable=True)
         self.tomoAction.triggered.connect(self.view_changed)
         self.miscviewAction = QAction(' misc view', self, checkable=True)
@@ -122,6 +127,8 @@ class BatchScanGui(QtWidgets.QMainWindow):
         fileMenu.addAction(self.closeAction)
         fileMenu.addAction(self.openAction)
         fileMenu.addAction(self.saveAction)
+        fileMenu.addAction(self.exportScanParamsAction)
+        fileMenu.addAction(self.importScanParamsAction)
 
         settingsMenu = menubar.addMenu(' &Settings')
         settingsMenu.addAction(self.initPVsAction)
@@ -302,6 +309,75 @@ class BatchScanGui(QtWidgets.QMainWindow):
             with open(cwd+file, 'wb') as f:
                 pickle.dump(["session",datetime.now(),settings], f)
                 f.close()
+
+        except IOError as e:
+            print(e)
+            print("cannot autosave upon close")
+
+    def import_scan_params(self):
+        try:
+            savedir = QtGui.QFileDialog.getSaveFileName()[0]
+            if savedir == "":
+                raise IOError
+
+            # field names
+            fields = ['line number', ' scan type', 'trajectory', 'action', 'dwell time', 'x center', 'x points', 'x width',
+                      'y center', 'y points', 'y width', 'comments', 'save message', 'start time', 'end time', 'r center', 'r points',
+                      'r width', 'eta']
+
+            #
+            # with open(savedir, 'w') as f:
+            #
+            #     # using csv.writer method from CSV package
+            #     write = csv.writer(f)
+            #     write.writerow(fields)
+            #     write.writerows(rows)
+        except:
+            return
+
+    def export_scan_params(self):
+
+        import csv
+        ##### for future reference "All File (*);;CSV (*.csv *.CSV)"
+        # fileName = QtGui.QFileDialog.getOpenFileName(self, "Open File", QtCore.QDir.currentPath(), "TXT (*.txt) ;; NPY (*.npy)")
+
+
+
+        try:
+            savedir = QtGui.QFileDialog.getSaveFileName()[0]
+            if savedir == "":
+                raise IOError
+
+            # field names
+            fields = ['line number', ' scan type', 'trajectory', 'action', 'dwell time', 'x center', 'x points', 'x width',
+                      'y center', 'y points', 'y width', 'comments', 'save message', 'start time', 'end time', 'r center', 'r points',
+                      'r width', 'eta']
+
+
+            with open(savedir, 'w') as f:
+
+                # using csv.writer method from CSV package
+                write = csv.writer(f)
+                write.writerow(fields)
+            for key in vars(self):
+                if isinstance(vars(self)[key], Line):
+                    line_list = []
+                    line_object = vars(vars(self)[key])
+
+
+
+                    # for widget in line_object:
+                    #     if isinstance(line_object[widget], QtWidgets.QRadioButton):
+                    #         settings[key].append([widget, line_object[widget].isChecked()])
+                    #     if isinstance(line_object[widget], QtWidgets.QPushButton):
+                    #         if line_object[widget].isCheckable():
+                    #             settings[key].append([widget, line_object[widget].isChecked()])
+                    #     if isinstance(line_object[widget], QtWidgets.QComboBox):
+                    #         settings[key].append([widget, line_object[widget].currentIndex()])
+                    #     if isinstance(line_object[widget], QtWidgets.QLineEdit):
+                    #         settings[key].append([widget, line_object[widget].text()])
+                    #     if isinstance(line_object[widget], QtWidgets.QLabel):
+                    #         settings[key].append([widget, line_object[widget].text()])
 
         except IOError as e:
             print(e)
@@ -678,8 +754,8 @@ class Line(QtWidgets.QWidget):
         self.x_hlm = 100
         self.x_llm = -100
         self.x_vmax = 5
-        self.y_hlm = 100
-        self.y_llm = -100
+        self.y_hlm = 1000
+        self.y_llm = -1000
         self.r_hlm = 1000
         self.r_llm = -1000
         self.x_res = 0.01
