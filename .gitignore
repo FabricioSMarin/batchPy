@@ -12,3 +12,5 @@ __pycache__/batch_backend.cpython-39.pyc
 *.pyc
 *.pyc
 *.pyc
+pkls/default_session.pkl
+pkls/default_settings.pkl

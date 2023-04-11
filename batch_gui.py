@@ -4,7 +4,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import pyqtSignal
 import csv
-
+import numpy as np
 import pyqtgraph
 from pyqtgraph import PlotWidget, plot
 import os
@@ -31,7 +31,7 @@ class BatchScanGui(QtWidgets.QMainWindow):
         self.setWindowTitle("Batch Py V1.0.0")
 
         self.update_interval = 10
-        self.num_lines = 20
+        self.num_lines = 40
         self.show_lines = 5
         self.line_names = []
         for i in range(self.num_lines): #max number of lines
@@ -83,7 +83,7 @@ class BatchScanGui(QtWidgets.QMainWindow):
         self.exportScanParamsAction = QAction(' &export scan parameters', self)
         self.exportScanParamsAction.triggered.connect(self.export_scan_params)
         self.importScanParamsAction = QAction(' &import scan parameters', self)
-        self.exportScanParamsAction.triggered.connect(self.import_scan_params)
+        self.importScanParamsAction.triggered.connect(self.import_scan_params)
 
         self.tomoAction = QAction(' tomo view', self, checkable=True)
         self.tomoAction.triggered.connect(self.view_changed)
@@ -198,8 +198,8 @@ class BatchScanGui(QtWidgets.QMainWindow):
         x_npts = "-1"
         y_npts = "-1"
         current_line = self.__dict__[self.line_names[line_number]]
-        x_width = eval(current_line.x_width.text())
-        y_width = eval(current_line.y_width.text())
+        x_width = np.abs(eval(current_line.x_width.text()))
+        y_width = np.abs(eval(current_line.y_width.text()))
         if x_step < x_width:
             x_npts = int(x_width // x_step + 1)
             current_line.x_points.setText(str(x_npts))
@@ -316,35 +316,57 @@ class BatchScanGui(QtWidgets.QMainWindow):
 
     def import_scan_params(self):
         try:
-            savedir = QtGui.QFileDialog.getSaveFileName()[0]
-            if savedir == "":
+            fileName = QFileDialog.getOpenFileName(self, "Open File", QtCore.QDir.currentPath(), "All File (*);;CSV (*.csv *.CSV)")
+            if fileName == "":
                 raise IOError
-
             # field names
             fields = ['line number', ' scan type', 'trajectory', 'action', 'dwell time', 'x center', 'x points', 'x width',
                       'y center', 'y points', 'y width', 'comments', 'save message', 'start time', 'end time', 'r center', 'r points',
                       'r width', 'eta']
 
-            #
-            # with open(savedir, 'w') as f:
-            #
-            #     # using csv.writer method from CSV package
-            #     write = csv.writer(f)
-            #     write.writerow(fields)
-            #     write.writerows(rows)
+            rows = []
+            with open(fileName[0], 'r') as f:
+                reader_obj = csv.reader(f)
+                for row in reader_obj:
+                    rows.append(row)
+                rows.pop(0)
+
+            lines = [vars(self)[i] for i in self.line_names]
+            scan_type = ["step", "fly"]
+            trajectory = ["raster", "snake", "spiral", "lissajous", "custom"]
+            action = ["skip", "normal", "pause"]
+            for idx, line in enumerate(lines):
+                line.current_line.setText(rows[idx][0])
+                line.scan_type.setChecked(scan_type.index(rows[idx][1]))
+                line.scan_type.setText(rows[idx][1])
+                line.trajectory.setCurrentIndex(trajectory.index(rows[idx][2]))
+                line.line_action.setCurrentIndex(action.index(rows[idx][3]))
+                line.dwell_time.setText(rows[idx][4])
+                line.x_center.setText(rows[idx][5])
+                line.x_points.setText(rows[idx][6])
+                line.x_width.setText(rows[idx][7])
+                line.y_center.setText(rows[idx][8])
+                line.y_points.setText(rows[idx][9])
+                line.y_width.setText(rows[idx][10])
+                line.comments.setText(rows[idx][11])
+                line.save_message.setText(rows[idx][12])
+                line.start_time.setText(rows[idx][13])
+                line.finish_time.setText(rows[idx][14])
+                line.r_center.setText(rows[idx][15])
+                line.r_points.setText(rows[idx][16])
+                line.r_width.setText(rows[idx][17])
+                line.line_eta.setText(rows[idx][18])
         except:
             return
 
     def export_scan_params(self):
-
-        import csv
-        ##### for future reference "All File (*);;CSV (*.csv *.CSV)"
-        # fileName = QtGui.QFileDialog.getOpenFileName(self, "Open File", QtCore.QDir.currentPath(), "TXT (*.txt) ;; NPY (*.npy)")
-
-
-
         try:
-            savedir = QtGui.QFileDialog.getSaveFileName()[0]
+            savedir = QFileDialog.getSaveFileName()[0]
+            if len(savedir.split(".")) == 2:
+                savedir = savedir.split(".")[0]
+            else:
+                pass
+
             if savedir == "":
                 raise IOError
 
@@ -352,36 +374,43 @@ class BatchScanGui(QtWidgets.QMainWindow):
             fields = ['line number', ' scan type', 'trajectory', 'action', 'dwell time', 'x center', 'x points', 'x width',
                       'y center', 'y points', 'y width', 'comments', 'save message', 'start time', 'end time', 'r center', 'r points',
                       'r width', 'eta']
-
-
-            with open(savedir, 'w') as f:
-
-                # using csv.writer method from CSV package
-                write = csv.writer(f)
-                write.writerow(fields)
+            lines = []
             for key in vars(self):
                 if isinstance(vars(self)[key], Line):
-                    line_list = []
                     line_object = vars(vars(self)[key])
+                    line_number = line_object["current_line"].text()
+                    scan_type = line_object["scan_type"].text()
+                    trajectory = line_object["trajectory"].currentText()
+                    action = line_object["line_action"].currentText()
+                    dwell_time = line_object["dwell_time"].text()
+                    x_center = line_object["x_center"].text()
+                    x_points = line_object["x_points"].text()
+                    x_width = line_object["x_width"].text()
+                    y_center = line_object["y_center"].text()
+                    y_points = line_object["y_points"].text()
+                    y_width = line_object["y_width"].text()
+                    comments = line_object["comments"].text()
+                    save_message = line_object["save_message"].text()
+                    start_time = line_object["start_time"].text()
+                    finish_time = line_object["finish_time"].text()
+                    r_center = line_object["r_center"].text()
+                    r_points = line_object["r_points"].text()
+                    r_width = line_object["r_width"].text()
+                    line_eta = line_object["line_eta"].text()
+                    line_list = [line_number, scan_type, trajectory, action, dwell_time, x_center, x_points, x_width,
+                                 y_center, y_points, y_width, comments, save_message, start_time, finish_time, r_center,
+                                 r_points, r_width, line_eta]
+                    lines.append(line_list)
 
-
-
-                    # for widget in line_object:
-                    #     if isinstance(line_object[widget], QtWidgets.QRadioButton):
-                    #         settings[key].append([widget, line_object[widget].isChecked()])
-                    #     if isinstance(line_object[widget], QtWidgets.QPushButton):
-                    #         if line_object[widget].isCheckable():
-                    #             settings[key].append([widget, line_object[widget].isChecked()])
-                    #     if isinstance(line_object[widget], QtWidgets.QComboBox):
-                    #         settings[key].append([widget, line_object[widget].currentIndex()])
-                    #     if isinstance(line_object[widget], QtWidgets.QLineEdit):
-                    #         settings[key].append([widget, line_object[widget].text()])
-                    #     if isinstance(line_object[widget], QtWidgets.QLabel):
-                    #         settings[key].append([widget, line_object[widget].text()])
+            with open(savedir+".csv", 'w') as f:
+                write = csv.writer(f)
+                write.writerow(fields)
+                write.writerows(lines)
 
         except IOError as e:
             print(e)
             print("cannot autosave upon close")
+        return
 
     def restore_session(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))+"/"

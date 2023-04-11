@@ -96,6 +96,7 @@ class Launcher(object):
             pass
 
     def calculate_global_eta(self):
+        # TODO: global ETA not working
         eta = []
         line_status = []
         line_action = []
@@ -142,7 +143,6 @@ class Launcher(object):
             x_pos, y_pos = self.get_scan_progress()
             scan = self.get_scan(self.gui.active_line)
             # scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell, r_center, r_width, r_npts
-            print(x_pos)
             idx = y_pos*scan[3]+x_pos
             x_arr,y_arr = self.get_trajectory()
             self.gui.controls.view_box.plott(x_arr[:idx],y_arr[:idx])
@@ -251,22 +251,29 @@ class Launcher(object):
         scan_type = lines[checked].scan_type.text()
         if scan_type == "step":
             #use step scan record inner loop
-            lines[checked].x_center.setText(str(self.backend.ScanH.P1CP))
+            # lines[checked].x_center.setText(str(self.backend.ScanH.P1CP))
+            lines[checked].x_center.setText(str(self.backend.x_motor.VAL))
             lines[checked].x_points.setText(str(self.backend.ScanH.NPTS))
             lines[checked].x_width.setText(str(self.backend.ScanH.P1WD))
-            lines[checked].y_center.setText(str(self.backend.Scan1.P1CP))
+            # lines[checked].y_center.setText(str(self.backend.Scan1.P1CP))
+            lines[checked].y_center.setText(str(self.backend.y_motor.VAL))
             lines[checked].y_points.setText(str(self.backend.Scan1.NPTS))
             lines[checked].y_width.setText(str(self.backend.Scan1.P1WD))
 
+
         elif scan_type == "fly":
-            lines[checked].x_center.setText(str(self.backend.FscanH.P1CP))
+            # lines[checked].x_center.setText(str(self.backend.FscanH.P1CP))
+            lines[checked].x_center.setText(str(self.backend.x_motor.VAL))
             lines[checked].x_points.setText(str(self.backend.FscanH.NPTS))
             lines[checked].x_width.setText(str(self.backend.FscanH.P1WD))
-            lines[checked].y_center.setText(str(self.backend.Fscan1.P1CP))
+            # lines[checked].y_center.setText(str(self.backend.Fscan1.P1CP))
+            lines[checked].y_center.setText(str(self.backend.y_motor.VAL))
             lines[checked].y_points.setText(str(self.backend.Fscan1.NPTS))
             lines[checked].y_width.setText(str(self.backend.Fscan1.P1WD))
 
     def export_clicked(self):
+        # TODO: export button should move motors to center position in additon to exporting scan params to scan record.
+
         if not self.backend.backend_ready:
             print("scan record not connected")
             return
@@ -276,17 +283,21 @@ class Launcher(object):
         if scan_type == "step":
             #use step scan record inner loop
             self.backend.ScanH.P1CP = lines[checked].x_center.text()
+            self.backend.x_motor.VAL = lines[checked].x_center.text()
             self.backend.ScanH.NPTS = lines[checked].x_points.text()
             self.backend.ScanH.P1WD = lines[checked].x_width.text()
             self.backend.Scan1.P1CP = lines[checked].y_center.text()
+            self.backend.y_motor.VAL = lines[checked].y_center.text()
             self.backend.Scan1.NPTS = lines[checked].y_points.text()
             self.backend.Scan1.P1WD = lines[checked].y_width.text()
 
         elif scan_type == "fly":
             self.backend.FscanH.P1CP = lines[checked].x_center.text()
+            self.backend.x_motor.VAL = lines[checked].x_center.text()
             self.backend.FscanH.NPTS = lines[checked].x_points.text()
             self.backend.FscanH.P1WD = lines[checked].x_width.text()
             self.backend.Fscan1.P1CP = lines[checked].y_center.text()
+            self.backend.y_motor.VAL = lines[checked].y_center.text()
             self.backend.Fscan1.NPTS = lines[checked].y_points.text()
             self.backend.Fscan1.P1WD = lines[checked].y_width.text()
 
@@ -568,6 +579,7 @@ class Launcher(object):
             self.timer_thread.exit_flag = 1
         except:
             pass
+        self.gui.active_line = -1
         self.backend.abort_scan()
         lines = [vars(self.gui)[i] for i in self.gui.line_names]
         for line in lines:
@@ -686,7 +698,6 @@ class myThreads(QtCore.QThread):
             # elif self.parent.backend.struck_stuck == True:
             #     self.struckStuckSig.emit()
             if self.parent.backend.event == True:
-                # print("timer event")
                 self.plotSig.emit()
             else:
                 pass
