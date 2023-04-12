@@ -18,6 +18,12 @@ import subprocess
 #   Controls()
 #   ImageView()
 
+
+#TODO: FIX global ETA
+#TODO: save message gets written even if scan was skipped.
+#TODO: set line background to light gray if line set to normal
+#TODO: dynamically adjust font size to fit inside box
+
 class BatchScanGui(QtWidgets.QMainWindow):
     def __init__(self,app):
         super(QtWidgets.QMainWindow, self).__init__()
@@ -118,6 +124,9 @@ class BatchScanGui(QtWidgets.QMainWindow):
 
         for i in range(self.num_lines):
             self.__dict__["line_{}".format(i)].current_line.clicked.connect(self.line_changed)
+            self.__dict__["line_{}".format(i)].line_action.currentIndexChanged.connect(self.action_changed)
+            # self.__dict__["line_{}".format(i)].line_action.connect(self.line_changed)
+            # line.setStyleSheet("background: yellow")
 
         menubar = self.menuBar()
         menubar.setStyleSheet("background-color: rgb(49,49,49); color: rgb(255,255,255); border: 1px solid #000;")
@@ -192,6 +201,13 @@ class BatchScanGui(QtWidgets.QMainWindow):
             self.__dict__[self.line_names[line]].current_line.setChecked(False)
         last_clicked.setChecked(True)
 
+    def action_changed(self):
+        # TODO: change red scan trajectory un-scanned points to light gray
+
+        row = self.sender()
+        if row.currentIndex() == 1:
+            row.parent().setStyleSheet("background: lavender")
+        return
     def update_npts(self, line_number):
         x_step = eval(self.controls.x_step.text())
         y_step = eval(self.controls.y_step.text())
@@ -334,7 +350,7 @@ class BatchScanGui(QtWidgets.QMainWindow):
             lines = [vars(self)[i] for i in self.line_names]
             scan_type = ["step", "fly"]
             trajectory = ["raster", "snake", "spiral", "lissajous", "custom"]
-            action = ["skip", "normal", "pause"]
+            action = ["skip", "normal", "pause", "done"]
             for idx, line in enumerate(lines):
                 line.current_line.setText(rows[idx][0])
                 line.scan_type.setChecked(scan_type.index(rows[idx][1]))
@@ -401,6 +417,7 @@ class BatchScanGui(QtWidgets.QMainWindow):
                                  y_center, y_points, y_width, comments, save_message, start_time, finish_time, r_center,
                                  r_points, r_width, line_eta]
                     lines.append(line_list)
+
 
             with open(savedir+".csv", 'w') as f:
                 write = csv.writer(f)
@@ -806,7 +823,7 @@ class Line(QtWidgets.QWidget):
         self.trajectory.addItems(trajectories)
         self.trajectory.setFixedWidth(size5)
         self.line_action = QtWidgets.QComboBox()
-        actions = ["skip","normal", "pause"]
+        actions = ["skip","normal", "pause", "done"]
         self.line_action.addItems(actions)
         self.line_action.setFixedWidth(size5)
         self.dwell_time = QtWidgets.QLineEdit("0")
@@ -1056,8 +1073,8 @@ class Line(QtWidgets.QWidget):
                 # item.setStyleSheet("background: lightyellow;border: 2px red; color: black")
                 item.setStyleSheet("background: lightyellow; color: black")
             elif isinstance(item, QtWidgets.QPushButton):
-                item.setStyleSheet("QPushButton {background: lightgreen;color: black; border-radius: 4;}" "QPushButton::pressed {background-color: darkgreen;}")
-                item.setStyleSheet("QPushButton {background: lightgreen;color: black; border-radius: 4;}" "QPushButton::pressed {background-color: darkgreen;}")
+                item.setStyleSheet("QPushButton {background: lightgreen;color: black; border-radius: 4;}" "QPushButton::checked {background-color: orchid;}")
+                # item.setStyleSheet("QPushButton {background: lightgreen;color: black; border-radius: 4;}" "QPushButton::pressed {background-color: darkgreen;}")
             elif isinstance(item,QtWidgets.QRadioButton):
                 item.setStyleSheet("background: white;color: black; border-radius: 4")
             else:

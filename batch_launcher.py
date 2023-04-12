@@ -1,9 +1,7 @@
 import numpy as np
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import pyqtSignal
-
 # from PyQt5.QtCore import pyqtSignal
-
 import batch_gui
 import batch_backend
 import sys
@@ -106,6 +104,7 @@ class Launcher(object):
                 lines.append(vars(vars(self.gui)[key]))
 
         for i, line in enumerate(lines):
+            #TODO Somewhere in here causes the program to crash
             if line["line_action"].currentText() == "normal":
                 eta_str = line["line_eta"].text()
                 hrs = int(eta_str.split(":")[0]) * 60 * 60
@@ -114,7 +113,12 @@ class Launcher(object):
                 total_s = sec + min + hrs
                 if line["line_action"].currentText() == "normal":
                     if line["scan_type"].text() == "step":
-                        line_eta = (self.backend.Scan1.CPT/self.backend.Scan1.NPTS) * total_s
+                        try:
+                            line_eta = (self.backend.Scan1.CPT/self.backend.Scan1.NPTS) * total_s
+                        except:
+                            line_eta = 0
+                            pass
+
                     else:
                         try:
                             line_eta = (self.backend.Fscan1.CPT/self.backend.Fscan1.NPTS) * total_s
@@ -331,6 +335,7 @@ class Launcher(object):
             line.r_center.setText("0")
             line.r_points.setText("0")
             line.r_width.setText("0")
+            line.comments.setText("")
             line.save_message.setText("")
             line.start_time.setText("")
             line.finish_time.setText("")
@@ -446,15 +451,19 @@ class Launcher(object):
 
         line = lines[current_line]
         line.setStyleSheet("background: white")
+
+        if line.line_action.currentText() == "normal":
+            line.line_action.setCurrentIndex(3)
+            save_message = self.backend.saveData_message
+            line.save_message.setText(save_message)
+            format_datetime = self.get_datetime()
+            line.finish_time.setText(format_datetime)
+
         line.setAutoFillBackground(True)
-        format_datetime = self.get_datetime()
-        line.finish_time.setText(format_datetime)
-        save_message = self.backend.saveData_message
-        line.save_message.setText(save_message)
-        line.line_action.setCurrentIndex(0)
         line_actions = [line.line_action.currentText() for line in lines]
         self.backend.done = False
         if "normal" in line_actions or "pause" in line_actions:
+
             current_line +=1
             line = lines[current_line]
             self.gui.active_line = current_line
@@ -468,9 +477,14 @@ class Launcher(object):
             print("cleaning up")
             return
 
-        if line.line_action.currentText() == "skip":
+        if line.line_action.currentText() == "skip" or line.line_action.currentText() == "done":
+            # line.save_message.setText("")
+            # line.comments.setText("")
+            # line.start_time.setText("")
+            # line.finish_time.setText("")
             print("skipping line {}".format(current_line))
-            line.line_action.setCurrentIndex(1)     #setting line_action to "normal" so in the next iteration it goes to the skipped line, then selects the n+1 index from the skipped line.
+            #TODO: change this logic so it doesnt change any of the line action
+            # line.line_action.setCurrentIndex(1)     #setting line_action to "normal" so in the next iteration it goes to the skipped line, then selects the n+1 index from the skipped line.
             self.line_finished_sig()
             return
 
@@ -486,6 +500,7 @@ class Launcher(object):
             print("running scanline:  {}".format(current_line))
             format_datetime = self.get_datetime()
             line.start_time.setText(format_datetime)
+
 
         self.set_plot()
         self.thread3 = myThreads(self, 3, "run_scan")

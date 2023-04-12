@@ -637,7 +637,7 @@ class BatchSetup(object):
             self.outer.PDLY = 0.25
 
             self.fast_speed = 5
-            self.scan_speed = (x_width / x_npts) / dwell
+            self.scan_speed = x_step / dwell
 
             if self.XSPRESS3 is not None:
                 self.XSPRESS3.NumImages = x_npts - 2
@@ -663,7 +663,7 @@ class BatchSetup(object):
             self.outer.P1WD = y_width
             self.outer.NPTS = y_npts
 
-            self.scan_speed = (x_width / x_npts) / dwell
+            self.scan_speed = x_step / dwell
             self.fast_speed = 5
 
             if self.XSPRESS3 is not None:
