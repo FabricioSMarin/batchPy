@@ -968,7 +968,7 @@ class Line(QtWidgets.QWidget):
                     elif (eval(item.text())>=0 and int(item.text())%1==0) and (key == "x_points" or key == "y_points" or key == "r_points"):
                         item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
 
-                    elif eval(item.text())>0 and key == "dwell_time" and self.line_action.currentText()=="normal":
+                    elif eval(item.text()) > 0 and key == "dwell_time":
                         item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
                     else:
                         item.setStyleSheet("background: lightcoral; color: black; border-radius: 4")
