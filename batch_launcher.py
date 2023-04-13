@@ -257,22 +257,22 @@ class Launcher(object):
         scan_type = lines[checked].scan_type.text()
         if scan_type == "step":
             #use step scan record inner loop
-            lines[checked].x_center.setText(str(self.backend.x_motor.VAL))
-            lines[checked].x_points.setText(str(self.backend.ScanH.NPTS))
-            lines[checked].x_width.setText(str(self.backend.ScanH.P1WD))
-            lines[checked].y_center.setText(str(self.backend.y_motor.VAL))
-            lines[checked].y_points.setText(str(self.backend.Scan1.NPTS))
-            lines[checked].y_width.setText(str(self.backend.Scan1.P1WD))
-            # lines[checked].dwell.setText(
+            lines[checked].x_center.setText(str(np.round(self.backend.x_motor.VAL, 3)))
+            lines[checked].x_points.setText(str(np.round(self.backend.ScanH.NPTS, 3)))
+            lines[checked].x_width.setText(str(np.round(self.backend.ScanH.P1WD, 3)))
+            lines[checked].y_center.setText(str(np.round(self.backend.y_motor.VAL, 3)))
+            lines[checked].y_points.setText(str(np.round(self.backend.Scan1.NPTS, 3)))
+            lines[checked].y_width.setText(str(np.round(self.backend.Scan1.P1WD, 3)))
+            lines[checked].dwell.setText(np.round(self.backend.dwell, 3))
         elif scan_type == "fly":
-            # lines[checked].x_center.setText(str(self.backend.FscanH.P1CP))
-            lines[checked].x_center.setText(str(self.backend.x_motor.VAL))
-            lines[checked].x_points.setText(str(self.backend.FscanH.NPTS))
-            lines[checked].x_width.setText(str(self.backend.FscanH.P1WD))
-            # lines[checked].y_center.setText(str(self.backend.Fscan1.P1CP))
-            lines[checked].y_center.setText(str(self.backend.y_motor.VAL))
-            lines[checked].y_points.setText(str(self.backend.Fscan1.NPTS))
-            lines[checked].y_width.setText(str(self.backend.Fscan1.P1WD))
+            lines[checked].x_center.setText(str(np.round(self.backend.x_motor.VAL, 3)))
+            lines[checked].x_points.setText(str(np.round(self.backend.FscanH.NPTS, 3)))
+            lines[checked].x_width.setText(str(np.round(self.backend.FscanH.P1WD, 3)))
+            lines[checked].y_center.setText(str(np.round(self.backend.y_motor.VAL, 3)))
+            lines[checked].y_points.setText(str(np.round(self.backend.Fscan1.NPTS, 3)))
+            lines[checked].y_width.setText(str(np.round(self.backend.Fscan1.P1WD, 3)))
+            lines[checked].dwell.setText(np.round(self.backend.dwell, 3))
+
 
     def export_clicked(self):
         # TODO: export button should move motors to center position in additon to exporting scan params to scan record.

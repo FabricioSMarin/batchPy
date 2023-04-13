@@ -246,10 +246,10 @@ class BatchScanGui(QtWidgets.QMainWindow):
             print("erorr setting npts from step size")
             return
         else:
-            current_line.x_points.setText(str(x_npts))
-            current_line.y_points.setText(str(y_npts))
-            current_line.x_width.setText(str(x_width))
-            current_line.y_width.setText(str(y_width))
+            current_line.x_points.setText(str(int(x_npts)))
+            current_line.y_points.setText(str(int(y_npts)))
+            current_line.x_width.setText(str(np.round(x_width,3)))
+            current_line.y_width.setText(str(np.round(y_width,2)))
 
     def points_clicked(self):
         if self.controls.x_step.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
@@ -969,6 +969,8 @@ class Line(QtWidgets.QWidget):
                         item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
 
                     elif eval(item.text()) > 0 and key == "dwell_time":
+                        item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
+                    elif self.line_action.currentText() == "skip":
                         item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
                     else:
                         item.setStyleSheet("background: lightcoral; color: black; border-radius: 4")
