@@ -1178,7 +1178,7 @@ class ImageView(pyqtgraph.GraphicsLayoutWidget):
         pen = pyqtgraph.mkPen(color="w")
         # self.p1.setXRange(0, 10, padding=0)
         # self.p1.setYRange(0,10, padding=0)
-        self.data_trajectory = self.p1.plot([0,1,2,3],[0,0,0,0], pen=pen, symbol='o', symbolSize=5, symbolBrush="r")
+        self.data_trajectory = self.p1.plot([0,1,2,3],[0,0,0,0], pen=pen, symbol='o', symbolSize=5, symbolBrush="w")
         self.data_line = self.p1.plot([0,1,2,3],[0,1,2,3], pen=pen, symbol='o', symbolSize=5, symbolBrush="b")
         self.projView = pyqtgraph.ImageItem(axisOrder = "row-major")
         self.p1.setMouseEnabled(x=False, y=False)
