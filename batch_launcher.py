@@ -67,6 +67,7 @@ class Launcher(object):
             x_hlm = self.backend.x_motor.HLM
             x_llm = self.backend.x_motor.LLM
             x_vmax = self.backend.x_motor.VMAX
+            x_vmin = self.backend.x_motor.VBAS
             x_res = self.backend.x_motor.MRES
             y_hlm = self.backend.y_motor.HLM
             y_llm = self.backend.y_motor.LLM
@@ -83,6 +84,7 @@ class Launcher(object):
                 line.x_hlm = x_hlm
                 line.x_llm = x_llm
                 line.x_vmax = x_vmax
+                line.x_vmin = x_vmin
                 line.x_res = x_res
                 line.y_hlm = y_hlm
                 line.y_llm = y_llm
@@ -255,16 +257,13 @@ class Launcher(object):
         scan_type = lines[checked].scan_type.text()
         if scan_type == "step":
             #use step scan record inner loop
-            # lines[checked].x_center.setText(str(self.backend.ScanH.P1CP))
             lines[checked].x_center.setText(str(self.backend.x_motor.VAL))
             lines[checked].x_points.setText(str(self.backend.ScanH.NPTS))
             lines[checked].x_width.setText(str(self.backend.ScanH.P1WD))
-            # lines[checked].y_center.setText(str(self.backend.Scan1.P1CP))
             lines[checked].y_center.setText(str(self.backend.y_motor.VAL))
             lines[checked].y_points.setText(str(self.backend.Scan1.NPTS))
             lines[checked].y_width.setText(str(self.backend.Scan1.P1WD))
-
-
+            # lines[checked].dwell.setText(
         elif scan_type == "fly":
             # lines[checked].x_center.setText(str(self.backend.FscanH.P1CP))
             lines[checked].x_center.setText(str(self.backend.x_motor.VAL))
@@ -568,7 +567,7 @@ class Launcher(object):
             self.backend.abort_scan()
             self.line_color(self.gui.active_line, color="white")
             saveDate_message = self.backend.saveData_message.split("to")[1]
-            self.backend.saveData_message = "Aborted {}".format(saveDate_message)
+            self.backend.saveData_message = "{} Aborted".format(saveDate_message)
             lines = [vars(self.gui)[i] for i in self.gui.line_names]
             line = lines[self.gui.active_line]
             line.save_message.setText(self.backend.saveData_message)

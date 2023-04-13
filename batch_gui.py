@@ -13,13 +13,16 @@ from datetime import datetime, timedelta
 import subprocess
 
 #GUI structure:
-#   Header()
+#   Header()  
 #   Lines()
 #   Controls()
 #   ImageView()
 
 
+#TODO: set the motor minimum velocity to 0.01 for longer dwell times.
+#TODO: current scan line background (yellow) dissappears if any of the text fields are modified.
 #TODO: FIX global ETA
+#TODO: zero dwell time turns red even if line is set to skip.
 #TODO: save message gets written even if scan was skipped.
 #TODO: set line background to light gray if line set to normal
 #TODO: dynamically adjust font size to fit inside box
@@ -213,11 +216,14 @@ class BatchScanGui(QtWidgets.QMainWindow):
         y_step = eval(self.controls.y_step.text())
         x_npts = "-1"
         y_npts = "-1"
+        # TODO: npts = round_to_whole number(width/step_size), npts*step_size = new_width
+
         current_line = self.__dict__[self.line_names[line_number]]
         x_width = np.abs(eval(current_line.x_width.text()))
         y_width = np.abs(eval(current_line.y_width.text()))
         if x_step < x_width:
-            x_npts = int(x_width // x_step + 1)
+            x_npts = np.ceil(x_width/x_step)
+            x_width = x_npts*x_step
             current_line.x_points.setText(str(x_npts))
         elif x_step == x_width:
             x_npts = 2
@@ -227,7 +233,8 @@ class BatchScanGui(QtWidgets.QMainWindow):
             print("x_step larger than width")
 
         if y_step < y_width:
-            y_npts = int(y_width // y_step + 1)
+            y_npts = np.ceil(y_width/y_step)
+            y_width = y_npts*y_step
         elif y_step == y_width:
             y_npts = 2
             print("y_step same as width")
@@ -238,10 +245,11 @@ class BatchScanGui(QtWidgets.QMainWindow):
         if x_npts<=0 or y_npts<= 0:
             print("erorr setting npts from step size")
             return
-
         else:
             current_line.x_points.setText(str(x_npts))
             current_line.y_points.setText(str(y_npts))
+            current_line.x_width.setText(str(x_width))
+            current_line.y_width.setText(str(y_width))
 
     def points_clicked(self):
         if self.controls.x_step.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
@@ -800,6 +808,7 @@ class Line(QtWidgets.QWidget):
         self.x_hlm = 100
         self.x_llm = -100
         self.x_vmax = 5
+        self.x_vmin = 0.4
         self.y_hlm = 1000
         self.y_llm = -1000
         self.r_hlm = 1000
@@ -875,8 +884,6 @@ class Line(QtWidgets.QWidget):
                 item.textChanged.connect(self.calculate_line_eta)
                 item.returnPressed.connect(self.calculate_line_eta)
                 item.editingFinished.connect(self.params_changed)
-
-
             elif isinstance(item,QtWidgets.QPushButton):
                 item.clicked.connect(self.scan_type_clicked)
                 item.clicked.connect(self.calculate_line_eta)
@@ -961,7 +968,7 @@ class Line(QtWidgets.QWidget):
                     elif (eval(item.text())>=0 and int(item.text())%1==0) and (key == "x_points" or key == "y_points" or key == "r_points"):
                         item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
 
-                    elif eval(item.text())>0 and key == "dwell_time":
+                    elif eval(item.text())>0 and key == "dwell_time" and self.line_action.currentText()=="normal":
                         item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
                     else:
                         item.setStyleSheet("background: lightcoral; color: black; border-radius: 4")
@@ -1001,6 +1008,7 @@ class Line(QtWidgets.QWidget):
         x_hlm = self.x_hlm
         x_llm = self.x_llm
         x_vmax = self.x_vmax
+        x_vmin = self.x_vmin
         x_res = self.x_res
         y_hlm = self.y_hlm
         y_llm = self.y_llm
@@ -1112,44 +1120,28 @@ class Line(QtWidgets.QWidget):
         dwell = float(self.dwell_time.text())/1000
         x_points = int(self.x_points.text())
         x_width = float(self.x_width.text())
+        y_points = int(eval(self.y_points.text()))
+        y_width = float(eval(self.y_width.text()))
         y_points = 0
         r_points = 0
         seconds_total = 0
         scan_type = self.scan_type.text()
         trajectory = self.trajectory.currentText()
-        if scan_type == "step" or scan_type == "fly":
-            y_points = int(eval(self.y_points.text()))
-            y_width = float(eval(self.y_width.text()))
+        overhead = 1.18
+
         if self.r_center.isVisible():
             r_points = int(eval(self.r_points.text()))
             r_width = float(eval(self.r_width.text()))
 
-        if trajectory == "raster":
-            if scan_type == "step":
-                overhead = 1.3
-            else:
-                overhead = 1.18
+        if trajectory == "raster" or trajectory == "snake":
             width_not_zero = (x_width*y_width>0)*1
             seconds_total = dwell*x_points*y_points*overhead*width_not_zero + (2*y_points)
 
-        if trajectory == "snake":
-            if scan_type == "step":
-                overhead = 1.3
-            else:
-                overhead = 1.18
-            width_not_zero = (x_width*y_width>0)*1
-            seconds_total = dwell*eval(x_points)*eval(y_points)*overhead*width_not_zero + (2*y_points)
-
         if trajectory == "spiral" or trajectory == "lissajous" or trajectory == "custom":
-            if scan_type == "step":
-                overhead = 1.3
-            else:
-                overhead = 1.18
-            seconds_total = dwell*eval(x_points)*overhead
+            seconds_total = dwell*x_points*overhead
 
         if self.r_center.isVisible() and r_points > 0:
-            overhead = 1.1
-            seconds_total = seconds_total*r_points*overhead
+            seconds_total = seconds_total*r_points
 
         hms = str(timedelta(seconds=int(seconds_total)))
         self.line_eta.setText(hms)

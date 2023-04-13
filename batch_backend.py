@@ -49,6 +49,7 @@ class BatchSetup(object):
         self.outer = None
         self.mca = None
         self.img = None
+        self.dwell = 10
 
     def create_xspress3(self,prefix):
         try:
@@ -590,6 +591,7 @@ class BatchSetup(object):
     def init_scan(self, scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell):
         # unit_sf = 1/1000
         unit_sf = 1
+        self.dwell = dwell
         dwell = dwell/1000
         try:
             x_step = abs(x_width/x_npts)
