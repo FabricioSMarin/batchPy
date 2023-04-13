@@ -22,8 +22,9 @@ import subprocess
 #TODO: set the motor minimum velocity to 0.01 for longer dwell times.
 #TODO: current scan line background (yellow) dissappears if any of the text fields are modified.
 #TODO: FIX global ETA
-#TODO: zero dwell time turns red even if line is set to skip.
-#TODO: save message gets written even if scan was skipped.
+#DONE: npts = round_to_whole number(width/step_size), npts*step_size = new_width
+#DONE: zero dwell time turns red even if line is set to skip.
+#DONE: save message gets written even if scan was skipped.
 #TODO: set line background to light gray if line set to normal
 #TODO: dynamically adjust font size to fit inside box
 
@@ -216,7 +217,6 @@ class BatchScanGui(QtWidgets.QMainWindow):
         y_step = eval(self.controls.y_step.text())
         x_npts = "-1"
         y_npts = "-1"
-        # TODO: npts = round_to_whole number(width/step_size), npts*step_size = new_width
 
         current_line = self.__dict__[self.line_names[line_number]]
         x_width = np.abs(eval(current_line.x_width.text()))
@@ -970,10 +970,10 @@ class Line(QtWidgets.QWidget):
 
                     elif eval(item.text()) > 0 and key == "dwell_time":
                         item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
-                    elif self.line_action.currentText() == "skip":
-                        item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
                     else:
                         item.setStyleSheet("background: lightcoral; color: black; border-radius: 4")
+                    if self.line_action.currentText() == "skip":
+                        item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
                 except:
                     item.setStyleSheet("background: lightcoral; color: black; border-radius: 4")
 
@@ -990,6 +990,10 @@ class Line(QtWidgets.QWidget):
                 if isinstance(item, QtWidgets.QLineEdit) and key != "comments" and item.isEnabled() and item.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
                     self.valid = False
                     self.setStyleSheet("background: lightsalmon")
+                    self.setAutoFillBackground(True)
+                else:
+                    self.valid = True
+                    self.setStyleSheet("background: lavender")
                     self.setAutoFillBackground(True)
                     return
 
@@ -1122,8 +1126,8 @@ class Line(QtWidgets.QWidget):
         dwell = float(self.dwell_time.text())/1000
         x_points = int(self.x_points.text())
         x_width = float(self.x_width.text())
-        y_points = int(eval(self.y_points.text()))
-        y_width = float(eval(self.y_width.text()))
+        y_points = int(self.y_points.text())
+        y_width = float(self.y_width.text())
         y_points = 0
         r_points = 0
         seconds_total = 0
@@ -1132,8 +1136,8 @@ class Line(QtWidgets.QWidget):
         overhead = 1.18
 
         if self.r_center.isVisible():
-            r_points = int(eval(self.r_points.text()))
-            r_width = float(eval(self.r_width.text()))
+            r_points = int(self.r_points.text())
+            r_width = float(self.r_width.text())
 
         if trajectory == "raster" or trajectory == "snake":
             width_not_zero = (x_width*y_width>0)*1

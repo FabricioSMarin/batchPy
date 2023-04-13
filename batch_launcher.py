@@ -263,7 +263,7 @@ class Launcher(object):
             lines[checked].y_center.setText(str(np.round(self.backend.y_motor.VAL, 3)))
             lines[checked].y_points.setText(str(np.round(self.backend.Scan1.NPTS, 3)))
             lines[checked].y_width.setText(str(np.round(self.backend.Scan1.P1WD, 3)))
-            lines[checked].dwell.setText(np.round(self.backend.dwell, 3))
+            lines[checked].dwell.setText(str(np.round(self.backend.dwell, 3)))
         elif scan_type == "fly":
             lines[checked].x_center.setText(str(np.round(self.backend.x_motor.VAL, 3)))
             lines[checked].x_points.setText(str(np.round(self.backend.FscanH.NPTS, 3)))
@@ -271,7 +271,7 @@ class Launcher(object):
             lines[checked].y_center.setText(str(np.round(self.backend.y_motor.VAL, 3)))
             lines[checked].y_points.setText(str(np.round(self.backend.Fscan1.NPTS, 3)))
             lines[checked].y_width.setText(str(np.round(self.backend.Fscan1.P1WD, 3)))
-            lines[checked].dwell.setText(np.round(self.backend.dwell, 3))
+            lines[checked].dwell.setText(str(np.round(self.backend.dwell, 3)))
 
 
     def export_clicked(self):

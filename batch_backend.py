@@ -50,6 +50,7 @@ class BatchSetup(object):
         self.mca = None
         self.img = None
         self.dwell = 10
+        self.fast_speed = 10
 
     def create_xspress3(self,prefix):
         try:
@@ -638,7 +639,6 @@ class BatchSetup(object):
             self.outer.P1CP = y_center
             self.outer.PDLY = 0.25
 
-            self.fast_speed = 5
             self.scan_speed = x_step / dwell
 
             if self.XSPRESS3 is not None:
@@ -666,7 +666,6 @@ class BatchSetup(object):
             self.outer.NPTS = y_npts
 
             self.scan_speed = x_step / dwell
-            self.fast_speed = 5
 
             if self.XSPRESS3 is not None:
                 self.XSPRESS3.NumImages = x_npts - 2
