@@ -1124,13 +1124,12 @@ class Line(QtWidgets.QWidget):
             self.eta= timedelta(seconds=0)
             return
         dwell = float(self.dwell_time.text())/1000
+        r_points = 0
+        seconds_total = 0
         x_points = int(self.x_points.text())
         x_width = float(self.x_width.text())
         y_points = int(self.y_points.text())
         y_width = float(self.y_width.text())
-        y_points = 0
-        r_points = 0
-        seconds_total = 0
         scan_type = self.scan_type.text()
         trajectory = self.trajectory.currentText()
         overhead = 1.18
@@ -1141,7 +1140,7 @@ class Line(QtWidgets.QWidget):
 
         if trajectory == "raster" or trajectory == "snake":
             width_not_zero = (x_width*y_width>0)*1
-            seconds_total = dwell*x_points*y_points*overhead*width_not_zero + (2*y_points)
+            seconds_total = dwell*x_points*y_points + (overhead*y_points)*width_not_zero
 
         if trajectory == "spiral" or trajectory == "lissajous" or trajectory == "custom":
             seconds_total = dwell*x_points*overhead
