@@ -23,9 +23,11 @@ class Launcher(object):
         self.app = QtWidgets.QApplication(sys.argv)
         self.app.setStyle('Fusion')
         self.gui = batch_gui.BatchScanGui(self.app)
+        self.backend = batch_backend.BatchSetup()
+
         self.gui.closeAction.triggered.connect(sys.exit)
-        self.gui.initRecordAction.triggered.connect(self.initialize_record)
-        self.gui.initPVsAction.triggered.connect(self.connect_pvs)
+        self.gui.initRecordAction.triggered.connect(self.backend.init_scan_record)
+        self.gui.initPVsAction.triggered.connect(self.backend.connect_pvs)
         self.gui.openAction.triggered.connect(self.open_PVconfig)
         self.gui.controls.setup_btn.clicked.connect(self.setup_clicked)
         self.gui.controls.import_btn.clicked.connect(self.import_clicked)
@@ -41,7 +43,6 @@ class Launcher(object):
         self.gui.controls.points_all.clicked.connect(self.calculate_all_points_clicked)
 
         sys.stdout = Stream(newText=self.onUpdateText)
-        self.backend = batch_backend.BatchSetup()
         self.backend.connect_pvs()
         self.update_motor_limits()
         self.start_threads()
@@ -56,11 +57,6 @@ class Launcher(object):
 
     def __del__(self):
         sys.stdout = sys.__stdout__
-
-    def initialize_record(self):
-        self.backend.init_scan_record()
-    def connect_pvs(self):
-        self.backend.connect_pvs()
 
     def update_motor_limits(self):
         try:
@@ -634,7 +630,6 @@ class Launcher(object):
         self.timer.start()
         self.thread1.start()
         self.thread2.start()
-
     def stop_thread(self):
         self.timer.stop()
         self.thread1.exit_save=1

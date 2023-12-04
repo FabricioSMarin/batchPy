@@ -15,6 +15,7 @@ import time
 import pickle
 import os
 from datetime import datetime
+import sys
 
 class ScanSettings(QtWidgets.QMainWindow):
     def __init__(self, app):
@@ -389,17 +390,15 @@ class Setup(QtWidgets.QWidget):
         self.xp3_lbl = QtWidgets.QLabel("xspress3")
         self.xmap_lbl = QtWidgets.QLabel("XMAP")
         self.struck_lbl = QtWidgets.QLabel("Struck")
+        self.eiger_lbl = QtWidgets.QLabel("Eiger")
         self.x_lbl = QtWidgets.QLabel("z motor")
         self.y_lbl = QtWidgets.QLabel("y motor")
         self.z_lbl = QtWidgets.QLabel("x motor")
-        self.r_lbl = QtWidgets.QLabel("rotation motor")
-        self.fscan1_lbl = QtWidgets.QLabel("Fscan1")
-        self.fscanH_lbl = QtWidgets.QLabel("FscanH")
+        self.r_lbl = QtWidgets.QLabel("R motor")
+        self.scan_outer_lbl = QtWidgets.QLabel("scan_out")
+        self.scan_inner_lbl = QtWidgets.QLabel("scan_in")
         self.delay_calc_lbl = QtWidgets.QLabel("Delay calc record")
         self.save_data_lbl = QtWidgets.QLabel("saveData PV")
-        self.scan1_lbl = QtWidgets.QLabel("scan1")
-        self.scan2_lbl = QtWidgets.QLabel("scan2")
-        self.scanH_lbl = QtWidgets.QLabel("scanH")
         self.ca_addr = QtWidgets.QLabel("ca_addr_list")
 
         self.ibw = QtWidgets.QLineEdit("")
@@ -409,17 +408,15 @@ class Setup(QtWidgets.QWidget):
         self.xp3 = QtWidgets.QLineEdit("")
         self.xmap = QtWidgets.QLineEdit("")
         self.struck = QtWidgets.QLineEdit("")
+        self.eiger = QtWidgets.QLineEdit("")
         self.x = QtWidgets.QLineEdit("")
         self.y = QtWidgets.QLineEdit("")
         self.z = QtWidgets.QLineEdit("")
         self.r = QtWidgets.QLineEdit("")
-        self.fscan1 = QtWidgets.QLineEdit("")
-        self.fscanH = QtWidgets.QLineEdit("")
+        self.scan_outer = QtWidgets.QLineEdit("")
+        self.scan_inner = QtWidgets.QLineEdit("")
         self.delay_calc = QtWidgets.QLineEdit("")
         self.save_data = QtWidgets.QLineEdit("")
-        self.scan1 = QtWidgets.QLineEdit("")
-        self.scan2 = QtWidgets.QLineEdit("")
-        self.scanH = QtWidgets.QLineEdit("")
         self.CA_ADDR_LIST = QtWidgets.QLineEdit("")
 
         self.save_btn = QtWidgets.QPushButton("save settings")
