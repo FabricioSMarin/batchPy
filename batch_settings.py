@@ -30,11 +30,10 @@ class ScanSettings(QtWidgets.QMainWindow):
         self.make_pretty()
         self.start_threads()
 
-
     def initUI(self):
         self.setup_window = Setup()
         # self.setup_window = batch_settings.Setup()
-        self.setup_window.update_btn.clicked.connect(lambda: self.autoUpdateButton(self.setup_window.update_btn))
+        self.setup_window.auto_update_pvs.clicked.connect(lambda: self.autoUpdateButton(self.setup_window.auto_update_pvs))
         for key in vars(self.setup_window):
             item = vars(self.setup_window)[key]
             if isinstance(item,QtWidgets.QLineEdit) or isinstance(item,QtWidgets.QPushButton):
@@ -44,24 +43,9 @@ class ScanSettings(QtWidgets.QMainWindow):
                     # item.setStyleSheet("background-color : default")
                     self.var_dict[item] = item.objectName()
 
-        closeAction = QAction(' &close', self)
-        closeAction.triggered.connect(sys.exit)
-        closeAction.setShortcut(' Ctrl+Q')
-
-        openAction = QAction(' &open config', self)
-        openAction.triggered.connect(self.openfile)
-        openAction.setShortcut(' Ctrl+O')
-
-        saveAction = QAction(' &save config', self)
-        saveAction.triggered.connect(self.savefile)
-        saveAction.setShortcut(' Ctrl+S')
-
-        menubar = self.menuBar()
-        menubar.setNativeMenuBar(False)
-        fileMenu = menubar.addMenu('&File')
-        fileMenu.addAction(closeAction)
-        fileMenu.addAction(openAction)
-        fileMenu.addAction(saveAction)
+        self.setup_window.config_file.clicked.connect(self.openfile)
+        self.setup_window.save_config.clicked.connect(self.savefile)
+        self.setup_window.scan_generator.clicked.connect(self.scan_generator_clicked)
 
         wid = QtWidgets.QWidget(self)
         self.setCentralWidget(wid)
@@ -69,7 +53,9 @@ class ScanSettings(QtWidgets.QMainWindow):
         layout.addWidget(self.setup_window)
         wid.setLayout(layout)
         self.show()
+        self.scan_generator_clicked()
         self.restoresettings()
+
     def make_pretty(self):
         myFont = QtGui.QFont()
         myFont.setBold(True)
@@ -119,16 +105,11 @@ class ScanSettings(QtWidgets.QMainWindow):
 
     def start_threads(self):
         # Create new threads
-        # self.thread1 = myThreads(1, "countdown",self.pv_dict)
         self.thread1 = myThreads(1, "countdown")
-
         self.thread1.countSig.connect(self.update_lcd)
-        # self.thread1.pvSig.connect(self.caget_pvs)
-        # self.pv_dict = self.caget_pvs()
         self.thread1.start()
-        print("test")
 
-    def eventFilter(self, source, event):
+    def eventFilter(self, source, event):   #this is to emmulate epics behavior where changes only take effect if cursor is within field.
         if event.type() == 10: # 10== Enter
             source.setFocus()
             if isinstance(source, QtWidgets.QLineEdit):
@@ -139,28 +120,14 @@ class ScanSettings(QtWidgets.QMainWindow):
                 source.setText(self.current_text)
         return QtWidgets.QLineEdit.eventFilter(self, source, event)
 
-    def button_pressed(self, button):
-        #check which widget has focus
-        pv = button.objectName()
-        value = button.isChecked()
-        try:
-            # TODO: caput(pv, value)
-            print("caputting PV, test")
-            self.changeButton(button)
-        except:
-            # TODO: set button backfround to lightred
-            print("cannot caput pv {}".format(button.objectName()))
-
     def update_lcd(self,val):
-        self.setup_window.lcdNumber.display(str(val))
-
-    def update_pv_dict(self,pv_dict):
-        self.pv_dict = pv_dict
+        self.setup_window.auto_update_pvs_lcd.display(str(val))
+        if val == 1:
+            self.caget_pvs()
 
     def autoUpdateButton(self,button):
         if button.isChecked():
             self.thread1.exit_flag=0
-            # self.pv_dict = self.caget_pvs()
             self.thread1.start()
             button.setStyleSheet("background-color : lightblue")
             button.setText("Auto Update PVs in ...")
@@ -182,34 +149,53 @@ class ScanSettings(QtWidgets.QMainWindow):
             button.setText("False")
 
     def caget_pvs(self):
-        pv_dict = self.pv_dict
+        pv_dict = self.get_active_pvs()
         for key in pv_dict.keys():
-            pv = key.objectName()
-            if pv == "" or pv == None:
-                pv_dict.pop(key, None)
-                break
-            #MUST be on wired network to see PVS, idk how to change this.
-            #TOOD: skip PV if caget takes more than 0.1 second to complete
-            try:
-                value = caget(pv, as_string=True,connection_timeout=0.05,use_monitor=False)
-                if value == None:
-                    key.setStyleSheet("border: 1px solid red;")
-                else:
-                    key.setStyleSheet("border: None;")
-                    pv_dict.update({key:[pv,value]})
-                    if isinstance(key, QtWidgets.QLineEdit):
-                        key.setText(value)
-                    if isinstance(key, QtWidgets.QComboBox):
-                        box_items = list(PV(pv,connection_timeout=0.05).enum_strs)
-                        key.addItems(box_items)
-                        key.setCurrentIndex(PV(pv,connection_timeout=0.05).value)
-                    if isinstance(key,QtWidgets.QPushButton):
-                        is_true = PV(pv,connection_timeout=0.05).value == 1
-                        key.setChecked(is_true)
-                        self.changeButton(key)
+            pv = pv_dict[key]
+            if pv != "" and pv != None:
+                try:
+                    value = caget(pv, as_string=True,connection_timeout=0.05,use_monitor=False)
+                    print(value)
+                    if value == None:
+                        line = self.__dict__["setup_window"].__dict__["{}".format(key)]
+                        if isinstance(line.itemAt(0).widget(),QtWidgets.QComboBox):
+                            if line.itemAt(0).widget().currentText()=="None":
+                                line.itemAt(1).widget().setStyleSheet("border: None;")
+                            else:
+                                line.itemAt(1).widget().setStyleSheet("border: 1px solid red;")
+                        else:
 
-            except:
-                print("cannot caget {}".format(pv))
+                            line.itemAt(1).widget().setStyleSheet("border: 1px solid red;")
+                    else:
+                        key.setStyleSheet("border: None;")
+                        pv_dict.update({key:[pv,value]})
+                        if isinstance(key, QtWidgets.QLineEdit):
+                            key.setText(value)
+                        if isinstance(key, QtWidgets.QComboBox):
+                            box_items = list(PV(pv,connection_timeout=0.05).enum_strs)
+                            key.addItems(box_items)
+                            key.setCurrentIndex(PV(pv,connection_timeout=0.05).value)
+                        if isinstance(key,QtWidgets.QPushButton):
+                            is_true = PV(pv,connection_timeout=0.05).value == 1
+                            key.setChecked(is_true)
+                            self.changeButton(key)
+
+                except:
+                    pass
+
+    def get_active_pvs(self):
+        pv_dict = {}
+        for line in range(self.setup_window.num_lines):
+            hbox = self.__dict__["setup_window"].__dict__["line_{}".format(line)]
+            num_widgets = hbox.count()
+            #TODO: get visible lines only
+
+            for i in range(num_widgets):
+                item = hbox.itemAt(i).widget()
+                if isinstance(item, QtWidgets.QLineEdit) and line !=1:
+                    if item.isVisible():
+                        pv_dict["line_{}".format(line)] = item.text()
+
         return pv_dict
 
     def stop_thread(self):
@@ -217,26 +203,6 @@ class ScanSettings(QtWidgets.QMainWindow):
         self.thread1.quit()
         self.thread1.wait()
 
-    def closeEvent(self, event):
-        try:
-            self.thread1.exit_flag=1
-            print("closing thread")
-            print("autosaving settings")
-            cwd = os.path.dirname(os.path.abspath(__file__))+"/"
-            file = self.setup_window.config_file.text()
-            settings = []
-            for key in vars(self.setup_window):
-                item = vars(self.setup_window)[key]
-                if isinstance(item, QtWidgets.QLineEdit):
-                    settings.append(item.text())
-            save_list = ["settings", datetime.now(), settings, file, 1]
-
-            with open(cwd+file, 'wb') as f:
-                pickle.dump(save_list, f)
-                f.close()
-            return
-        except IOError as e:
-            print(e)
 
     def savefile(self):
         #open all pkl files in cwd, set "last opened" status to 0 for all except current file.
@@ -288,7 +254,6 @@ class ScanSettings(QtWidgets.QMainWindow):
             if file.endswith(".pkl"):
                 with open(current_dir+file,'rb') as f:
                     contents = pickle.load(f)
-                    #TODO: check contents[0] for file description. if settings file, keep it. if not, then not a valid file.
                     if contents[0] == "settings":
                         last_opened.append(contents[1])
                         valid_files.append(file)
@@ -303,6 +268,7 @@ class ScanSettings(QtWidgets.QMainWindow):
             with open(current_dir + self.fname, 'wb') as f:
                 pickle.dump(["settings",datetime.now(),settings, self.fname, 1], f)
                 f.close()
+
                 return
         #if file does exist,
         else:
@@ -321,6 +287,63 @@ class ScanSettings(QtWidgets.QMainWindow):
                     except:
                         print("cannot put {} in {}".format(settings[i], key))
         return
+
+
+    def scan_generator_clicked(self,sender=None):
+        if sender ==None:
+            checked = False
+        else:
+            checked = sender
+        if checked:
+            self.setup_window.scan_generator.setStyleSheet("background-color : grey")
+            self.setup_window.scan_generator.setText("profile move")
+
+            for line in range(self.setup_window.num_lines):
+                hbox = self.__dict__["setup_window"].__dict__["line_{}".format(line)]
+                num_widgets = hbox.count()
+                for i in range(num_widgets):
+                    hbox.itemAt(i).widget().setVisible(False)
+
+            self.setup_window.auto_update_pvs.setVisible(True)
+            self.setup_window.auto_update_pvs_lcd.setVisible(True)
+            self.setup_window.config_file_lbl.setVisible(True)
+            self.setup_window.config_file.setVisible(True)
+            self.setup_window.scan_generator_lbl.setVisible(True)
+            self.setup_window.scan_generator.setVisible(True)
+            self.setup_window.profile_move_lbl.setVisible(True)
+            self.setup_window.profile_move.setVisible(True)
+
+            self.setup_window.xrf_cbbx.setVisible(True)
+            self.setup_window.xrf.setVisible(True)
+            self.setup_window.eiger_cbbx.setVisible(True)
+            self.setup_window.eiger.setVisible(True)
+            self.setup_window.struck_cbbx.setVisible(True)
+            self.setup_window.struck.setVisible(True)
+
+            self.setup_window.x_motor_lbl.setVisible(True)
+            self.setup_window.x_motor.setVisible(True)
+            self.setup_window.y_motor_lbl.setVisible(True)
+            self.setup_window.y_motor.setVisible(True)
+            self.setup_window.z_motor_lbl.setVisible(True)
+            self.setup_window.z_motor.setVisible(True)
+            self.setup_window.r_motor_lbl.setVisible(True)
+            self.setup_window.r_motor.setVisible(True)
+            self.setup_window.save_config_lbl.setVisible(True)
+            self.setup_window.save_config.setVisible(True)
+
+        else:
+            self.setup_window.scan_generator.setStyleSheet("background-color : lightblue")
+            self.setup_window.scan_generator.setText("scan record")
+            for line in range(self.setup_window.num_lines):
+                hbox = self.__dict__["setup_window"].__dict__["line_{}".format(line)]
+                num_widgets = hbox.count()
+                for i in range(num_widgets):
+                    hbox.itemAt(i).widget().setVisible(True)
+
+            self.setup_window.profile_move_lbl.setVisible(False)
+            self.setup_window.profile_move.setVisible(False)
+
+        pass
 
 # class myThreads(threading.Thread,QtCore.QObject):
 class myThreads(QtCore.QThread):
@@ -359,122 +382,145 @@ class Setup(QtWidgets.QWidget):
         self.setupUi()
 
     def setupUi(self):
-        prefix = "2xfm:"
-        scantype = "Fly"
+        box = QtWidgets.QVBoxLayout()
+        self.scroll_area()
+        box.addWidget(self.scroll)
+        self.setLayout(box)
 
-        self.desc = QtWidgets.QLabel("Batch scan config")
-        font = QtGui.QFont()
-        font.setBold(True)
-        self.desc.setFont(font)
-        self.desc.setLayoutDirection(QtCore.Qt.LayoutDirection.LeftToRight)
-        self.config_file = QtWidgets.QLabel("config file")
+        self.auto_update_pvs.setCheckable(True)
+        self.auto_update_pvs.setStyleSheet("background-color : lightblue")
+        self.auto_update_pvs.setChecked(True)
 
-        self.update_btn = QtWidgets.QPushButton("Auto Update PVs in ...")
-        self.update_btn.setCheckable(True)
-        self.update_btn.setStyleSheet("background-color : lightblue")
-        self.update_btn.setChecked(True)
-        self.lcdNumber = QtWidgets.QLCDNumber()
-        font = QtGui.QFont()
-        font.setBold(False)
-        self.lcdNumber.setFont(font)
-        self.lcdNumber.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
-        self.lcdNumber.setDigitCount(2)
-        self.lcdNumber.setSegmentStyle(QtWidgets.QLCDNumber.SegmentStyle.Flat)
-        self.lcdNumber.setProperty("intValue", 60)
-        self.lcdNumber.setObjectName("lcdNumber")
+        self.scan_generator.setCheckable(True)
+        self.scan_generator.setStyleSheet("background-color : grey")
+        self.scan_generator.setChecked(False)
+        self.scan_generator.setText("scan record")
 
-        self.ibw_lbl = QtWidgets.QLabel("inboard before wait")
-        self.iaw_lbl = QtWidgets.QLabel("inboard after wait")
-        self.obw_lbl = QtWidgets.QLabel("outboard before wait")
-        self.oaw_lbl = QtWidgets.QLabel("outboard after wait")
-        self.xp3_lbl = QtWidgets.QLabel("xspress3")
-        self.xmap_lbl = QtWidgets.QLabel("XMAP")
-        self.struck_lbl = QtWidgets.QLabel("Struck")
-        self.eiger_lbl = QtWidgets.QLabel("Eiger")
-        self.x_lbl = QtWidgets.QLabel("z motor")
-        self.y_lbl = QtWidgets.QLabel("y motor")
-        self.z_lbl = QtWidgets.QLabel("x motor")
-        self.r_lbl = QtWidgets.QLabel("R motor")
-        self.scan_outer_lbl = QtWidgets.QLabel("scan_out")
-        self.scan_inner_lbl = QtWidgets.QLabel("scan_in")
-        self.delay_calc_lbl = QtWidgets.QLabel("Delay calc record")
-        self.save_data_lbl = QtWidgets.QLabel("saveData PV")
-        self.ca_addr = QtWidgets.QLabel("ca_addr_list")
+        self.auto_update_pvs_lcd.setMaximumHeight(28)
 
-        self.ibw = QtWidgets.QLineEdit("")
-        self.iaw = QtWidgets.QLineEdit("")
-        self.obw = QtWidgets.QLineEdit("")
-        self.oaw = QtWidgets.QLineEdit("")
-        self.xp3 = QtWidgets.QLineEdit("")
-        self.xmap = QtWidgets.QLineEdit("")
-        self.struck = QtWidgets.QLineEdit("")
-        self.eiger = QtWidgets.QLineEdit("")
-        self.x = QtWidgets.QLineEdit("")
-        self.y = QtWidgets.QLineEdit("")
-        self.z = QtWidgets.QLineEdit("")
-        self.r = QtWidgets.QLineEdit("")
-        self.scan_outer = QtWidgets.QLineEdit("")
-        self.scan_inner = QtWidgets.QLineEdit("")
-        self.delay_calc = QtWidgets.QLineEdit("")
-        self.save_data = QtWidgets.QLineEdit("")
-        self.CA_ADDR_LIST = QtWidgets.QLineEdit("")
+    def scroll_area(self):
+        item_dict = {} #[type(button, file, path, dropdown), descriptions[idx], choices[idx],defaults[idx]]
+        item_dict["auto_update_pvs"] = [["button","lcd"], "enable/disable PV updater.", None, ""]
+        item_dict["config_file"] = [["label","file"], "select config file if it exists", None, ""]
+        item_dict["scan_generator"] = [["label", "button"], "scan record or profile move", None, None]
+        item_dict["profile_move"] = [["label","linedit"], "profile move PV prefix", None, ""]
 
-        self.save_btn = QtWidgets.QPushButton("save settings")
-        self.update_btn.setCheckable(True)
-        self.update_btn.setStyleSheet("background-color : lightblue")
+        item_dict["inner_before_wait"] = [["label","linedit"], "inner before wait busy record", None, ""]
+        item_dict["inner_after_wait"] = [["label","linedit"], "inner after wait busy record", None, ""]
+        item_dict["outer_before_wait"] = [["label","linedit"], "outer before wait busy record", None, ""]
+        item_dict["outer_after_wait"] = [["label","linedit"], "outer before wait busy record", None, ""]
+        item_dict["delay_calc"] = [["label","linedit"], "delay calc record PV to delay sending triggers", None, ""]
+        item_dict["save_data"] = [["label","linedit"], "saveData PV, holds current filename", None, ""]
+        item_dict["scan_inner"] = [["label","linedit"], "scan record inner loop", None, ""]
+        item_dict["scan_outer"] = [["label","linedit"], "scan record outer loop", None, ""]
+        # item_dict["ca_addr_list"] = [["label","linedit"], "Channel Access address list incase one or more IOC cannot connect to machine running batchscan.", None, ""]
 
-        self.column1 = QtWidgets.QVBoxLayout()
-        self.column1.addWidget(self.desc)
-        self.column1.addWidget(self.update_btn)
-        self.column1.addWidget(self.ibw_lbl)
-        self.column1.addWidget(self.iaw_lbl)
-        self.column1.addWidget(self.obw_lbl)
-        self.column1.addWidget(self.oaw_lbl)
-        self.column1.addWidget(self.xp3_lbl)
-        self.column1.addWidget(self.xmap_lbl)
-        self.column1.addWidget(self.struck_lbl)
-        self.column1.addWidget(self.x_lbl)
-        self.column1.addWidget(self.y_lbl)
-        self.column1.addWidget(self.z_lbl)
-        self.column1.addWidget(self.r_lbl)
-        self.column1.addWidget(self.fscan1_lbl)
-        self.column1.addWidget(self.fscanH_lbl)
-        self.column1.addWidget(self.delay_calc_lbl)
-        self.column1.addWidget(self.save_data_lbl)
-        self.column1.addWidget(self.scan1_lbl)
-        self.column1.addWidget(self.scan2_lbl)
-        self.column1.addWidget(self.scanH_lbl)
-        self.column1.addWidget(self.ca_addr)
+        item_dict["xrf"] = [["combobox","linedit"], "xrf processor pv prefix", ["xspress3","xmap"], "xspress3"]
+        item_dict["eiger"] = [["combobox","linedit"], "eiger  pv prefix", ["None","eiger"], "None"]
+        item_dict["struck"] = [["combobox","linedit"], "struck pv prefix", ["None","struck"], "None"]
+        item_dict["x_motor"] = [["label","linedit"], "x positioner", None, ""]
+        item_dict["y_motor"] = [["label","linedit"], "y positioner", None, ""]
+        item_dict["z_motor"] = [["label","linedit"], "z positioner", None, ""]
+        item_dict["r_motor"] = [["label","linedit"], "r positioner", None, ""]
+        item_dict["save_config"] = [["label","button"], "save config settings.", None, None]
 
-        self.column2 = QtWidgets.QVBoxLayout()
-        self.column2.addWidget(self.config_file)
-        self.column2.addWidget(self.lcdNumber)
-        self.column2.addWidget(self.ibw)
-        self.column2.addWidget(self.iaw)
-        self.column2.addWidget(self.obw)
-        self.column2.addWidget(self.oaw)
-        self.column2.addWidget(self.xp3)
-        self.column2.addWidget(self.xmap)
-        self.column2.addWidget(self.struck)
-        self.column2.addWidget(self.x)
-        self.column2.addWidget(self.y)
-        self.column2.addWidget(self.z)
-        self.column2.addWidget(self.r)
-        self.column2.addWidget(self.fscan1)
-        self.column2.addWidget(self.fscanH)
-        self.column2.addWidget(self.delay_calc)
-        self.column2.addWidget(self.save_data)
-        self.column2.addWidget(self.scan1)
-        self.column2.addWidget(self.scan2)
-        self.column2.addWidget(self.scanH)
-        self.column2.addWidget(self.CA_ADDR_LIST)
 
-        row = QtWidgets.QHBoxLayout()
-        row.addLayout(self.column1)
-        row.addLayout(self.column2)
+        v_box = self.create_widget(item_dict)
+        v_box.setSpacing(0)
+        v_box.setContentsMargins(0, 0, 0, 0)
 
-        self.setLayout(row)
+        self.scroll = QScrollArea()             # Scroll Area which contains the widgets, set as the centralWidget
+        self.scroll.setWidgetResizable(True)
+        self.scroll_widget = QWidget()  # Widget that contains the collection of Vertical Box
+        self.scroll_widget.setLayout(v_box)
+        self.scroll.setWidget(self.scroll_widget)
+        return
 
+    def create_widget(self, item_dict):
+        widgetsizes = [240, 115, 50]
+        v_box = QVBoxLayout()
+        for i, key in enumerate(item_dict.keys()):
+            widget_items = item_dict[key][0]
+            attrs = item_dict[key]
+            widgetsize = widgetsizes[len(widget_items) - 1]
+
+            self.num_lines = len(item_dict)
+            line_num = "line_{}".format(i)
+            setattr(self, line_num, QHBoxLayout())
+            line = self.__dict__[line_num]
+
+            for widget in widget_items:
+                if widget == "label":
+                    name = key + "_lbl"
+                    display = key.replace("_", " ")
+                    setattr(self, name, QLabel(key))
+                    object = self.__dict__[name]
+                    object.setText(display)
+                    object.setFixedWidth(widgetsize)
+                    object.setToolTip(attrs[1])
+                    line.addWidget(object)
+
+                elif widget == "lcd":
+                    name = key + "_lcd"
+                    setattr(self, name, QtWidgets.QLCDNumber())
+                    object = self.__dict__[name]
+                    object.setFixedWidth(widgetsize)
+                    font = QtGui.QFont()
+                    font.setBold(False)
+                    object.setFont(font)
+                    object.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
+                    object.setDigitCount(2)
+                    object.setSegmentStyle(QtWidgets.QLCDNumber.SegmentStyle.Flat)
+                    object.setProperty("intValue", 10)
+                    line.addWidget(object)
+
+                elif widget == "linedit":
+                    setattr(self, key, QLineEdit())
+                    object = self.__dict__[key]
+                    object.setFixedWidth(widgetsize)
+                    object.setText(attrs[3])
+                    line.addWidget(object)
+
+                elif widget == "button":
+                    display = key.replace("_", " ")
+                    setattr(self, key, QPushButton(key))
+                    object = self.__dict__[key]
+                    object.setFixedWidth(widgetsize)
+                    object.setText(display)
+                    line.addWidget(object)
+
+                elif widget == "file":
+                    setattr(self, key, QPushButton(key))
+                    object = self.__dict__[key]
+                    object.setFixedWidth(widgetsize)
+                    object.setText(attrs[3])
+                    object.clicked.connect(self.get_file)
+                    line.addWidget(object)
+
+                elif widget == "combobox":
+                    name = key+"_cbbx"
+                    setattr(self, name, QComboBox())
+                    object = self.__dict__[name]
+                    object.setFixedWidth(widgetsize)
+                    object.setToolTip(attrs[1])
+                    options = attrs[2]
+                    default = attrs[3]
+                    for option in options:
+                        object.addItem(option)
+                    idx = options.index(default)
+                    object.setCurrentIndex(idx)
+                    line.addWidget(object)
+
+            v_box.addLayout(line)
+        return v_box
+
+    def get_file(self):
+        try:
+            sender = self.sender
+            file = QFileDialog.getOpenFileName(self, "Open File", QtCore.QDir.currentPath())
+            sender().setText(file)
+        except:
+            return
 def main():
     import sys
     app = QtWidgets.QApplication(sys.argv)

@@ -303,7 +303,8 @@ class BatchSetup(object):
                             settings[i] = "empty"
                         self.__dict__[key] = settings[i]
                     except:
-                        print("cannot put {} in {}".format(settings[i], key))
+                        return
+                        # print("cannot put {} in {}".format(settings[i], key))
         return
 
     def open_settings(self, path):
