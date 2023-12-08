@@ -17,18 +17,22 @@ import os
 from datetime import datetime
 import sys
 
-class ScanSettings(QtWidgets.QMainWindow):
+
+#TODO: add a close event (when window closed) to re-initialize and update main window according to new parameters and stop threads
+class ScanSettings(QtWidgets.QWidget):
+    settings_closed_sig = pyqtSignal()
     def __init__(self, app):
-        super(QtWidgets.QMainWindow, self).__init__()
+        super(QtWidgets.QWidget, self).__init__()
         self.setObjectName("bathcscan_flysetup_vPy")
         self.setAutoFillBackground(True)
         self.app = app
         self.current_text = ""
         self.var_dict = {}
         self.fname = ""
+        self.first_time = True
         self.initUI()
         self.make_pretty()
-        self.start_threads()
+        self.pv_status= {}
 
     def initUI(self):
         self.setup_window = Setup()
@@ -41,20 +45,37 @@ class ScanSettings(QtWidgets.QMainWindow):
                 if isinstance(item, QtWidgets.QLineEdit):
                     item.returnPressed.connect(self.line_edit_entered)
                     # item.setStyleSheet("background-color : default")
-                    self.var_dict[item] = item.objectName()
+                    self.var_dict[item] = item.objectName
 
         self.setup_window.config_file.clicked.connect(self.openfile)
         self.setup_window.save_config.clicked.connect(self.savefile)
         self.setup_window.scan_generator.clicked.connect(self.scan_generator_clicked)
 
         wid = QtWidgets.QWidget(self)
-        self.setCentralWidget(wid)
+        # self.setCentralWidget(wid)
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self.setup_window)
         wid.setLayout(layout)
-        self.show()
+        wid.setMinimumSize(300, 500)        # self.show()
         self.scan_generator_clicked()
         self.restoresettings()
+        self.setMinimumSize(300,500)
+
+
+    def openEvent(self):
+        print("opening window")
+        #check if opening fof the
+        if self.first_time:
+            self.start_threads()
+            self.caget_pvs()
+        self.first_time = False
+
+    def closeEvent(self, a0, QCloseEvent=None):
+        print("closing window")
+        self.caget_all_pvs()
+        self.stop_threads()
+        self.settings_closed_sig.emit()
+        self.first_time = True
 
     def make_pretty(self):
         myFont = QtGui.QFont()
@@ -103,11 +124,6 @@ class ScanSettings(QtWidgets.QMainWindow):
                             key.setStyleSheet("border: 1px solid red;")
                             print("cannot caput pv {}".format(key.objectName()))
 
-    def start_threads(self):
-        # Create new threads
-        self.thread1 = myThreads(1, "countdown")
-        self.thread1.countSig.connect(self.update_lcd)
-        self.thread1.start()
 
     def eventFilter(self, source, event):   #this is to emmulate epics behavior where changes only take effect if cursor is within field.
         if event.type() == 10: # 10== Enter
@@ -127,14 +143,13 @@ class ScanSettings(QtWidgets.QMainWindow):
 
     def autoUpdateButton(self,button):
         if button.isChecked():
-            self.thread1.exit_flag=0
-            self.thread1.start()
+            self.start_threads()
+            # self.thread1.start()
             button.setStyleSheet("background-color : lightblue")
             button.setText("Auto Update PVs in ...")
         else:
-            self.thread1.exit_flag=1
+            self.stop_threads()
             print("Stopping countdown")
-            self.stop_thread()
             self.update_lcd("10")
             button.setStyleSheet("background-color : grey")
             button.setText("Auto Update disabled")
@@ -150,59 +165,110 @@ class ScanSettings(QtWidgets.QMainWindow):
 
     def caget_pvs(self):
         pv_dict = self.get_active_pvs()
+        # connected_pvs = {}
         for key in pv_dict.keys():
+            line = self.__dict__["setup_window"].__dict__["{}".format(key)]
             pv = pv_dict[key]
+
             if pv != "" and pv != None:
                 try:
                     value = caget(pv, as_string=True,connection_timeout=0.05,use_monitor=False)
-                    print(value)
-                    if value == None:
-                        line = self.__dict__["setup_window"].__dict__["{}".format(key)]
-                        if isinstance(line.itemAt(0).widget(),QtWidgets.QComboBox):
-                            if line.itemAt(0).widget().currentText()=="None":
-                                line.itemAt(1).widget().setStyleSheet("border: None;")
-                            else:
-                                line.itemAt(1).widget().setStyleSheet("border: 1px solid red;")
-                        else:
+                except:
+                    value = None
 
+                if value == None:
+                    if isinstance(line.itemAt(0).widget(),QtWidgets.QComboBox):
+                        if line.itemAt(0).widget().currentText()=="None":
+                            line.itemAt(1).widget().setStyleSheet("border: None;")
+                        else:
                             line.itemAt(1).widget().setStyleSheet("border: 1px solid red;")
                     else:
-                        key.setStyleSheet("border: None;")
-                        pv_dict.update({key:[pv,value]})
-                        if isinstance(key, QtWidgets.QLineEdit):
-                            key.setText(value)
-                        if isinstance(key, QtWidgets.QComboBox):
-                            box_items = list(PV(pv,connection_timeout=0.05).enum_strs)
-                            key.addItems(box_items)
-                            key.setCurrentIndex(PV(pv,connection_timeout=0.05).value)
-                        if isinstance(key,QtWidgets.QPushButton):
-                            is_true = PV(pv,connection_timeout=0.05).value == 1
-                            key.setChecked(is_true)
-                            self.changeButton(key)
+                        line.itemAt(1).widget().setStyleSheet("border: 1px solid red;")
+                else:
+                    key.setStyleSheet("border: None;")
+                    pv_dict.update({key:[pv,value]})
+                    if isinstance(key, QtWidgets.QLineEdit):
+                        key.setText(value)
+                    if isinstance(key, QtWidgets.QComboBox):
+                        box_items = list(PV(pv,connection_timeout=0.05).enum_strs)
+                        key.addItems(box_items)
+                        key.setCurrentIndex(PV(pv,connection_timeout=0.05).value)
+                    if isinstance(key,QtWidgets.QPushButton):
+                        is_true = PV(pv,connection_timeout=0.05).value == 1
+                        key.setChecked(is_true)
+                        self.changeButton(key)
 
+        #     is_red = line.itemAt(1).widget().styleSheet() == "border: 1px solid red;"
+        #     if pv != "":
+        #         connected_pvs[pv] = not is_red
+        # self.connected_pvs = connected_pvs
+
+    def caget_all_pvs(self):
+        pv_dict = self.get_all_pvs() #pv_dict[desc] = [pv, is_used]
+        pv_status = {} ##pv_dict[desc] = [pv, is_used, connected]
+        for line in pv_dict.keys():
+            pv = pv_dict[line][0]
+
+            if pv != "" and pv != None:
+                try:
+                    value = caget(pv, as_string=True,connection_timeout=0.05,use_monitor=False)
                 except:
-                    pass
+                    value = None
+
+                if value == None:
+                    pv_status[line] = [pv_dict[line][0],pv_dict[line][1],False]
+                else:
+                    pv_status[line] = [pv_dict[line][0],pv_dict[line][1],True]
+            else:
+                pv_status[line] = [pv_dict[line][0],pv_dict[line][1],False]
+
+        self.pv_status = pv_status
+        return
+
+    # def is_connected(self):
+    #     self.caget_pvs()
+    #     return self.connected_pvs
 
     def get_active_pvs(self):
         pv_dict = {}
         for line in range(self.setup_window.num_lines):
             hbox = self.__dict__["setup_window"].__dict__["line_{}".format(line)]
             num_widgets = hbox.count()
-            #TODO: get visible lines only
 
             for i in range(num_widgets):
                 item = hbox.itemAt(i).widget()
-                if isinstance(item, QtWidgets.QLineEdit) and line !=1:
-                    if item.isVisible():
+                line_has_ccbx = isinstance(hbox.itemAt(0).widget(), QtWidgets.QComboBox)
+                if isinstance(item, QtWidgets.QLineEdit) and line != 1 and item.isVisible():
+                    if line_has_ccbx:
+                        cbbx_is_none = hbox.itemAt(0).widget().currentText() == "None"
+                        if cbbx_is_none:
+                            pass
+                        else:
+                            pv_dict["line_{}".format(line)] = item.text()
+                    else:
                         pv_dict["line_{}".format(line)] = item.text()
 
         return pv_dict
 
-    def stop_thread(self):
-        self.thread1.exit_flag=1
-        self.thread1.quit()
-        self.thread1.wait()
+    def get_all_pvs(self):
+        pv_dict = {} # pv_dict[desc] = [pv, is_used (is visible and cbbx is not None)
+        for line in range(self.setup_window.num_lines):
+            hbox = self.__dict__["setup_window"].__dict__["line_{}".format(line)]
+            num_widgets = hbox.count()
+            if num_widgets >=2:
+                item = hbox.itemAt(1).widget()
+                line_has_ccbx = isinstance(hbox.itemAt(0).widget(), QtWidgets.QComboBox)
+                if isinstance(item, QtWidgets.QLineEdit) and line != 1:
+                    pv_dict[item.objectName] = [item.text(), True]
+                if line_has_ccbx:
+                    if hbox.itemAt(0).widget().currentText() == "None":
+                        pv_dict[item.objectName] = [item.text(), False]
+                elif not item.isVisible():
+                    pv_dict[item.objectName] = [item.text(), False]
+                else:
+                    pass
 
+        return pv_dict
 
     def savefile(self):
         #open all pkl files in cwd, set "last opened" status to 0 for all except current file.
@@ -345,10 +411,20 @@ class ScanSettings(QtWidgets.QMainWindow):
 
         pass
 
+    def start_threads(self):
+        # Create new threads
+        self.thread1 = myThreads(1, "countdown")
+        self.thread1.countSig.connect(self.update_lcd)
+        self.thread1.start()
+
+    def stop_threads(self):
+        self.thread1.terminate()
+        self.thread1.wait()
+
+
 # class myThreads(threading.Thread,QtCore.QObject):
 class myThreads(QtCore.QThread):
     countSig = pyqtSignal(int, name='countSig')
-    pvSig = pyqtSignal()
 
     def __init__(self, threadID, name):
         QtCore.QThread.__init__(self)
@@ -357,11 +433,12 @@ class myThreads(QtCore.QThread):
         # self.pv_dict = pv_dict
         self.exit_flag = 0
 
+
     def run(self):
         print ("Starting " + self.name)
         if self.name == "countdown":
             self.countdown(int(10))
-        print ("Exiting " + self.name)
+        return
 
     def countdown(self, t):
         t_original = t
@@ -369,13 +446,12 @@ class myThreads(QtCore.QThread):
             time.sleep(1)
             t -= 1
             if t==0 and self.exit_flag==0:
-                # self.pvSig.emit()       #update pvs
                 t=t_original
             if self.exit_flag:
                 break
             else:
                 self.countSig.emit(t)   #update counter
-
+        return
 class Setup(QtWidgets.QWidget):
     def __init__(self):
         super(Setup, self).__init__()
@@ -397,7 +473,6 @@ class Setup(QtWidgets.QWidget):
         self.scan_generator.setText("scan record")
 
         self.auto_update_pvs_lcd.setMaximumHeight(28)
-
     def scroll_area(self):
         item_dict = {} #[type(button, file, path, dropdown), descriptions[idx], choices[idx],defaults[idx]]
         item_dict["auto_update_pvs"] = [["button","lcd"], "enable/disable PV updater.", None, ""]
@@ -415,7 +490,7 @@ class Setup(QtWidgets.QWidget):
         item_dict["scan_outer"] = [["label","linedit"], "scan record outer loop", None, ""]
         # item_dict["ca_addr_list"] = [["label","linedit"], "Channel Access address list incase one or more IOC cannot connect to machine running batchscan.", None, ""]
 
-        item_dict["xrf"] = [["combobox","linedit"], "xrf processor pv prefix", ["xspress3","xmap"], "xspress3"]
+        item_dict["xrf"] = [["combobox","linedit"], "xrf processor pv prefix", ["None", "xspress3","xmap"], "xspress3"]
         item_dict["eiger"] = [["combobox","linedit"], "eiger  pv prefix", ["None","eiger"], "None"]
         item_dict["struck"] = [["combobox","linedit"], "struck pv prefix", ["None","struck"], "None"]
         item_dict["x_motor"] = [["label","linedit"], "x positioner", None, ""]
@@ -479,6 +554,7 @@ class Setup(QtWidgets.QWidget):
                     object = self.__dict__[key]
                     object.setFixedWidth(widgetsize)
                     object.setText(attrs[3])
+                    object.objectName = key
                     line.addWidget(object)
 
                 elif widget == "button":
@@ -494,7 +570,7 @@ class Setup(QtWidgets.QWidget):
                     object = self.__dict__[key]
                     object.setFixedWidth(widgetsize)
                     object.setText(attrs[3])
-                    object.clicked.connect(self.get_file)
+                    # object.clicked.connect(self.get_file)
                     line.addWidget(object)
 
                 elif widget == "combobox":
@@ -514,13 +590,13 @@ class Setup(QtWidgets.QWidget):
             v_box.addLayout(line)
         return v_box
 
-    def get_file(self):
-        try:
-            sender = self.sender
-            file = QFileDialog.getOpenFileName(self, "Open File", QtCore.QDir.currentPath())
-            sender().setText(file)
-        except:
-            return
+    # def get_file(self):
+    #     try:
+    #         sender = self.sender
+    #         file = QFileDialog.getOpenFileName(self, "Open File", QtCore.QDir.currentPath())
+    #         sender().setText(file)
+    #     except:
+    #         return
 def main():
     import sys
     app = QtWidgets.QApplication(sys.argv)

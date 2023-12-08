@@ -11,6 +11,7 @@ import subprocess
 import os
 from datetime import datetime, timedelta
 import pickle
+import batch_settings
 
 class Stream(QtCore.QObject):
     newText = QtCore.pyqtSignal(str)
@@ -24,12 +25,14 @@ class Launcher(object):
         self.app.setStyle('Fusion')
         self.gui = batch_gui.BatchScanGui(self.app)
         self.backend = batch_backend.BatchSetup()
-
+        self.settings = batch_settings.ScanSettings(self.app)
+        self.settings.settings_closed_sig.connect(self.settings_changed)
         self.gui.closeAction.triggered.connect(sys.exit)
         self.gui.initRecordAction.triggered.connect(self.backend.init_scan_record)
         self.gui.initPVsAction.triggered.connect(self.backend.connect_pvs)
         self.gui.openAction.triggered.connect(self.open_PVconfig)
-        self.gui.controls.setup_btn.clicked.connect(self.setup_clicked)
+        self.gui.controls.setup_btn.clicked.connect(self.settings.show)
+        self.gui.controls.setup_btn.clicked.connect(self.settings.openEvent)
         self.gui.controls.import_btn.clicked.connect(self.import_clicked)
         self.gui.controls.export_btn.clicked.connect(self.export_clicked)
         self.gui.controls.zero_btn.clicked.connect(self.zero_clicked)
@@ -48,6 +51,28 @@ class Launcher(object):
         self.start_threads()
         sys.exit(self.app.exec())
 
+    def settings_changed(self):
+        scan_generator = self.settings.setup_window.scan_generator.text()
+        pv_status = self.settings.pv_status
+        # profile_move
+        #trajectory
+        #TODO: add trajectory to settings
+
+        # xrf_connected
+        # eiger_connected
+        # softgluezynq_connected
+        # struck
+        # r_motor
+        # z_motor
+        # x_motor
+        # y_motor
+
+        # busy record connected
+        # delay_calc
+        # scan_inner
+        # scan_outer
+
+        pass
     def onUpdateText(self, text):
         # self.gui.controls.message_window.setText(text)
         cursor = self.gui.controls.message_window.textCursor()
@@ -240,9 +265,11 @@ class Launcher(object):
         #TODO: then specify [x_points, y_points] and either [raster, or snake] to generarte trajecrory, update table, and update plot
         pass
 
-    def setup_clicked(self):
-        cwd = os.path.dirname(os.path.abspath(__file__))+"/"
-        subprocess.Popen(["python", "{}batch_settings.py".format(cwd)])
+    # def setup_clicked(self):
+
+
+        # cwd = os.path.dirname(os.path.abspath(__file__))+"/"
+        # subprocess.Popen(["python", "{}batch_settings.py".format(cwd)])
 
     def import_clicked(self):
         if not self.backend.backend_ready:
