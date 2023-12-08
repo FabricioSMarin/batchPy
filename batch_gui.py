@@ -86,20 +86,21 @@ class BatchScanGui(QtWidgets.QMainWindow):
         self.closeAction.setShortcut(' Ctrl+Q')
         self.initRecordAction = QAction(" &init scan record", self)
         self.initPVsAction = QAction(" init PVs ", self)
-        self.openAction = QAction(' &open PV config', self)
-        self.openAction.setShortcut(' Ctrl+O')
-        self.saveAction = QAction(' &save session', self)
-        self.saveAction.setShortcut(' Ctrl+S')
+        # self.openAction = QAction(' &open PV config', self)
+        # self.openAction.setShortcut(' Ctrl+O')
+        # self.saveAction = QAction(' &save session', self)
+        # self.saveAction.setShortcut(' Ctrl+S')
         self.exportScanParamsAction = QAction(' &export scan parameters', self)
         self.exportScanParamsAction.triggered.connect(self.export_scan_params)
         self.importScanParamsAction = QAction(' &import scan parameters', self)
         self.importScanParamsAction.triggered.connect(self.import_scan_params)
-
-        self.tomoAction = QAction(' tomo view', self, checkable=True)
-        self.tomoAction.triggered.connect(self.view_changed)
-        self.miscviewAction = QAction(' misc view', self, checkable=True)
-        self.miscviewAction.triggered.connect(self.view_changed)
-        self.miscviewAction.setChecked(True)
+        self.controls.tomography_chbx.clicked.connect(self.view_changed)
+        self.controls.misc_chbx.clicked.connect(self.view_changed)
+        # self.tomoAction = QAction(' tomo view', self, checkable=True)
+        # self.tomoAction.triggered.connect(self.view_changed)
+        # self.miscviewAction = QAction(' misc view', self, checkable=True)
+        # self.miscviewAction.triggered.connect(self.view_changed)
+        # self.miscviewAction.setChecked(True)
         self.view_changed()
 
         show_lines = QtWidgets.QMenu("show N lines", self)
@@ -138,8 +139,8 @@ class BatchScanGui(QtWidgets.QMainWindow):
 
         fileMenu = menubar.addMenu('&File')
         fileMenu.addAction(self.closeAction)
-        fileMenu.addAction(self.openAction)
-        fileMenu.addAction(self.saveAction)
+        # fileMenu.addAction(self.openAction)
+        # fileMenu.addAction(self.saveAction)
         fileMenu.addAction(self.exportScanParamsAction)
         fileMenu.addAction(self.importScanParamsAction)
 
@@ -149,9 +150,9 @@ class BatchScanGui(QtWidgets.QMainWindow):
         settingsMenu.addMenu(show_lines)
         settingsMenu.addMenu(update_interval)
 
-        viewMenu = menubar.addMenu('&View')
-        viewMenu.addAction(self.tomoAction)
-        viewMenu.addAction(self.miscviewAction)
+        # viewMenu = menubar.addMenu('&View')
+        # viewMenu.addAction(self.tomoAction)
+        # viewMenu.addAction(self.miscviewAction)
 
     def view_changed(self):
         self.header.start_time.setVisible(False)
@@ -168,7 +169,7 @@ class BatchScanGui(QtWidgets.QMainWindow):
             self.__dict__[self.line_names[line]].r_points.setVisible(False)
             self.__dict__[self.line_names[line]].r_width.setVisible(False)
 
-        if self.tomoAction.isChecked():
+        if self.controls.tomography_chbx.isChecked():
             self.header.r_center.setVisible(True)
             self.header.r_points.setVisible(True)
             self.header.r_width.setVisible(True)
@@ -177,7 +178,7 @@ class BatchScanGui(QtWidgets.QMainWindow):
                 self.__dict__[self.line_names[line]].r_points.setVisible(True)
                 self.__dict__[self.line_names[line]].r_width.setVisible(True)
 
-        if self.miscviewAction.isChecked():
+        if self.controls.misc_chbx.isChecked():
             self.header.start_time.setVisible(True)
             self.header.finish_time.setVisible(True)
             self.header.save_message.setVisible(True)
@@ -186,11 +187,11 @@ class BatchScanGui(QtWidgets.QMainWindow):
                 self.__dict__[self.line_names[line]].start_time.setVisible(True)
                 self.__dict__[self.line_names[line]].finish_time.setVisible(True)
 
-        if not self.tomoAction.isChecked() and not self.miscviewAction.isChecked():
+        if not self.controls.tomography_chbx.isChecked() and not self.controls.misc_chbx.isChecked():
             self.setFixedWidth(self.view1)
-        elif not self.tomoAction.isChecked() and self.miscviewAction.isChecked():
+        elif not self.controls.tomography_chbx.isChecked() and self.controls.misc_chbx.isChecked():
             self.setFixedWidth(self.view2)
-        elif self.tomoAction.isChecked() and not self.miscviewAction.isChecked():
+        elif self.controls.tomography_chbx.isChecked() and not self.controls.misc_chbx.isChecked():
             self.setFixedWidth(self.view3)
         else:
             self.setFixedWidth(self.view4)
@@ -344,7 +345,7 @@ class BatchScanGui(QtWidgets.QMainWindow):
             if fileName == "":
                 raise IOError
             # field names
-            fields = ['line number', ' scan type', 'trajectory', 'action', 'dwell time', 'x center', 'x points', 'x width',
+            fields = ['line number', ' scan type', 'action', 'dwell time', 'x center', 'x points', 'x width',
                       'y center', 'y points', 'y width', 'comments', 'save message', 'start time', 'end time', 'r center', 'r points',
                       'r width', 'eta']
 
@@ -357,29 +358,27 @@ class BatchScanGui(QtWidgets.QMainWindow):
 
             lines = [vars(self)[i] for i in self.line_names]
             scan_type = ["step", "fly"]
-            trajectory = ["raster", "snake", "spiral", "lissajous", "custom"]
             action = ["skip", "normal", "pause", "done"]
             for idx, line in enumerate(lines):
                 line.current_line.setText(rows[idx][0])
                 line.scan_type.setChecked(scan_type.index(rows[idx][1]))
                 line.scan_type.setText(rows[idx][1])
-                line.trajectory.setCurrentIndex(trajectory.index(rows[idx][2]))
-                line.line_action.setCurrentIndex(action.index(rows[idx][3]))
-                line.dwell_time.setText(rows[idx][4])
-                line.x_center.setText(rows[idx][5])
-                line.x_points.setText(rows[idx][6])
-                line.x_width.setText(rows[idx][7])
-                line.y_center.setText(rows[idx][8])
-                line.y_points.setText(rows[idx][9])
-                line.y_width.setText(rows[idx][10])
-                line.comments.setText(rows[idx][11])
-                line.save_message.setText(rows[idx][12])
-                line.start_time.setText(rows[idx][13])
-                line.finish_time.setText(rows[idx][14])
-                line.r_center.setText(rows[idx][15])
-                line.r_points.setText(rows[idx][16])
-                line.r_width.setText(rows[idx][17])
-                line.line_eta.setText(rows[idx][18])
+                line.line_action.setCurrentIndex(action.index(rows[idx][2]))
+                line.dwell_time.setText(rows[idx][3])
+                line.x_center.setText(rows[idx][4])
+                line.x_points.setText(rows[idx][5])
+                line.x_width.setText(rows[idx][6])
+                line.y_center.setText(rows[idx][7])
+                line.y_points.setText(rows[idx][8])
+                line.y_width.setText(rows[idx][9])
+                line.comments.setText(rows[idx][10])
+                line.save_message.setText(rows[idx][11])
+                line.start_time.setText(rows[idx][12])
+                line.finish_time.setText(rows[idx][13])
+                line.r_center.setText(rows[idx][14])
+                line.r_points.setText(rows[idx][15])
+                line.r_width.setText(rows[idx][16])
+                line.line_eta.setText(rows[idx][17])
         except:
             return
 
@@ -395,7 +394,7 @@ class BatchScanGui(QtWidgets.QMainWindow):
                 raise IOError
 
             # field names
-            fields = ['line number', ' scan type', 'trajectory', 'action', 'dwell time', 'x center', 'x points', 'x width',
+            fields = ['line number', ' scan type', 'action', 'dwell time', 'x center', 'x points', 'x width',
                       'y center', 'y points', 'y width', 'comments', 'save message', 'start time', 'end time', 'r center', 'r points',
                       'r width', 'eta']
             lines = []
@@ -404,7 +403,6 @@ class BatchScanGui(QtWidgets.QMainWindow):
                     line_object = vars(vars(self)[key])
                     line_number = line_object["current_line"].text()
                     scan_type = line_object["scan_type"].text()
-                    trajectory = line_object["trajectory"].currentText()
                     action = line_object["line_action"].currentText()
                     dwell_time = line_object["dwell_time"].text()
                     x_center = line_object["x_center"].text()
@@ -421,7 +419,7 @@ class BatchScanGui(QtWidgets.QMainWindow):
                     r_points = line_object["r_points"].text()
                     r_width = line_object["r_width"].text()
                     line_eta = line_object["line_eta"].text()
-                    line_list = [line_number, scan_type, trajectory, action, dwell_time, x_center, x_points, x_width,
+                    line_list = [line_number, scan_type, action, dwell_time, x_center, x_points, x_width,
                                  y_center, y_points, y_width, comments, save_message, start_time, finish_time, r_center,
                                  r_points, r_width, line_eta]
                     lines.append(line_list)
@@ -566,26 +564,39 @@ class Controls(QtWidgets.QWidget):
         self.zero_all_btn.setFixedWidth(size2)
         setup_lbl = QtWidgets.QLabel("PV setup window")
         setup_lbl.setFixedWidth(size3)
-        import_lbl = QtWidgets.QLabel("from scan record")
-        import_lbl.setFixedWidth(size3)
-        export_lbl = QtWidgets.QLabel("to scan record")
-        export_lbl.setFixedWidth(size3)
-        zero_lbl = QtWidgets.QLabel("zero scan line")
+        self.import_lbl = QtWidgets.QLabel("from scan record")
+        self.import_lbl.setFixedWidth(size3)
+        self.export_lbl = QtWidgets.QLabel("to scan record")
+        self.export_lbl.setFixedWidth(size3)
+        zero_lbl = QtWidgets.QLabel("scan line")
         zero_lbl.setFixedWidth(size3)
-        zero_all_lbl = QtWidgets.QLabel("zero all scans")
+        zero_all_lbl = QtWidgets.QLabel("all scans")
         zero_all_lbl.setFixedWidth(size3)
+        self.tomography_chbx = QtWidgets.QCheckBox()
+        self.tomography_chbx.setFixedWidth(size2)
+        self.misc_chbx = QtWidgets.QCheckBox()
+        self.misc_chbx.setFixedWidth(size2)
+        self.tomography_lbl = QtWidgets.QLabel("tomography view")
+        self.tomography_lbl.setFixedWidth(size3)
+        misc_lbl = QtWidgets.QLabel("misc view")
+        misc_lbl.setFixedWidth(size3)
+
         b1 = QtWidgets.QVBoxLayout()
         b1.addWidget(self.setup_btn)
         b1.addWidget(self.import_btn)
         b1.addWidget(self.export_btn)
         b1.addWidget(self.zero_btn)
         b1.addWidget(self.zero_all_btn)
+        b1.addWidget(self.tomography_chbx)
+        b1.addWidget(self.misc_chbx)
         b2 = QtWidgets.QVBoxLayout()
         b2.addWidget(setup_lbl)
-        b2.addWidget(import_lbl)
-        b2.addWidget(export_lbl)
+        b2.addWidget(self.import_lbl)
+        b2.addWidget(self.export_lbl)
         b2.addWidget(zero_lbl)
         b2.addWidget(zero_all_lbl)
+        b2.addWidget(self.tomography_lbl)
+        b2.addWidget(misc_lbl)
         col2 = QtWidgets.QHBoxLayout()
         col2.addLayout(b1)
         col2.addLayout(b2)
@@ -594,22 +605,30 @@ class Controls(QtWidgets.QWidget):
         self.begin_btn.setFixedWidth(size2)
         self.pause_btn = QtWidgets.QPushButton("Pause")
         self.pause_btn.setFixedWidth(size2)
-        self.continue_btn = QtWidgets.QPushButton("Continue")
+        self.continue_btn = QtWidgets.QPushButton("Resume")
         self.continue_btn.setFixedWidth(size2)
         self.abort_btn = QtWidgets.QPushButton("Abort")
         self.abort_btn.setFixedWidth(size2)
         self.abort_all_btn = QtWidgets.QPushButton("Abort")
         self.abort_all_btn.setFixedWidth(size2)
-        begin_lbl = QtWidgets.QLabel("begin batch scan")
+        self.backup_scanrecord_btn = QtWidgets.QPushButton("Backup")
+        self.backup_scanrecord_btn.setFixedWidth(size2)
+        self.init_scanrecord_btn = QtWidgets.QPushButton("Init")
+        self.init_scanrecord_btn.setFixedWidth(size2)
+        begin_lbl = QtWidgets.QLabel("batch scan")
         begin_lbl.setFixedWidth(size3)
-        pause_lbl = QtWidgets.QLabel("pause batch scan")
+        pause_lbl = QtWidgets.QLabel("batch scan")
         pause_lbl.setFixedWidth(size3)
-        continue_lbl = QtWidgets.QLabel("resume from pause")
+        continue_lbl = QtWidgets.QLabel("from pause")
         continue_lbl.setFixedWidth(size3)
-        abort_lbl = QtWidgets.QLabel("abort line")
+        abort_lbl = QtWidgets.QLabel("current line")
         abort_lbl.setFixedWidth(size3)
-        abort_all_lbl = QtWidgets.QLabel("abort all")
+        abort_all_lbl = QtWidgets.QLabel("all lines")
         abort_all_lbl.setFixedWidth(size3)
+        self.backup_scanrecord_lbl = QtWidgets.QLabel("scan record")
+        self.backup_scanrecord_lbl.setFixedWidth(size3)
+        self.init_scanrecord_lbl = QtWidgets.QLabel("scan record")
+        self.init_scanrecord_lbl.setFixedWidth(size3)
 
         c1 = QtWidgets.QVBoxLayout()
         c1.addWidget(self.begin_btn)
@@ -617,12 +636,16 @@ class Controls(QtWidgets.QWidget):
         c1.addWidget(self.continue_btn)
         c1.addWidget(self.abort_btn)
         c1.addWidget(self.abort_all_btn)
+        c1.addWidget(self.backup_scanrecord_btn)
+        c1.addWidget(self.init_scanrecord_btn)
         c2 = QtWidgets.QVBoxLayout()
         c2.addWidget(begin_lbl)
         c2.addWidget(pause_lbl)
         c2.addWidget(continue_lbl)
         c2.addWidget(abort_lbl)
         c2.addWidget(abort_all_lbl)
+        c2.addWidget(self.backup_scanrecord_lbl)
+        c2.addWidget(self.init_scanrecord_lbl)
         col3 = QtWidgets.QHBoxLayout()
         col3.addLayout(c1)
         col3.addLayout(c2)
@@ -675,7 +698,7 @@ class Controls(QtWidgets.QWidget):
                 item.textChanged.connect(self.validate_params)
                 item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
             elif isinstance(item,QtWidgets.QLabel):
-                item.setStyleSheet("QLabel {background-color: lightgray;" 
+                item.setStyleSheet("QLabel {background-color: white;" 
                                            "color: black;"
                                            "border-width: 0;"
                                            "border-radius: 3;"
@@ -733,8 +756,8 @@ class Header(QtWidgets.QWidget):
         self.line.setFixedWidth(size1)
         self.scan_type = QtWidgets.QLabel("scan \ntype")
         self.scan_type.setFixedWidth(size1)
-        self.trajectory = QtWidgets.QLabel("trajectory")
-        self.trajectory.setFixedWidth(size5)
+        # self.trajectory = QtWidgets.QLabel("trajectory")
+        # self.trajectory.setFixedWidth(size5)
         self.line_action = QtWidgets.QLabel("action")
         self.line_action.setFixedWidth(size5)
         self.dwell_time = QtWidgets.QLabel("dwell \n(ms)")
@@ -827,10 +850,10 @@ class Line(QtWidgets.QWidget):
         self.current_line.setFixedWidth(size1)
         self.scan_type = QtWidgets.QPushButton("step", checkable = True)
         self.scan_type.setFixedWidth(size1)
-        self.trajectory = QtWidgets.QComboBox()
+        # self.trajectory = QtWidgets.QComboBox()
         trajectories = ["raster","snake","spiral","lissajous","custom"]
-        self.trajectory.addItems(trajectories)
-        self.trajectory.setFixedWidth(size5)
+        # self.trajectory.addItems(trajectories)
+        # self.trajectory.setFixedWidth(size5)
         self.line_action = QtWidgets.QComboBox()
         actions = ["skip","normal", "pause", "done"]
         self.line_action.addItems(actions)
@@ -875,8 +898,8 @@ class Line(QtWidgets.QWidget):
 
         for key in self.__dict__:
             item = getattr(self,key)
-            if key == "trajectory":
-                item.currentIndexChanged.connect(self.trajector_changed)
+            # if key == "trajectory":
+            #     item.currentIndexChanged.connect(self.trajector_changed)
             if key == "line_action":
                 item.currentIndexChanged.connect(self.line_valid)
             if isinstance(item, QtWidgets.QLineEdit):
@@ -940,14 +963,14 @@ class Line(QtWidgets.QWidget):
         button = self.sender()
         if button.isChecked():
             button.setText("fly")
-            self.trajectory.clear()
-            trajectories = ["raster", "snake"]
-            self.trajectory.addItems(trajectories)
+            # self.trajectory.clear()
+            # trajectories = ["raster", "snake"]
+            # self.trajectory.addItems(trajectories)
         else:
             button.setText("step")
-            self.trajectory.clear()
-            trajectories = ["raster", "snake", "spiral", "lissajous", "custom"]
-            self.trajectory.addItems(trajectories)
+            # self.trajectory.clear()
+            # trajectories = ["raster", "snake", "spiral", "lissajous", "custom"]
+            # self.trajectory.addItems(trajectories)
 
     def params_changed(self):
         self.paramsChangedSig.emit(eval(self.objectName))
@@ -1078,6 +1101,8 @@ class Line(QtWidgets.QWidget):
             item = getattr(self,key)
             if isinstance(item, QtWidgets.QLineEdit):
                 item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
+            elif isinstance(item,QtWidgets.QCheckBox):
+                item.setStyleSheet("background: lightgray;color: black; border-radius: 4; border-color: white")
             elif isinstance(item,QtWidgets.QLabel):
                 item.setStyleSheet("background: lightgray;color: black; border-radius: 4; border-color: white")
                 if key == "finish_time" or key == "start_time":
@@ -1131,19 +1156,22 @@ class Line(QtWidgets.QWidget):
         y_points = int(self.y_points.text())
         y_width = float(self.y_width.text())
         scan_type = self.scan_type.text()
-        trajectory = self.trajectory.currentText()
+        # trajectory = self.trajectory.currentText()
         overhead = 1.18
 
         if self.r_center.isVisible():
             r_points = int(self.r_points.text())
             r_width = float(self.r_width.text())
 
-        if trajectory == "raster" or trajectory == "snake":
-            width_not_zero = (x_width*y_width>0)*1
-            seconds_total = dwell*x_points*y_points + (overhead*y_points)*width_not_zero
+        # if trajectory == "raster" or trajectory == "snake":
+        #     width_not_zero = (x_width*y_width>0)*1
+        #     seconds_total = dwell*x_points*y_points + (overhead*y_points)*width_not_zero
+        #
+        # if trajectory == "spiral" or trajectory == "lissajous" or trajectory == "custom":
+        #     seconds_total = dwell*x_points*overhead
 
-        if trajectory == "spiral" or trajectory == "lissajous" or trajectory == "custom":
-            seconds_total = dwell*x_points*overhead
+        width_not_zero = (x_width>0)*1
+        seconds_total = dwell*x_points*y_points + (overhead*y_points)*width_not_zero
 
         if self.r_center.isVisible() and r_points > 0:
             seconds_total = seconds_total*r_points

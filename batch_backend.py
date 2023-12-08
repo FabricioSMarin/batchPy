@@ -38,7 +38,7 @@ class BatchSetup(object):
         self.ca_addr_list = ""
         self.settings_vars = self.__dict__
         self.settings_vars = list(self.settings_vars)[:-1]
-        self.restore_settings()
+        # self.restore_settings()
         self.backend_ready = False
         self.done = False
         self.saveData_message = ""
@@ -149,7 +149,7 @@ class BatchSetup(object):
         except Exception as e:
             print(e)
             self.XSPRESS3 = None
-            print("xspress3  not connected")
+            print("xspress3 not connected")
 
         try:
             tic = time.time()

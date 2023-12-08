@@ -30,7 +30,7 @@ class Launcher(object):
         self.gui.closeAction.triggered.connect(sys.exit)
         self.gui.initRecordAction.triggered.connect(self.backend.init_scan_record)
         self.gui.initPVsAction.triggered.connect(self.backend.connect_pvs)
-        self.gui.openAction.triggered.connect(self.open_PVconfig)
+        # self.gui.openAction.triggered.connect(self.open_PVconfig)
         self.gui.controls.setup_btn.clicked.connect(self.settings.show)
         self.gui.controls.setup_btn.clicked.connect(self.settings.openEvent)
         self.gui.controls.import_btn.clicked.connect(self.import_clicked)
@@ -46,33 +46,117 @@ class Launcher(object):
         self.gui.controls.points_all.clicked.connect(self.calculate_all_points_clicked)
 
         sys.stdout = Stream(newText=self.onUpdateText)
-        self.backend.connect_pvs()
-        self.update_motor_limits()
+
         self.start_threads()
         sys.exit(self.app.exec())
 
     def settings_changed(self):
         scan_generator = self.settings.setup_window.scan_generator.text()
         pv_status = self.settings.pv_status
-        # profile_move
-        #trajectory
-        #TODO: add trajectory to settings
 
-        # xrf_connected
-        # eiger_connected
-        # softgluezynq_connected
-        # struck
-        # r_motor
-        # z_motor
-        # x_motor
-        # y_motor
+        self.xrf_connected = pv_status["xrf"][2]
+        self.eiger_connected = pv_status["eiger"][2]
+        self.struck_connected = pv_status["struck"][2]
+        self.x_motor_connected = pv_status["x_motor"][2]
+        self.y_motor_connected = pv_status["y_motor"][2]
+        self.r_motor_connected = pv_status["r_motor"][2]
 
-        # busy record connected
-        # delay_calc
-        # scan_inner
-        # scan_outer
+        if scan_generator == "profile move":
+            self.gui.controls.import_btn.setVisible(False)
+            self.gui.controls.export_btn.setVisible(False)
+            self.gui.controls.import_lbl.setVisible(False)
+            self.gui.controls.export_lbl.setVisible(False)
+            self.gui.controls.backup_scanrecord_btn.setVisible(False)
+            self.gui.controls.init_scanrecord_btn.setVisible(False)
+            self.gui.controls.backup_scanrecord_lbl.setVisible(False)
+            self.gui.controls.init_scanrecord_lbl.setVisible(False)
+            self.trajectory = self.settings.setup_window.trajectory_cbbx.currentText()
+            self.profile_move_connected = pv_status["profile_move"][2]
+            self.softgluezynq_connected = pv_status["softgluezynq"][2]
+            if not self.profile_move_connected or not self.softgluezynq_connected or not self.x_motor_connected or not self.y_motor_connected:
+                self.gui.controls.begin_btn.setDisabled(True)
+                self.gui.controls.pause_btn.setDisabled(True)
+                self.gui.controls.continue_btn.setDisabled(True)
+            else:
+                self.gui.controls.begin_btn.setDisabled(False)
+                self.gui.controls.pause_btn.setDisabled(False)
+                self.gui.controls.continue_btn.setDisabled(False)
+            if not self.xrf_connected:
+                # TODO: skip xspress3 setup in backend.
+                pass
+            if not self.eiger_connected:
+                # TODO: skip eiger setup in backend.
+                pass
 
-        pass
+        elif scan_generator == "ACS program buffer":
+            pass
+            # self.gui.controls.import_btn.setVisible(False)
+            # self.gui.controls.export_btn.setVisible(False)
+            # self.gui.controls.import_lbl.setVisible(False)
+            # self.gui.controls.export_lbl.setVisible(False)
+            # self.trajectory = self.settings.setup_window.trajectory_cbbx.currentText()
+            # self.softgluezynq_connected = pv_status["softgluezynq"][2]
+            # if not self.softgluezynq_connected or not self.x_motor_connected or not self.y_motor_connected:
+            #     self.gui.controls.begin_btn.setDisabled(True)
+            #     self.gui.controls.pause_btn.setDisabled(True)
+            #     self.gui.controls.continue_btn.setDisabled(True)
+            # else:
+            #     self.gui.controls.begin_btn.setDisabled(False)
+            #     self.gui.controls.pause_btn.setDisabled(False)
+            #     self.gui.controls.continue_btn.setDisabled(False)
+            # if not self.xrf_connected:
+            #     # TODO: skip xspress3 setup in backend.
+            #     pass
+            # if not self.eiger_connected:
+            #     # TODO: skip eiger setup in backend.
+            #     pass
+
+        elif scan_generator == "scan record":
+            self.gui.controls.import_btn.setVisible(True)
+            self.gui.controls.export_btn.setVisible(True)
+            self.gui.controls.import_lbl.setVisible(True)
+            self.gui.controls.export_lbl.setVisible(True)
+            self.gui.controls.backup_scanrecord_btn.setVisible(True)
+            self.gui.controls.init_scanrecord_btn.setVisible(True)
+            self.gui.controls.backup_scanrecord_lbl.setVisible(True)
+            self.gui.controls.init_scanrecord_lbl.setVisible(True)
+            self.trajectory = "raster"
+            self.inner_before_wait_connected = pv_status["inner_before_wait"][2]
+            self.inner_after_wait_connected = pv_status["inner_after_wait"][2]
+            self.outer_before_wait_connected = pv_status["outer_before_wait"][2]
+            self.outer_after_wait_connected = pv_status["outer_after_wait"][2]
+            self.delay_calc_connected = pv_status["delay_calc"][2]
+            self.save_data_connected = pv_status["save_data"][2]
+            self.scan_inner_connected = pv_status["scan_inner"][2]
+            self.scan_outer_connected = pv_status["scan_outer"][2]
+            self.scan_inner_extra_connected = pv_status["scan_inner_extra"][2]
+            self.scan_outer_extra_connected = pv_status["scan_outer_extra"][2]
+            if not self.inner_before_wait_connected or not self.inner_after_wait_connected or not self.outer_before_wait_connected or not self.outer_after_wait_connected:
+                #TODO: use different way of checking before and after scans.
+                pass
+
+            if not self.delay_calc_connected:
+                #TODO: signal to backend to change positioner from delay_calc to regular positioner PV
+                pass
+            if not self.scan_inner_connected or not self.scan_outer_connected or not self.save_data_connected or not self.struck_connected or not self.x_motor_connected or not self.y_motor_connected:
+                # self.gui.controls.begin_btn.setDisabled(True)
+                # self.gui.controls.pause_btn.setDisabled(True)
+                # self.gui.controls.continue_btn.setDisabled(True)
+                pass
+            else:
+                # self.gui.controls.begin_btn.setDisabled(False)
+                # self.gui.controls.pause_btn.setDisabled(False)
+                # self.gui.controls.continue_btn.setDisabled(False)
+                pass
+
+        if not self.r_motor_connected:
+            self.gui.controls.tomography_chbx.setVisible(False)
+            self.gui.controls.tomography_lbl.setVisible(False)
+        else:
+            self.gui.controls.tomography_chbx.setVisible(True)
+            self.gui.controls.tomography_lbl.setVisible(True)
+
+
     def onUpdateText(self, text):
         # self.gui.controls.message_window.setText(text)
         cursor = self.gui.controls.message_window.textCursor()
@@ -153,16 +237,16 @@ class Launcher(object):
         self.gui.controls.eta.setText(str(timedelta(seconds=sum(eta))))
         return
 
-    def open_PVconfig(self):
-        if self.gui.active_line != -1:
-            print("scan in progress, cannot open PV config right now.")
-        else:
-            print("Opening PV config file")
-            current_dir = os.path.dirname(os.path.abspath(__file__))+"/"
-            file = QtWidgets.QFileDialog.getOpenFileName(directory=current_dir, filter="*.pkl")
-            if file[0] == '':
-                return
-            self.backend.open_settings(file[0])
+    # def open_PVconfig(self):
+    #     if self.gui.active_line != -1:
+    #         print("scan in progress, cannot open PV config right now.")
+    #     else:
+    #         print("Opening PV config file")
+    #         current_dir = os.path.dirname(os.path.abspath(__file__))+"/"
+    #         file = QtWidgets.QFileDialog.getOpenFileName(directory=current_dir, filter="*.pkl")
+    #         if file[0] == '':
+    #             return
+    #         self.backend.open_settings(file[0])
 
     def update_plot(self):
         try:
@@ -647,6 +731,8 @@ class Launcher(object):
         self.thread1.timer = 60
         self.thread2 = myThreads(self, 2, "eta countdown")
         self.thread2.timer = 10
+        self.thread5 = myThreads(self, 5, "backend")
+
 
         self.thread1.saveSig.connect(self.gui.save_session)
         self.thread2.etaSig.connect(self.calculate_global_eta)
@@ -657,6 +743,8 @@ class Launcher(object):
         self.timer.start()
         self.thread1.start()
         self.thread2.start()
+        self.thread5.start()
+
     def stop_thread(self):
         self.timer.stop()
         self.thread1.exit_save=1
@@ -665,6 +753,7 @@ class Launcher(object):
         self.thread2.exit_eta=1
         self.thread2.quit()
         self.thread2.wait()
+
         pass
 
 class myThreads(QtCore.QThread):
@@ -698,13 +787,22 @@ class myThreads(QtCore.QThread):
             self.save_countdown(int(timer))
         if self.name == "eta countdown":
             self.eta_countdown(int(timer))
+        if self.name == "backend":
+            self.connect_backend()
         if self.name == "run_scan":
             self.run_scan()
         elif self.name == "timer event":
             self.run_timer_action()
 
-    def run_scan(self):
+    def connect_backend(self):
+        #TODO: check if backend python process exists, else start a new one.
+        self.parent.backend.restore_settings()
+        self.parent.backend.connect_pvs()
+        self.parent.update_motor_limits()
+        self.parent.settings.caget_all_pvs()
+        self.parent.settings_changed()
 
+    def run_scan(self):
         if len(self.params) == 10:
             #scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell, r_center, r_width, r_npts
             self.parent.backend.run_tomo(self.params[0],self.params[1],self.params[2],self.params[3],self.params[4],self.params[5],self.params[6],self.params[7],self.params[8],self.params[9],self.params[10])

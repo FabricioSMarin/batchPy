@@ -18,7 +18,6 @@ from datetime import datetime
 import sys
 
 
-#TODO: add a close event (when window closed) to re-initialize and update main window according to new parameters and stop threads
 class ScanSettings(QtWidgets.QWidget):
     settings_closed_sig = pyqtSignal()
     def __init__(self, app):
@@ -37,7 +36,7 @@ class ScanSettings(QtWidgets.QWidget):
     def initUI(self):
         self.setup_window = Setup()
         # self.setup_window = batch_settings.Setup()
-        self.setup_window.auto_update_pvs.clicked.connect(lambda: self.autoUpdateButton(self.setup_window.auto_update_pvs))
+        # self.setup_window.auto_update_pvs.clicked.connect(lambda: self.autoUpdateButton(self.setup_window.auto_update_pvs))
         for key in vars(self.setup_window):
             item = vars(self.setup_window)[key]
             if isinstance(item,QtWidgets.QLineEdit) or isinstance(item,QtWidgets.QPushButton):
@@ -66,14 +65,14 @@ class ScanSettings(QtWidgets.QWidget):
         print("opening window")
         #check if opening fof the
         if self.first_time:
-            self.start_threads()
+            # self.start_threads()
             self.caget_pvs()
         self.first_time = False
 
     def closeEvent(self, a0, QCloseEvent=None):
         print("closing window")
         self.caget_all_pvs()
-        self.stop_threads()
+        # self.stop_threads()
         self.settings_closed_sig.emit()
         self.first_time = True
 
@@ -122,7 +121,7 @@ class ScanSettings(QtWidgets.QWidget):
                             key.setStyleSheet("border: none;")
                         else:
                             key.setStyleSheet("border: 1px solid red;")
-                            print("cannot caput pv {}".format(key.objectName()))
+                            print("cannot caput pv {}".format(key.objectName))
 
 
     def eventFilter(self, source, event):   #this is to emmulate epics behavior where changes only take effect if cursor is within field.
@@ -136,23 +135,23 @@ class ScanSettings(QtWidgets.QWidget):
                 source.setText(self.current_text)
         return QtWidgets.QLineEdit.eventFilter(self, source, event)
 
-    def update_lcd(self,val):
-        self.setup_window.auto_update_pvs_lcd.display(str(val))
-        if val == 1:
-            self.caget_pvs()
+    # def update_lcd(self,val):
+    #     self.setup_window.auto_update_pvs_lcd.display(str(val))
+    #     if val == 1:
+    #         self.caget_pvs()
 
-    def autoUpdateButton(self,button):
-        if button.isChecked():
-            self.start_threads()
-            # self.thread1.start()
-            button.setStyleSheet("background-color : lightblue")
-            button.setText("Auto Update PVs in ...")
-        else:
-            self.stop_threads()
-            print("Stopping countdown")
-            self.update_lcd("10")
-            button.setStyleSheet("background-color : grey")
-            button.setText("Auto Update disabled")
+    # def autoUpdateButton(self,button):
+    #     if button.isChecked():
+            # self.start_threads()
+        #     # self.thread1.start()
+        #     button.setStyleSheet("background-color : lightblue")
+        #     button.setText("Auto Update PVs in ...")
+        # else:
+            # self.stop_threads()
+            # print("Stopping countdown")
+            # self.update_lcd("10")
+            # button.setStyleSheet("background-color : grey")
+            # button.setText("Auto Update disabled")
 
     def changeButton(self,button):
         if button.isChecked():
@@ -255,8 +254,8 @@ class ScanSettings(QtWidgets.QWidget):
         for line in range(self.setup_window.num_lines):
             hbox = self.__dict__["setup_window"].__dict__["line_{}".format(line)]
             num_widgets = hbox.count()
-            if num_widgets >=2:
-                item = hbox.itemAt(1).widget()
+            item = hbox.itemAt(1).widget()
+            if num_widgets >=2 and isinstance(item, QtWidgets.QLineEdit):
                 line_has_ccbx = isinstance(hbox.itemAt(0).widget(), QtWidgets.QComboBox)
                 if isinstance(item, QtWidgets.QLineEdit) and line != 1:
                     pv_dict[item.objectName] = [item.text(), True]
@@ -370,14 +369,18 @@ class ScanSettings(QtWidgets.QWidget):
                 for i in range(num_widgets):
                     hbox.itemAt(i).widget().setVisible(False)
 
-            self.setup_window.auto_update_pvs.setVisible(True)
-            self.setup_window.auto_update_pvs_lcd.setVisible(True)
+            # self.setup_window.auto_update_pvs.setVisible(True)
+            # self.setup_window.auto_update_pvs_lcd.setVisible(True)
             self.setup_window.config_file_lbl.setVisible(True)
             self.setup_window.config_file.setVisible(True)
             self.setup_window.scan_generator_lbl.setVisible(True)
             self.setup_window.scan_generator.setVisible(True)
             self.setup_window.profile_move_lbl.setVisible(True)
             self.setup_window.profile_move.setVisible(True)
+            self.setup_window.trajectory_lbl.setVisible(True)
+            self.setup_window.trajectory_cbbx.setVisible(True)
+            self.setup_window.softgluezynq_lbl.setVisible(True)
+            self.setup_window.softgluezynq.setVisible(True)
 
             self.setup_window.xrf_cbbx.setVisible(True)
             self.setup_window.xrf.setVisible(True)
@@ -390,8 +393,8 @@ class ScanSettings(QtWidgets.QWidget):
             self.setup_window.x_motor.setVisible(True)
             self.setup_window.y_motor_lbl.setVisible(True)
             self.setup_window.y_motor.setVisible(True)
-            self.setup_window.z_motor_lbl.setVisible(True)
-            self.setup_window.z_motor.setVisible(True)
+            # self.setup_window.z_motor_lbl.setVisible(True)
+            # self.setup_window.z_motor.setVisible(True)
             self.setup_window.r_motor_lbl.setVisible(True)
             self.setup_window.r_motor.setVisible(True)
             self.setup_window.save_config_lbl.setVisible(True)
@@ -408,50 +411,53 @@ class ScanSettings(QtWidgets.QWidget):
 
             self.setup_window.profile_move_lbl.setVisible(False)
             self.setup_window.profile_move.setVisible(False)
-
+            self.setup_window.trajectory_lbl.setVisible(False)
+            self.setup_window.trajectory_cbbx.setVisible(False)
+            self.setup_window.softgluezynq_lbl.setVisible(False)
+            self.setup_window.softgluezynq.setVisible(False)
         pass
 
-    def start_threads(self):
-        # Create new threads
-        self.thread1 = myThreads(1, "countdown")
-        self.thread1.countSig.connect(self.update_lcd)
-        self.thread1.start()
-
-    def stop_threads(self):
-        self.thread1.terminate()
-        self.thread1.wait()
+    # def start_threads(self):
+    #     # Create new threads
+    #     self.thread1 = myThreads(1, "countdown")
+    #     self.thread1.countSig.connect(self.update_lcd)
+    #     self.thread1.start()
+    #
+    # def stop_threads(self):
+    #     self.thread1.terminate()
+    #     self.thread1.wait()
 
 
 # class myThreads(threading.Thread,QtCore.QObject):
-class myThreads(QtCore.QThread):
-    countSig = pyqtSignal(int, name='countSig')
-
-    def __init__(self, threadID, name):
-        QtCore.QThread.__init__(self)
-        self.threadID = threadID
-        self.name = name
-        # self.pv_dict = pv_dict
-        self.exit_flag = 0
-
-
-    def run(self):
-        print ("Starting " + self.name)
-        if self.name == "countdown":
-            self.countdown(int(10))
-        return
-
-    def countdown(self, t):
-        t_original = t
-        while t:
-            time.sleep(1)
-            t -= 1
-            if t==0 and self.exit_flag==0:
-                t=t_original
-            if self.exit_flag:
-                break
-            else:
-                self.countSig.emit(t)   #update counter
-        return
+# class myThreads(QtCore.QThread):
+#     countSig = pyqtSignal(int, name='countSig')
+#
+#     def __init__(self, threadID, name):
+#         QtCore.QThread.__init__(self)
+#         self.threadID = threadID
+#         self.name = name
+#         # self.pv_dict = pv_dict
+#         self.exit_flag = 0
+#
+#
+#     def run(self):
+#         print ("Starting " + self.name)
+#         if self.name == "countdown":
+#             self.countdown(int(10))
+#         return
+#
+#     def countdown(self, t):
+#         t_original = t
+#         while t:
+#             time.sleep(1)
+#             t -= 1
+#             if t==0 and self.exit_flag==0:
+#                 t=t_original
+#             if self.exit_flag:
+#                 break
+#             else:
+#                 self.countSig.emit(t)   #update counter
+#         return
 class Setup(QtWidgets.QWidget):
     def __init__(self):
         super(Setup, self).__init__()
@@ -463,22 +469,24 @@ class Setup(QtWidgets.QWidget):
         box.addWidget(self.scroll)
         self.setLayout(box)
 
-        self.auto_update_pvs.setCheckable(True)
-        self.auto_update_pvs.setStyleSheet("background-color : lightblue")
-        self.auto_update_pvs.setChecked(True)
+        # self.auto_update_pvs.setCheckable(True)
+        # self.auto_update_pvs.setStyleSheet("background-color : lightblue")
+        # self.auto_update_pvs.setChecked(True)
 
         self.scan_generator.setCheckable(True)
         self.scan_generator.setStyleSheet("background-color : grey")
         self.scan_generator.setChecked(False)
         self.scan_generator.setText("scan record")
 
-        self.auto_update_pvs_lcd.setMaximumHeight(28)
+        # self.auto_update_pvs_lcd.setMaximumHeight(28)
     def scroll_area(self):
         item_dict = {} #[type(button, file, path, dropdown), descriptions[idx], choices[idx],defaults[idx]]
-        item_dict["auto_update_pvs"] = [["button","lcd"], "enable/disable PV updater.", None, ""]
+        # item_dict["auto_update_pvs"] = [["button","lcd"], "enable/disable PV updater.", None, ""]
         item_dict["config_file"] = [["label","file"], "select config file if it exists", None, ""]
         item_dict["scan_generator"] = [["label", "button"], "scan record or profile move", None, None]
         item_dict["profile_move"] = [["label","linedit"], "profile move PV prefix", None, ""]
+        item_dict["trajectory"] = [["label","combobox"], "scan trajectory options", ["raster", "snake", "spiral", "lissajous", "custom"], "raster"]
+        item_dict["softgluezynq"] = [["label","linedit"], "softgluezynq PV prefix", None, ""]
 
         item_dict["inner_before_wait"] = [["label","linedit"], "inner before wait busy record", None, ""]
         item_dict["inner_after_wait"] = [["label","linedit"], "inner after wait busy record", None, ""]
@@ -488,6 +496,8 @@ class Setup(QtWidgets.QWidget):
         item_dict["save_data"] = [["label","linedit"], "saveData PV, holds current filename", None, ""]
         item_dict["scan_inner"] = [["label","linedit"], "scan record inner loop", None, ""]
         item_dict["scan_outer"] = [["label","linedit"], "scan record outer loop", None, ""]
+        item_dict["scan_inner_extra"] = [["label","linedit"], "extra scan record inner loop", None, ""]
+        item_dict["scan_outer_extra"] = [["label","linedit"], "extra scan record outer loop", None, ""]
         # item_dict["ca_addr_list"] = [["label","linedit"], "Channel Access address list incase one or more IOC cannot connect to machine running batchscan.", None, ""]
 
         item_dict["xrf"] = [["combobox","linedit"], "xrf processor pv prefix", ["None", "xspress3","xmap"], "xspress3"]
@@ -495,7 +505,7 @@ class Setup(QtWidgets.QWidget):
         item_dict["struck"] = [["combobox","linedit"], "struck pv prefix", ["None","struck"], "None"]
         item_dict["x_motor"] = [["label","linedit"], "x positioner", None, ""]
         item_dict["y_motor"] = [["label","linedit"], "y positioner", None, ""]
-        item_dict["z_motor"] = [["label","linedit"], "z positioner", None, ""]
+        # item_dict["z_motor"] = [["label","linedit"], "z positioner", None, ""]
         item_dict["r_motor"] = [["label","linedit"], "r positioner", None, ""]
         item_dict["save_config"] = [["label","button"], "save config settings.", None, None]
 
