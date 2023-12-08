@@ -28,8 +28,8 @@ class Launcher(object):
         self.settings = batch_settings.ScanSettings(self.app)
         self.settings.settings_closed_sig.connect(self.settings_changed)
         self.gui.closeAction.triggered.connect(sys.exit)
-        self.gui.initRecordAction.triggered.connect(self.backend.init_scan_record)
-        self.gui.initPVsAction.triggered.connect(self.backend.connect_pvs)
+        # self.gui.initRecordAction.triggered.connect(self.backend.init_scan_record)
+        # self.gui.initPVsAction.triggered.connect(self.backend.connect_pvs)
         # self.gui.openAction.triggered.connect(self.open_PVconfig)
         self.gui.controls.setup_btn.clicked.connect(self.settings.show)
         self.gui.controls.setup_btn.clicked.connect(self.settings.openEvent)
@@ -67,9 +67,7 @@ class Launcher(object):
             self.gui.controls.import_lbl.setVisible(False)
             self.gui.controls.export_lbl.setVisible(False)
             self.gui.controls.backup_scanrecord_btn.setVisible(False)
-            self.gui.controls.init_scanrecord_btn.setVisible(False)
             self.gui.controls.backup_scanrecord_lbl.setVisible(False)
-            self.gui.controls.init_scanrecord_lbl.setVisible(False)
             self.trajectory = self.settings.setup_window.trajectory_cbbx.currentText()
             self.profile_move_connected = pv_status["profile_move"][2]
             self.softgluezynq_connected = pv_status["softgluezynq"][2]
@@ -117,9 +115,7 @@ class Launcher(object):
             self.gui.controls.import_lbl.setVisible(True)
             self.gui.controls.export_lbl.setVisible(True)
             self.gui.controls.backup_scanrecord_btn.setVisible(True)
-            self.gui.controls.init_scanrecord_btn.setVisible(True)
             self.gui.controls.backup_scanrecord_lbl.setVisible(True)
-            self.gui.controls.init_scanrecord_lbl.setVisible(True)
             self.trajectory = "raster"
             self.inner_before_wait_connected = pv_status["inner_before_wait"][2]
             self.inner_after_wait_connected = pv_status["inner_after_wait"][2]
