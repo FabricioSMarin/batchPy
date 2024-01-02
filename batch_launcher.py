@@ -4,6 +4,7 @@ from PyQt5.QtCore import pyqtSignal
 # from PyQt5.QtCore import pyqtSignal
 import batch_gui
 import batch_backend
+import batch_settings
 import sys
 import time
 import calendar
@@ -11,21 +12,19 @@ import subprocess
 import os
 from datetime import datetime, timedelta
 import pickle
-import batch_settings
 
 class Stream(QtCore.QObject):
     newText = QtCore.pyqtSignal(str)
     def write(self, text):
         self.newText.emit(str(text))
 
-class Launcher(object):
+class Launcher(QtWidgets.QWidget):
     def __init__(self):
+        super(QtWidgets.QWidget, self).__init__()
 
-        self.app = QtWidgets.QApplication(sys.argv)
-        self.app.setStyle('Fusion')
-        self.gui = batch_gui.BatchScanGui(self.app)
+        self.gui = batch_gui.BatchScanGui()
         self.backend = batch_backend.BatchSetup()
-        self.settings = batch_settings.ScanSettings(self.app)
+        self.settings = batch_settings.ScanSettings()
         self.settings.settings_closed_sig.connect(self.settings_changed)
         self.gui.closeAction.triggered.connect(sys.exit)
         # self.gui.initRecordAction.triggered.connect(self.backend.init_scan_record)
@@ -48,7 +47,7 @@ class Launcher(object):
         sys.stdout = Stream(newText=self.onUpdateText)
 
         self.start_threads()
-        sys.exit(self.app.exec())
+        # sys.exit(self.app.exec())
 
     def settings_changed(self):
         scan_generator = self.settings.setup_window.scan_generator.text()
@@ -857,8 +856,3 @@ class myThreads(QtCore.QThread):
             else:
                 pass
 
-def main():
-    Launcher()
-
-if __name__ == "__main__":
-    main()

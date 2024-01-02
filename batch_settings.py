@@ -1,14 +1,7 @@
-try:
-    from PyQt6 import QtCore, QtGui, QtWidgets
-    from PyQt6.QtGui import *
-    from PyQt6.QtCore import pyqtSignal
-except:
-    print("pyqt6 not installed, trying pyqt5...")
-    from PyQt5 import QtCore, QtGui, QtWidgets
-    from PyQt5.QtWidgets import *
-    from PyQt5.QtCore import pyqtSignal
 
-
+from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import pyqtSignal
 from epics import *
 # import batch_settings
 import time
@@ -20,11 +13,11 @@ import sys
 
 class ScanSettings(QtWidgets.QWidget):
     settings_closed_sig = pyqtSignal()
-    def __init__(self, app):
+    def __init__(self):
         super(QtWidgets.QWidget, self).__init__()
         self.setObjectName("bathcscan_flysetup_vPy")
         self.setAutoFillBackground(True)
-        self.app = app
+        # self.app = app
         self.current_text = ""
         self.var_dict = {}
         self.fname = ""

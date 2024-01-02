@@ -28,17 +28,16 @@ import subprocess
 #TODO: set line background to light gray if line set to normal
 #TODO: dynamically adjust font size to fit inside box
 
-class BatchScanGui(QtWidgets.QMainWindow):
-    def __init__(self,app):
-        super(QtWidgets.QMainWindow, self).__init__()
-        self.app = app
+class BatchScanGui(QtWidgets.QWidget):
+    def __init__(self):
+        super(QtWidgets.QWidget, self).__init__()
+        # self.app = app
         self.view1 = 1100
         self.view2 = 1600
         self.view3 = 1330
         self.view4 = 1830
         self.active_line = -1
         self.session_file = "default_session.pkl"
-        self.setWindowTitle("Batch Py V1.0.0")
 
         self.update_interval = 10
         self.num_lines = 40
@@ -77,10 +76,10 @@ class BatchScanGui(QtWidgets.QMainWindow):
         layout.setContentsMargins(10,5,10,10) #left, top,right, bottom
         # layout.setContentsMargins(0,0,0,0) #left, top,right, bottom
 
-        self.wid = QtWidgets.QWidget()
-        self.setCentralWidget(self.wid)
-        self.wid.setLayout(layout)
-        self.wid.setStyleSheet("background: white")
+        # self.wid = QtWidgets.QWidget()
+        # self.setCentralWidget(self.wid)
+        self.setLayout(layout)
+        self.setStyleSheet("background: white")
         self.line_0.current_line.setChecked(True)
         self.closeAction = QAction(' &close', self)
         self.closeAction.setShortcut(' Ctrl+Q')
@@ -133,26 +132,28 @@ class BatchScanGui(QtWidgets.QMainWindow):
             # self.__dict__["line_{}".format(i)].line_action.connect(self.line_changed)
             # line.setStyleSheet("background: yellow")
 
-        menubar = self.menuBar()
-        menubar.setStyleSheet("background-color: rgb(49,49,49); color: rgb(255,255,255); border: 1px solid #000;")
-        menubar.setNativeMenuBar(False)
 
-        fileMenu = menubar.addMenu('&File')
-        fileMenu.addAction(self.closeAction)
-        # fileMenu.addAction(self.openAction)
-        # fileMenu.addAction(self.saveAction)
-        fileMenu.addAction(self.exportScanParamsAction)
-        fileMenu.addAction(self.importScanParamsAction)
-
-        settingsMenu = menubar.addMenu(' &Settings')
-        # settingsMenu.addAction(self.initPVsAction)
-        # settingsMenu.addAction(self.initRecordAction)
-        settingsMenu.addMenu(show_lines)
-        settingsMenu.addMenu(update_interval)
-
-        # viewMenu = menubar.addMenu('&View')
-        # viewMenu.addAction(self.tomoAction)
-        # viewMenu.addAction(self.miscviewAction)
+        # TODO: widget class does not have menu bar, add these as buttons or under settings.
+        # menubar = self.menuBar()
+        # menubar.setStyleSheet("background-color: rgb(49,49,49); color: rgb(255,255,255); border: 1px solid #000;")
+        # menubar.setNativeMenuBar(False)
+        #
+        # fileMenu = menubar.addMenu('&File')
+        # fileMenu.addAction(self.closeAction)
+        # # fileMenu.addAction(self.openAction)
+        # # fileMenu.addAction(self.saveAction)
+        # fileMenu.addAction(self.exportScanParamsAction)
+        # fileMenu.addAction(self.importScanParamsAction)
+        #
+        # settingsMenu = menubar.addMenu(' &Settings')
+        # # settingsMenu.addAction(self.initPVsAction)
+        # # settingsMenu.addAction(self.initRecordAction)
+        # settingsMenu.addMenu(show_lines)
+        # settingsMenu.addMenu(update_interval)
+        #
+        # # viewMenu = menubar.addMenu('&View')
+        # # viewMenu.addAction(self.tomoAction)
+        # # viewMenu.addAction(self.miscviewAction)
 
     def view_changed(self):
         self.header.start_time.setVisible(False)
