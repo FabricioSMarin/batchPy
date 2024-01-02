@@ -516,6 +516,7 @@ class Setup(QtWidgets.QWidget):
 
     def create_widget(self, item_dict):
         widgetsizes = [240, 115, 50]
+        height = 25
         v_box = QVBoxLayout()
         for i, key in enumerate(item_dict.keys()):
             widget_items = item_dict[key][0]

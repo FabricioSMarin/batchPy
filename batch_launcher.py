@@ -144,12 +144,13 @@ class Launcher(QtWidgets.QWidget):
                 # self.gui.controls.continue_btn.setDisabled(False)
                 pass
 
-        if not self.r_motor_connected:
-            self.gui.controls.tomography_chbx.setVisible(False)
-            self.gui.controls.tomography_lbl.setVisible(False)
-        else:
-            self.gui.controls.tomography_chbx.setVisible(True)
-            self.gui.controls.tomography_lbl.setVisible(True)
+
+        # if not self.r_motor_connected:
+        #     self.gui.controls.tomography_chbx.setVisible(False)
+        #     self.gui.controls.tomography_lbl.setVisible(False)
+        # else:
+        #     self.gui.controls.tomography_chbx.setVisible(True)
+        #     self.gui.controls.tomography_lbl.setVisible(True)
 
 
     def onUpdateText(self, text):
@@ -409,16 +410,16 @@ class Launcher(QtWidgets.QWidget):
     def zero_clicked(self):
         lines = [vars(self.gui)[i] for i in self.gui.line_names]
         checked = [line.current_line.isChecked() for line in lines].index(True)
-        lines[checked].dwell_time.setText("10")
-        lines[checked].x_center.setText("0")
-        lines[checked].x_points.setText("0")
-        lines[checked].x_width.setText("0")
-        lines[checked].y_center.setText("0")
-        lines[checked].y_points.setText("0")
-        lines[checked].y_width.setText("0")
-        lines[checked].r_center.setText("0")
-        lines[checked].r_points.setText("0")
-        lines[checked].r_width.setText("0")
+        lines[checked].dwell_time.setText("")
+        lines[checked].x_center.setText("")
+        lines[checked].x_points.setText("")
+        lines[checked].x_width.setText("")
+        lines[checked].y_center.setText("")
+        lines[checked].y_points.setText("")
+        lines[checked].y_width.setText("")
+        lines[checked].r_center.setText("")
+        lines[checked].r_points.setText("")
+        lines[checked].r_width.setText("")
         lines[checked].save_message.setText("")
         lines[checked].start_time.setText("")
         lines[checked].finish_time.setText("")
@@ -426,16 +427,16 @@ class Launcher(QtWidgets.QWidget):
     def zero_all_clicked(self):
         lines = [vars(self.gui)[i] for i in self.gui.line_names]
         for line in lines:
-            line.dwell_time.setText("0")
-            line.x_center.setText("0")
-            line.x_points.setText("0")
-            line.x_width.setText("0")
-            line.y_center.setText("0")
-            line.y_points.setText("0")
-            line.y_width.setText("0")
-            line.r_center.setText("0")
-            line.r_points.setText("0")
-            line.r_width.setText("0")
+            line.dwell_time.setText("")
+            line.x_center.setText("")
+            line.x_points.setText("")
+            line.x_width.setText("")
+            line.y_center.setText("")
+            line.y_points.setText("")
+            line.y_width.setText("")
+            line.r_center.setText("")
+            line.r_points.setText("")
+            line.r_width.setText("")
             line.comments.setText("")
             line.save_message.setText("")
             line.start_time.setText("")

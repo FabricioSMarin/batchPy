@@ -32,7 +32,7 @@ class BatchScanGui(QtWidgets.QWidget):
     def __init__(self):
         super(QtWidgets.QWidget, self).__init__()
         # self.app = app
-        self.view1 = 1100
+        self.view1 = 900
         self.view2 = 1600
         self.view3 = 1330
         self.view4 = 1830
@@ -41,43 +41,47 @@ class BatchScanGui(QtWidgets.QWidget):
 
         self.update_interval = 10
         self.num_lines = 40
-        self.show_lines = 5
+        self.show_lines = 40
         self.line_names = []
         for i in range(self.num_lines): #max number of lines
             self.line_names.append("line_{}".format(str(i)))
         for v in self.line_names:
             setattr(self, v, Line())
+
         self.initUI()
         self.restore_session()
-        # self.setFixedWidth(self.view1)
+        # self.setFixedSize(self.view1)
         self.show()
 
     def initUI(self):
-        self.header = Header()
+        # self.header = Header()
         self.controls = Controls()
+
+        self.scroll = QScrollArea()
+        self.scroll_widget = QWidget()
 
         lineframe = QtWidgets.QFrame()
         tmp_layout = QtWidgets.QVBoxLayout()
         for i in range(self.num_lines):
             line = self.__dict__[self.line_names[i]]
             line.objectName = str(i)
+            line.current_line.setText(str(i))
             line.setAutoFillBackground(True)
-            tmp_layout.addWidget(line)
+            tmp_layout.addWidget(line, alignment=QtCore.Qt.AlignLeft)
 
-        lineframe.setLayout(tmp_layout)
-        lineframe.setStyleSheet("QFrame {background-color: rgb(255, 255, 255);border-width: 1;border-radius: 3;border-style: solid;border-color: rgb(10, 10, 10)}")
-        lineframe.setContentsMargins(0,0,0,0) #left, top,right, bottom
+        self.scroll_widget.setLayout(tmp_layout)
+        self.scroll_widget.setStyleSheet("QFrame {background-color: rgb(255, 255, 255);border-width: 1;border-radius: 3;border-style: solid;border-color: rgb(10, 10, 10)}")
+        # self.scroll_widget.setContentsMargins(0,0,0,0) #left, top,right, bottom
+        self.scroll_widget.setMaximumWidth(1600)
+        self.scroll.setWidget(self.scroll_widget)
 
         layout = QtWidgets.QVBoxLayout()
-        layout.addWidget(self.header)
-        layout.addWidget(lineframe)
+        # layout.addWidget(self.header)
+        layout.addWidget(self.scroll)
         layout.addWidget(self.controls)
         layout.setSpacing(0)
-        layout.setContentsMargins(10,5,10,10) #left, top,right, bottom
-        # layout.setContentsMargins(0,0,0,0) #left, top,right, bottom
+        # layout.setContentsMargins(10,5,10,10) #left, top,right, bottom
 
-        # self.wid = QtWidgets.QWidget()
-        # self.setCentralWidget(self.wid)
         self.setLayout(layout)
         self.setStyleSheet("background: white")
         self.line_0.current_line.setChecked(True)
@@ -94,7 +98,6 @@ class BatchScanGui(QtWidgets.QWidget):
         self.importScanParamsAction = QAction(' &import scan parameters', self)
         self.importScanParamsAction.triggered.connect(self.import_scan_params)
         self.controls.tomography_chbx.clicked.connect(self.view_changed)
-        self.controls.misc_chbx.clicked.connect(self.view_changed)
         # self.tomoAction = QAction(' tomo view', self, checkable=True)
         # self.tomoAction.triggered.connect(self.view_changed)
         # self.miscviewAction = QAction(' misc view', self, checkable=True)
@@ -102,17 +105,17 @@ class BatchScanGui(QtWidgets.QWidget):
         # self.miscviewAction.setChecked(True)
         self.view_changed()
 
-        show_lines = QtWidgets.QMenu("show N lines", self)
-        show_lines.setStyleSheet("background-color: rgb(49,49,49); color: rgb(255,255,255); border: 1px solid #000;")
-        ag = QActionGroup(show_lines)
-        ag.setExclusive(True)
-        show_lines_options = self.num_lines//5
-        for i in range(1,show_lines_options+1):
-            #dynamically create instance variable N_line_N and set it to an action
-            setattr(self, "N_line_{}".format(str(i*5)), ag.addAction(QAction(str(i*5), show_lines, checkable=True)))
-            show_lines.addAction(self.__dict__["N_line_{}".format(i*5)])
-            self.__dict__["N_line_{}".format(i*5)].triggered.connect(self.num_lines_changed)
-        self.num_lines_changed()
+        # show_lines = QtWidgets.QMenu("show N lines", self)
+        # show_lines.setStyleSheet("background-color: rgb(49,49,49); color: rgb(255,255,255); border: 1px solid #000;")
+        # ag = QActionGroup(show_lines)
+        # ag.setExclusive(True)
+        # show_lines_options = self.num_lines//5
+        # for i in range(1,show_lines_options+1):
+        #     #dynamically create instance variable N_line_N and set it to an action
+        #     setattr(self, "N_line_{}".format(str(i*5)), ag.addAction(QAction(str(i*5), show_lines, checkable=True)))
+        #     show_lines.addAction(self.__dict__["N_line_{}".format(i*5)])
+        #     self.__dict__["N_line_{}".format(i*5)].triggered.connect(self.num_lines_changed)
+        # self.num_lines_changed()
 
         update_interval = QtWidgets.QMenu("update interval (s)", self)
         update_interval.setStyleSheet("background-color: rgb(49,49,49); color: rgb(255,255,255); border: 1px solid #000;")
@@ -156,46 +159,16 @@ class BatchScanGui(QtWidgets.QWidget):
         # # viewMenu.addAction(self.miscviewAction)
 
     def view_changed(self):
-        self.header.start_time.setVisible(False)
-        self.header.finish_time.setVisible(False)
-        self.header.save_message.setVisible(False)
-        self.header.r_center.setVisible(False)
-        self.header.r_points.setVisible(False)
-        self.header.r_width.setVisible(False)
         for line in range(self.num_lines):
-            self.__dict__[self.line_names[line]].save_message.setVisible(False)
-            self.__dict__[self.line_names[line]].start_time.setVisible(False)
-            self.__dict__[self.line_names[line]].finish_time.setVisible(False)
             self.__dict__[self.line_names[line]].r_center.setVisible(False)
             self.__dict__[self.line_names[line]].r_points.setVisible(False)
             self.__dict__[self.line_names[line]].r_width.setVisible(False)
 
         if self.controls.tomography_chbx.isChecked():
-            self.header.r_center.setVisible(True)
-            self.header.r_points.setVisible(True)
-            self.header.r_width.setVisible(True)
             for line in range(self.show_lines):
                 self.__dict__[self.line_names[line]].r_center.setVisible(True)
                 self.__dict__[self.line_names[line]].r_points.setVisible(True)
                 self.__dict__[self.line_names[line]].r_width.setVisible(True)
-
-        if self.controls.misc_chbx.isChecked():
-            self.header.start_time.setVisible(True)
-            self.header.finish_time.setVisible(True)
-            self.header.save_message.setVisible(True)
-            for line in range(self.show_lines):
-                self.__dict__[self.line_names[line]].save_message.setVisible(True)
-                self.__dict__[self.line_names[line]].start_time.setVisible(True)
-                self.__dict__[self.line_names[line]].finish_time.setVisible(True)
-
-        if not self.controls.tomography_chbx.isChecked() and not self.controls.misc_chbx.isChecked():
-            self.setFixedWidth(self.view1)
-        elif not self.controls.tomography_chbx.isChecked() and self.controls.misc_chbx.isChecked():
-            self.setFixedWidth(self.view2)
-        elif self.controls.tomography_chbx.isChecked() and not self.controls.misc_chbx.isChecked():
-            self.setFixedWidth(self.view3)
-        else:
-            self.setFixedWidth(self.view4)
 
     def line_changed(self):
         checked_lines = []
@@ -273,24 +246,24 @@ class BatchScanGui(QtWidgets.QWidget):
             for i in range(self.show_lines):
                 self.update_npts(i)
 
-    def num_lines_changed(self):
-        show_lines_options = self.num_lines//5
-        for i in range(1, show_lines_options+1):
-            if self.__dict__["N_line_{}".format(i*5)].isChecked():
-                self.show_lines = i*5
-                break
-        for i in range(self.num_lines):
-            if self.__dict__[self.line_names[i]].current_line.isChecked():
-                last_checked = i
-            self.__dict__[self.line_names[i]].setVisible(False)
-        for i in range(self.show_lines):
-            self.__dict__[self.line_names[i]].setVisible(True)
-
-        if last_checked > self.show_lines:
-            self.__dict__[self.line_names[last_checked]].current_line.setChecked(False)
-            self.__dict__[self.line_names[self.show_lines-1]].current_line.setChecked(True)
-        self.view_changed()
-        return
+    # def num_lines_changed(self):
+    #     show_lines_options = self.num_lines//5
+    #     for i in range(1, show_lines_options+1):
+    #         if self.__dict__["N_line_{}".format(i*5)].isChecked():
+    #             self.show_lines = i*5
+    #             break
+    #     for i in range(self.num_lines):
+    #         if self.__dict__[self.line_names[i]].current_line.isChecked():
+    #             last_checked = i
+    #         self.__dict__[self.line_names[i]].setVisible(False)
+    #     for i in range(self.show_lines):
+    #         self.__dict__[self.line_names[i]].setVisible(True)
+    #
+    #     if last_checked > self.show_lines:
+    #         self.__dict__[self.line_names[last_checked]].current_line.setChecked(False)
+    #         self.__dict__[self.line_names[self.show_lines-1]].current_line.setChecked(True)
+    #     self.view_changed()
+    #     return
 
     def update_interval_changed(self):
         intervals = [10,30,60]
@@ -510,7 +483,7 @@ class Controls(QtWidgets.QWidget):
         size3 = 110
         size4 = 200
         size5 = 500
-
+        height = 25
         exclude = set(locals())
         eta_lbl = QtWidgets.QLabel("ETA")
         eta_lbl.setFixedWidth(size1)
@@ -575,12 +548,12 @@ class Controls(QtWidgets.QWidget):
         zero_all_lbl.setFixedWidth(size3)
         self.tomography_chbx = QtWidgets.QCheckBox()
         self.tomography_chbx.setFixedWidth(size2)
-        self.misc_chbx = QtWidgets.QCheckBox()
-        self.misc_chbx.setFixedWidth(size2)
-        self.tomography_lbl = QtWidgets.QLabel("tomography view")
+        # self.misc_chbx = QtWidgets.QCheckBox()
+        # self.misc_chbx.setFixedWidth(size2)
+        self.tomography_lbl = QtWidgets.QLabel("tomography")
         self.tomography_lbl.setFixedWidth(size3)
-        misc_lbl = QtWidgets.QLabel("misc view")
-        misc_lbl.setFixedWidth(size3)
+        # misc_lbl = QtWidgets.QLabel("misc view")
+        # misc_lbl.setFixedWidth(size3)
 
         b1 = QtWidgets.QVBoxLayout()
         b1.addWidget(self.setup_btn)
@@ -589,7 +562,7 @@ class Controls(QtWidgets.QWidget):
         b1.addWidget(self.zero_btn)
         b1.addWidget(self.zero_all_btn)
         b1.addWidget(self.tomography_chbx)
-        b1.addWidget(self.misc_chbx)
+        # b1.addWidget(self.misc_chbx)
         b2 = QtWidgets.QVBoxLayout()
         b2.addWidget(setup_lbl)
         b2.addWidget(self.import_lbl)
@@ -597,7 +570,7 @@ class Controls(QtWidgets.QWidget):
         b2.addWidget(zero_lbl)
         b2.addWidget(zero_all_lbl)
         b2.addWidget(self.tomography_lbl)
-        b2.addWidget(misc_lbl)
+        # b2.addWidget(misc_lbl)
         col2 = QtWidgets.QHBoxLayout()
         col2.addLayout(b1)
         col2.addLayout(b2)
@@ -652,12 +625,12 @@ class Controls(QtWidgets.QWidget):
         col3.addLayout(c2)
 
         self.message_window = QtWidgets.QTextEdit("")
-        self.message_window.setFixedWidth(700)
+        self.message_window.setFixedWidth(600)
         self.message_window.setStyleSheet("background: beige; color: black")
         self.message_window.setReadOnly(True)
 
         self.status_bar = QtWidgets.QLabel("status bar")
-        self.status_bar.setFixedWidth(700)
+        self.status_bar.setFixedWidth(600)
         self.status_bar.setStyleSheet("background: lightgray; color: black")
 
         control_layout = QtWidgets.QHBoxLayout()
@@ -674,7 +647,7 @@ class Controls(QtWidgets.QWidget):
                                    "border-style: solid;"
                                    "border-color: rgb(10, 10, 10)}")
         controlframe.setContentsMargins(0,0,0,0) #left, top,right, bottom
-        controlframe.setFixedWidth(700)
+        controlframe.setFixedWidth(600)
 
         combined = QtWidgets.QVBoxLayout()
         combined.addWidget(controlframe)
@@ -707,6 +680,7 @@ class Controls(QtWidgets.QWidget):
                                            "border-color: white}")
                 # item.setStyleSheet("background: lightgray;color: black; border-radius: 4;")
             elif isinstance(item,QtWidgets.QComboBox):
+                # item.currentIndexChanged.connect(self.validate_params)
                 item.setStyleSheet("background: lightyellow; color: black")
             elif isinstance(item, QtWidgets.QPushButton):
                 item.setStyleSheet("QPushButton {background: lightgreen;color: black; border-radius: 4;}" "QPushButton::pressed {background-color: darkgreen;}")
@@ -717,6 +691,8 @@ class Controls(QtWidgets.QWidget):
 
         self.setStyleSheet("background: white")
         self.setLayout(combined2)
+
+
 
     def validate_params(self):
         for key in self.__dict__:
@@ -752,51 +728,46 @@ class Header(QtWidgets.QWidget):
         size3 = 220
         size4 = 120
         size5 = 75
+        height = 25
         line = QtWidgets.QHBoxLayout()
         self.line = QtWidgets.QLabel("line")
-        self.line.setFixedWidth(size1)
+        self.line.setFixedSize(size1, height)
         self.scan_type = QtWidgets.QLabel("scan \ntype")
-        self.scan_type.setFixedWidth(size1)
+        self.scan_type.setFixedSize(size1, height)
         # self.trajectory = QtWidgets.QLabel("trajectory")
-        # self.trajectory.setFixedWidth(size5)
+        # self.trajectory.setFixedSize(size5, height)
         self.line_action = QtWidgets.QLabel("action")
-        self.line_action.setFixedWidth(size5)
+        self.line_action.setFixedSize(size5, height)
         self.dwell_time = QtWidgets.QLabel("dwell \n(ms)")
-        self.dwell_time.setFixedWidth(size1)
+        self.dwell_time.setFixedSize(size1, height)
         self.x_center = QtWidgets.QLabel("x center")
-        self.x_center.setFixedWidth(size2)
+        self.x_center.setFixedSize(size2,height)
         self.x_points = QtWidgets.QLabel("x points")
-        self.x_points.setFixedWidth(size2)
+        self.x_points.setFixedSize(size2,height)
         self.x_width = QtWidgets.QLabel("x width")
-        self.x_width.setFixedWidth(size2)
+        self.x_width.setFixedSize(size2,height)
         self.y_center = QtWidgets.QLabel("y center")
-        self.y_center.setFixedWidth(size2)
+        self.y_center.setFixedSize(size2,height)
         self.y_points = QtWidgets.QLabel("y points")
-        self.y_points.setFixedWidth(size2)
+        self.y_points.setFixedSize(size2,height)
         self.y_width = QtWidgets.QLabel("y width")
-        self.y_width.setFixedWidth(size2)
+        self.y_width.setFixedSize(size2,height)
         self.comments = QtWidgets.QLabel("comments")
-        self.comments.setFixedWidth(size3)
+        self.comments.setFixedSize(size3,height)
         self.save_message = QtWidgets.QLabel("save message")
-        self.save_message.setFixedWidth(size3)
-        self.save_message.setVisible(False)
+        self.save_message.setFixedSize(size3,height)
         self.start_time = QtWidgets.QLabel("start time")
-        self.start_time.setFixedWidth(size4)
-        self.start_time.setVisible(False)
+        self.start_time.setFixedSize(size4, height)
         self.finish_time = QtWidgets.QLabel("finish time")
-        self.finish_time.setFixedWidth(size4)
-        self.finish_time.setVisible(False)
+        self.finish_time.setFixedSize(size4, height)
         self.r_center = QtWidgets.QLabel("r center")
-        self.r_center.setFixedWidth(size2)
-        self.r_center.setVisible(False)
+        self.r_center.setFixedSize(size2,height)
         self.r_points = QtWidgets.QLabel("r points")
-        self.r_points.setFixedWidth(size2)
-        self.r_points.setVisible(False)
+        self.r_points.setFixedSize(size2,height)
         self.r_width = QtWidgets.QLabel("r width")
-        self.r_width.setFixedWidth(size2)
-        self.r_width.setVisible(False)
+        self.r_width.setFixedSize(size2,height)
         self.global_eta = QtWidgets.QLabel("eta H:M:S")
-        self.global_eta.setFixedWidth(size2)
+        self.global_eta.setFixedSize(size2,height)
 
         myFont = QtGui.QFont()
         myFont.setBold(True)
@@ -845,62 +816,72 @@ class Line(QtWidgets.QWidget):
         size3 = 220
         size4 = 120
         size5 = 75
+        height = 25
         line = QtWidgets.QHBoxLayout()
         self.setStyleSheet("background: white")
         self.current_line = QtWidgets.QRadioButton()
-        self.current_line.setFixedWidth(size1)
+        self.current_line.setText("0")
+        self.current_line.setFixedSize(size1, height)
         self.scan_type = QtWidgets.QPushButton("step", checkable = True)
-        self.scan_type.setFixedWidth(size1)
-        # self.trajectory = QtWidgets.QComboBox()
+        self.scan_type.setFixedSize(size1, height)
+        self.trajectory = QtWidgets.QComboBox()
         trajectories = ["raster","snake","spiral","lissajous","custom"]
-        # self.trajectory.addItems(trajectories)
-        # self.trajectory.setFixedWidth(size5)
+        self.trajectory.addItems(trajectories)
+        self.trajectory.setFixedSize(size5, height)
         self.line_action = QtWidgets.QComboBox()
         actions = ["skip","normal", "pause", "done"]
         self.line_action.addItems(actions)
-        self.line_action.setFixedWidth(size5)
-        self.dwell_time = QtWidgets.QLineEdit("0")
-        self.dwell_time.setFixedWidth(size1)
-        self.x_center = QtWidgets.QLineEdit("0")
-        self.x_center.setFixedWidth(size2)
-        self.x_points = QtWidgets.QLineEdit("0")
-        self.x_points.setFixedWidth(size2)
-        self.x_width = QtWidgets.QLineEdit("0")
-        self.x_width.setFixedWidth(size2)
-        self.y_center = QtWidgets.QLineEdit("0")
-        self.y_center.setFixedWidth(size2)
-        self.y_points = QtWidgets.QLineEdit("0")
-        self.y_points.setFixedWidth(size2)
-        self.y_width = QtWidgets.QLineEdit("0")
-        self.y_width.setFixedWidth(size2)
+        self.line_action.setFixedSize(size5, height)
+        self.dwell_time = QtWidgets.QLineEdit()
+        self.dwell_time.setPlaceholderText("dwell")
+        self.dwell_time.setFixedSize(size1, height)
+        self.x_center = QtWidgets.QLineEdit()
+        self.x_center.setPlaceholderText("x center")
+        self.x_center.setFixedSize(size2, height)
+        self.x_points = QtWidgets.QLineEdit()
+        self.x_points.setPlaceholderText("x points")
+        self.x_points.setFixedSize(size2, height)
+        self.x_width = QtWidgets.QLineEdit()
+        self.x_width.setPlaceholderText("x width")
+        self.x_width.setFixedSize(size2,height)
+        self.y_center = QtWidgets.QLineEdit()
+        self.y_center.setPlaceholderText("y center")
+        self.y_center.setFixedSize(size2,height)
+        self.y_points = QtWidgets.QLineEdit()
+        self.y_points.setPlaceholderText("y points")
+        self.y_points.setFixedSize(size2,height)
+        self.y_width = QtWidgets.QLineEdit()
+        self.y_width.setPlaceholderText("y width")
+        self.y_width.setFixedSize(size2,height)
+        self.r_center = QtWidgets.QLineEdit()
+        self.r_center.setPlaceholderText("r center")
+        self.r_center.setFixedSize(size2,height)
+        self.r_points = QtWidgets.QLineEdit()
+        self.r_points.setPlaceholderText("r points")
+        self.r_points.setFixedSize(size2,height)
+        self.r_width = QtWidgets.QLineEdit()
+        self.r_width.setPlaceholderText("r width")
+        self.r_width.setFixedSize(size2,height)
         self.comments = QtWidgets.QLineEdit("")
-        self.comments.setFixedWidth(size3)
+        self.comments.setPlaceholderText("notes:")
+        self.comments.setFixedSize(size3,height)
         self.save_message = QtWidgets.QLabel("")
-        self.save_message.setFixedWidth(size3)
-        self.save_message.setVisible(False)
+        self.save_message.setText("save message")
+        self.save_message.setFixedSize(size3,height)
         self.start_time = QtWidgets.QLabel("")
-        self.start_time.setFixedWidth(size4)
-        self.start_time.setVisible(False)
+        self.start_time.setText("start time")
+        self.start_time.setFixedSize(size4, height)
         self.finish_time = QtWidgets.QLabel("")
-        self.finish_time.setFixedWidth(size4)
-        self.finish_time.setVisible(False)
-        self.r_center = QtWidgets.QLineEdit("0")
-        self.r_center.setFixedWidth(size2)
-        self.r_center.setVisible(False)
-        self.r_points = QtWidgets.QLineEdit("0")
-        self.r_points.setFixedWidth(size2)
-        self.r_points.setVisible(False)
-        self.r_width = QtWidgets.QLineEdit("0")
-        self.r_width.setFixedWidth(size2)
-        self.r_width.setVisible(False)
+        self.finish_time.setText("finish time")
+        self.finish_time.setFixedSize(size4, height)
         self.line_eta = QtWidgets.QLabel("00:00:00")
-        self.line_eta.setFixedWidth(size2)
+        self.line_eta.setFixedSize(size2,height)
 
 
         for key in self.__dict__:
             item = getattr(self,key)
-            # if key == "trajectory":
-            #     item.currentIndexChanged.connect(self.trajector_changed)
+            if key == "trajectory":
+                item.currentIndexChanged.connect(self.trajector_changed)
             if key == "line_action":
                 item.currentIndexChanged.connect(self.line_valid)
             if isinstance(item, QtWidgets.QLineEdit):
@@ -908,6 +889,10 @@ class Line(QtWidgets.QWidget):
                 item.textChanged.connect(self.calculate_line_eta)
                 item.returnPressed.connect(self.calculate_line_eta)
                 item.editingFinished.connect(self.params_changed)
+
+            elif isinstance(item, QtWidgets.QComboBox):
+                item.currentIndexChanged.connect(self.validate_params)
+
             elif isinstance(item,QtWidgets.QPushButton):
                 item.clicked.connect(self.scan_type_clicked)
                 item.clicked.connect(self.calculate_line_eta)
@@ -930,6 +915,7 @@ class Line(QtWidgets.QWidget):
             self.y_points.setEnabled(True)
             self.y_width.setEnabled(True)
         elif self.trajectory.currentText() == "spiral":
+            #TODO: change placeholder txt to match spiral parameters
             self.x_center.setEnabled(True)
             self.x_points.setEnabled(True)
             self.x_width.setEnabled(True)
@@ -937,6 +923,7 @@ class Line(QtWidgets.QWidget):
             self.y_points.setEnabled(False)
             self.y_width.setEnabled(False)
         elif self.trajectory.currentText() == "lissajous":
+            #TODO: change placeholder txt to match lisa parameters
             self.x_center.setEnabled(True)
             self.x_points.setEnabled(True)
             self.x_width.setEnabled(True)
@@ -944,6 +931,8 @@ class Line(QtWidgets.QWidget):
             self.y_points.setEnabled(False)
             self.y_width.setEnabled(False)
         elif self.trajectory.currentText() == "custom":
+            #TODO: change placeholder txt to match lisa parameters
+            #TODO: blank out parameter fields.
             self.x_center.setEnabled(False)
             self.x_points.setEnabled(False)
             self.x_width.setEnabled(False)
@@ -983,8 +972,6 @@ class Line(QtWidgets.QWidget):
                 try:
                     if key == "comments":
                         pass
-                    elif not item.isEnabled():
-                        item.setStyleSheet("background: lightblue; color: lightblue; border-radius: 4")
 
                     elif eval(item.text())%1>=0 and (key == "r_center" or key == "x_center" or key == "y_center" or key == "x_width" or key == "y_width" or key == "r_width"):
                         item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
@@ -998,8 +985,14 @@ class Line(QtWidgets.QWidget):
                         item.setStyleSheet("background: lightcoral; color: black; border-radius: 4")
                     if self.line_action.currentText() == "skip":
                         item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
+
+                    if not item.isEnabled():
+                        item.setStyleSheet("background: lightblue; color: lightblue; border-radius: 4")
                 except:
-                    item.setStyleSheet("background: lightcoral; color: black; border-radius: 4")
+                    if self.line_action.currentText() == "skip":
+                        item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
+                    else:
+                        item.setStyleSheet("background: lightcoral; color: black; border-radius: 4")
 
         self.line_valid()
 
@@ -1078,8 +1071,6 @@ class Line(QtWidgets.QWidget):
             velocity_violation = True
             pass
 
-
-
         if (x_center - abs(x_width)/2) <= x_llm or (x_center + abs(x_width)/2) >= x_hlm or (y_center - abs(y_width)/2) <= y_llm or (y_center + abs(y_width)/2) >= y_hlm:
             print((x_center - abs(x_width)/2), x_llm, (x_center + abs(x_width)/2), x_hlm, (y_center - abs(y_width)/2), y_llm, (y_center + abs(y_width)/2), y_hlm)
             print("scan outside motor limits")
@@ -1121,73 +1112,62 @@ class Line(QtWidgets.QWidget):
                 pass
         return
     def calculate_line_eta(self):
-        hms = str(timedelta(seconds=int(0)))
-        #if any textedit in line is invalid (lihtcoral), return eta of "invalid"
-        invalid = 0
-        if self.dwell_time.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
-            invalid = 1
-        if self.x_center.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
-            invalid = 1
-        if self.x_points.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
-            invalid = 1
-        if self.x_width.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
-            invalid = 1
-        if self.y_center.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
-            invalid = 1
-        if self.y_points.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
-            invalid = 1
-        if self.y_width.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
-            invalid = 1
-        if self.r_center.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
-            invalid = 1
-        if self.r_points.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
-            invalid = 1
-        if self.r_width.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
-            invalid = 1
-
-        if invalid:
-            self.line_eta.setText(hms)
-            self.eta= timedelta(seconds=0)
-            return
-        dwell = float(self.dwell_time.text())/1000
-        r_points = 0
-        seconds_total = 0
-        x_points = int(self.x_points.text())
-        x_width = float(self.x_width.text())
-        y_points = int(self.y_points.text())
-        y_width = float(self.y_width.text())
-        scan_type = self.scan_type.text()
-        # trajectory = self.trajectory.currentText()
-        overhead = 1.18
-
-        if self.r_center.isVisible():
-            r_points = int(self.r_points.text())
-            r_width = float(self.r_width.text())
-
-        # if trajectory == "raster" or trajectory == "snake":
-        #     width_not_zero = (x_width*y_width>0)*1
-        #     seconds_total = dwell*x_points*y_points + (overhead*y_points)*width_not_zero
-        #
-        # if trajectory == "spiral" or trajectory == "lissajous" or trajectory == "custom":
-        #     seconds_total = dwell*x_points*overhead
-
-        width_not_zero = (x_width>0)*1
-        seconds_total = dwell*x_points*y_points + (overhead*y_points)*width_not_zero
-
-        if self.r_center.isVisible() and r_points > 0:
-            seconds_total = seconds_total*r_points
-
-        hms = str(timedelta(seconds=int(seconds_total)))
-        self.line_eta.setText(hms)
         try:
+            hms = str(timedelta(seconds=int(0)))
+            #if any textedit in line is invalid (lihtcoral), return eta of "invalid"
+            invalid = 0
+            if self.dwell_time.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+                invalid = 1
+            if self.x_center.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+                invalid = 1
+            if self.x_points.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+                invalid = 1
+            if self.x_width.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+                invalid = 1
+            if self.y_center.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+                invalid = 1
+            if self.y_points.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+                invalid = 1
+            if self.y_width.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+                invalid = 1
+            if self.r_center.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+                invalid = 1
+            if self.r_points.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+                invalid = 1
+            if self.r_width.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+                invalid = 1
+
+            if invalid:
+                self.line_eta.setText(hms)
+                self.eta= timedelta(seconds=0)
+                return
+            dwell = float(self.dwell_time.text())/1000
+            r_points = 0
+            x_points = int(self.x_points.text())
+            x_width = float(self.x_width.text())
+            y_points = int(self.y_points.text())
+            overhead = 1.18
+
+            width_not_zero = (x_width>0)*1
+            seconds_total = dwell*x_points*y_points + (overhead*y_points)*width_not_zero
+
+            if self.r_center.isVisible():
+                r_points = int(self.r_points.text())
+            if self.r_center.isVisible() and r_points > 0:
+                seconds_total = seconds_total*r_points
+
+            hms = str(timedelta(seconds=int(seconds_total)))
+            self.line_eta.setText(hms)
             hrs = int(hms.split(":")[0]) * 60 * 60
             min = int(hms.split(":")[1]) * 60
             sec = int(hms.split(":")[2])
             total_s = sec + min + hrs
-        except:
+
+            self.eta = timedelta(seconds=total_s)
             return
-        self.eta = timedelta(seconds=total_s)
-        return
+        except Exception as error:
+            print(error)
+            return
 
 class ImageView(pyqtgraph.GraphicsLayoutWidget):
     def __init__(self):
