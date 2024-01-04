@@ -63,8 +63,9 @@ class Launcher(QtWidgets.QWidget):
         time.sleep(3)
         msg = client.recv()
 
-        #try sockets instead: https://stackoverflow.com/questions/65459872/how-can-i-have-client-socket-continue-listening-for-server-in-python
-
+        #try sockets instead:
+        # https://stackoverflow.com/questions/65459872/how-can-i-have-client-socket-continue-listening-for-server-in-python
+        # https: // stackoverflow.com / questions / 10810249 / python - socket - multiple - clients
 
         #TODO: check if server is running:
         # if server_running(host_address):
@@ -73,7 +74,7 @@ class Launcher(QtWidgets.QWidget):
         #   get_scan_status
         #   get_etc_status
         #   update gui
-        
+
         # if not server_running(host_address):
         #   check if hostcomputer online:
 
