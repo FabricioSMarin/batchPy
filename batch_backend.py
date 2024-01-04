@@ -52,6 +52,21 @@ class BatchSetup(object):
         self.dwell = 10
         self.fast_speed = 10
 
+    def init_server(self):
+        #TODO: start this in a thread
+        from multiprocessing.connection import Listener, Client
+        address = ('localhost', 6000)  # family is deduced to be 'AF_INET'
+        srvr = Listener(address, authkey=b'secret password')
+        conn = srvr.accept()
+        while True:
+            msg = conn.recv()
+            # do something with msg
+            conn.send("message received")
+            if msg == 'close':
+                conn.close()
+                break
+        srvr.close()
+
     def create_xspress3(self,prefix):
         try:
             xp3 = epics.Device(prefix+"det1:", attrs=("DetectorState_RBV", "NumImages", "AcquireTime",

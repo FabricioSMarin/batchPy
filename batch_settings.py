@@ -290,7 +290,10 @@ class ScanSettings(QtWidgets.QWidget):
 
         with open(file[0],'rb') as f:
             contents = pickle.load(f)
-            filetype = contents[0]
+            if f.name.split(".")[-1] != "pkl" or contents[0] != "settings":
+                print("incorrect filetype or not a settings file")
+                return
+
             last_opened = contents[1]
             settings = contents[2]
             self.fname = file[0].split("/")[-1]
@@ -299,7 +302,7 @@ class ScanSettings(QtWidgets.QWidget):
                 try:
                     key.setText(settings[i])
                 except:
-                    print("failed to set {} to {}".format(key,settings[i]))
+                    print("failed to load some settings")
             f.close()
         return
 
@@ -343,7 +346,7 @@ class ScanSettings(QtWidgets.QWidget):
                     except IndexError:
                         print("settings list changed, ned to discard and update new settings file")
                     except:
-                        print("cannot put {} in {}".format(settings[i], key))
+                        print("cannot set some settings")
         return
 
 
@@ -410,47 +413,7 @@ class ScanSettings(QtWidgets.QWidget):
             self.setup_window.softgluezynq.setVisible(False)
         pass
 
-    # def start_threads(self):
-    #     # Create new threads
-    #     self.thread1 = myThreads(1, "countdown")
-    #     self.thread1.countSig.connect(self.update_lcd)
-    #     self.thread1.start()
-    #
-    # def stop_threads(self):
-    #     self.thread1.terminate()
-    #     self.thread1.wait()
 
-
-# class myThreads(threading.Thread,QtCore.QObject):
-# class myThreads(QtCore.QThread):
-#     countSig = pyqtSignal(int, name='countSig')
-#
-#     def __init__(self, threadID, name):
-#         QtCore.QThread.__init__(self)
-#         self.threadID = threadID
-#         self.name = name
-#         # self.pv_dict = pv_dict
-#         self.exit_flag = 0
-#
-#
-#     def run(self):
-#         print ("Starting " + self.name)
-#         if self.name == "countdown":
-#             self.countdown(int(10))
-#         return
-#
-#     def countdown(self, t):
-#         t_original = t
-#         while t:
-#             time.sleep(1)
-#             t -= 1
-#             if t==0 and self.exit_flag==0:
-#                 t=t_original
-#             if self.exit_flag:
-#                 break
-#             else:
-#                 self.countSig.emit(t)   #update counter
-#         return
 class Setup(QtWidgets.QWidget):
     def __init__(self):
         super(Setup, self).__init__()

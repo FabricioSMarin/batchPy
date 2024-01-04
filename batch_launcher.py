@@ -1,3 +1,5 @@
+import multiprocessing.connection
+
 import numpy as np
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import pyqtSignal
@@ -48,6 +50,43 @@ class Launcher(QtWidgets.QWidget):
 
         self.start_threads()
         # sys.exit(self.app.exec())
+
+    def connect_server(self):
+        #TODO: check if host machine is online. if it is, continue, else return.
+        from multiprocessing.connection import Listener, Client
+        address = ('localhost', 6000)  # family is deduced to be 'AF_INET'
+        client = Client(address, authkey=b'secret password')
+        multiprocessing.connection.Client.connect
+
+        # TODO: check if backend process is active.
+        client.send("alive?")
+        time.sleep(3)
+        msg = client.recv()
+
+        #try sockets instead: https://stackoverflow.com/questions/65459872/how-can-i-have-client-socket-continue-listening-for-server-in-python
+
+
+        #TODO: check if server is running:
+        # if server_running(host_address):
+        #   get_detector_status
+        #   get_motor_status
+        #   get_scan_status
+        #   get_etc_status
+        #   update gui
+        
+        # if not server_running(host_address):
+        #   check if hostcomputer online:
+
+        #TODO: problems/challenges
+        # check if server still listening
+        # establish client/server connection
+        # establish client/server connection from new client
+        # re-establish connection after client disconnects
+        # startup server remotely
+        # server check when client disconnects.
+        #
+
+
 
     def settings_changed(self):
         scan_generator = self.settings.setup_window.scan_generator.text()

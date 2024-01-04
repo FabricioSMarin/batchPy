@@ -59,8 +59,6 @@ class BatchScanGui(QtWidgets.QWidget):
 
         self.scroll = QScrollArea()
         self.scroll_widget = QWidget()
-
-        lineframe = QtWidgets.QFrame()
         tmp_layout = QtWidgets.QVBoxLayout()
         for i in range(self.num_lines):
             line = self.__dict__[self.line_names[i]]
@@ -71,51 +69,25 @@ class BatchScanGui(QtWidgets.QWidget):
 
         self.scroll_widget.setLayout(tmp_layout)
         self.scroll_widget.setStyleSheet("QFrame {background-color: rgb(255, 255, 255);border-width: 1;border-radius: 3;border-style: solid;border-color: rgb(10, 10, 10)}")
-        # self.scroll_widget.setContentsMargins(0,0,0,0) #left, top,right, bottom
-        self.scroll_widget.setMaximumWidth(1600)
+        self.scroll_widget.setMaximumWidth(1700)
         self.scroll.setWidget(self.scroll_widget)
 
         layout = QtWidgets.QVBoxLayout()
-        # layout.addWidget(self.header)
         layout.addWidget(self.scroll)
         layout.addWidget(self.controls)
         layout.setSpacing(0)
-        # layout.setContentsMargins(10,5,10,10) #left, top,right, bottom
 
         self.setLayout(layout)
         self.setStyleSheet("background: white")
         self.line_0.current_line.setChecked(True)
         self.closeAction = QAction(' &close', self)
         self.closeAction.setShortcut(' Ctrl+Q')
-        # self.initRecordAction = QAction(" &init scan record", self)
-        # self.initPVsAction = QAction(" init PVs ", self)
-        # self.openAction = QAction(' &open PV config', self)
-        # self.openAction.setShortcut(' Ctrl+O')
-        # self.saveAction = QAction(' &save session', self)
-        # self.saveAction.setShortcut(' Ctrl+S')
         self.exportScanParamsAction = QAction(' &export scan parameters', self)
         self.exportScanParamsAction.triggered.connect(self.export_scan_params)
         self.importScanParamsAction = QAction(' &import scan parameters', self)
         self.importScanParamsAction.triggered.connect(self.import_scan_params)
         self.controls.tomography_chbx.clicked.connect(self.view_changed)
-        # self.tomoAction = QAction(' tomo view', self, checkable=True)
-        # self.tomoAction.triggered.connect(self.view_changed)
-        # self.miscviewAction = QAction(' misc view', self, checkable=True)
-        # self.miscviewAction.triggered.connect(self.view_changed)
-        # self.miscviewAction.setChecked(True)
         self.view_changed()
-
-        # show_lines = QtWidgets.QMenu("show N lines", self)
-        # show_lines.setStyleSheet("background-color: rgb(49,49,49); color: rgb(255,255,255); border: 1px solid #000;")
-        # ag = QActionGroup(show_lines)
-        # ag.setExclusive(True)
-        # show_lines_options = self.num_lines//5
-        # for i in range(1,show_lines_options+1):
-        #     #dynamically create instance variable N_line_N and set it to an action
-        #     setattr(self, "N_line_{}".format(str(i*5)), ag.addAction(QAction(str(i*5), show_lines, checkable=True)))
-        #     show_lines.addAction(self.__dict__["N_line_{}".format(i*5)])
-        #     self.__dict__["N_line_{}".format(i*5)].triggered.connect(self.num_lines_changed)
-        # self.num_lines_changed()
 
         update_interval = QtWidgets.QMenu("update interval (s)", self)
         update_interval.setStyleSheet("background-color: rgb(49,49,49); color: rgb(255,255,255); border: 1px solid #000;")
@@ -625,12 +597,12 @@ class Controls(QtWidgets.QWidget):
         col3.addLayout(c2)
 
         self.message_window = QtWidgets.QTextEdit("")
-        self.message_window.setFixedWidth(600)
+        self.message_window.setFixedWidth(700)
         self.message_window.setStyleSheet("background: beige; color: black")
         self.message_window.setReadOnly(True)
 
         self.status_bar = QtWidgets.QLabel("status bar")
-        self.status_bar.setFixedWidth(600)
+        self.status_bar.setFixedWidth(700)
         self.status_bar.setStyleSheet("background: lightgray; color: black")
 
         control_layout = QtWidgets.QHBoxLayout()
@@ -647,7 +619,7 @@ class Controls(QtWidgets.QWidget):
                                    "border-style: solid;"
                                    "border-color: rgb(10, 10, 10)}")
         controlframe.setContentsMargins(0,0,0,0) #left, top,right, bottom
-        controlframe.setFixedWidth(600)
+        controlframe.setFixedWidth(700)
 
         combined = QtWidgets.QVBoxLayout()
         combined.addWidget(controlframe)
