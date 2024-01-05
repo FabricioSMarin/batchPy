@@ -78,15 +78,6 @@ class Launcher(QtWidgets.QWidget):
         # if not server_running(host_address):
         #   check if hostcomputer online:
 
-        #TODO: problems/challenges
-        # check if server still listening
-        # establish client/server connection
-        # establish client/server connection from new client
-        # re-establish connection after client disconnects
-        # startup server remotely
-        # server check when client disconnects.
-        #
-
 
 
     def settings_changed(self):
