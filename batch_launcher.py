@@ -26,28 +26,13 @@ class Launcher(QtWidgets.QWidget):
 
         self.gui = batch_gui.BatchScanGui()
         self.backend = batch_backend.BatchSetup()
-        self.settings = batch_settings.ScanSettings()
-        self.settings.settings_closed_sig.connect(self.settings_changed)
-        self.gui.closeAction.triggered.connect(sys.exit)
-        # self.gui.initRecordAction.triggered.connect(self.backend.init_scan_record)
-        # self.gui.initPVsAction.triggered.connect(self.backend.connect_pvs)
-        # self.gui.openAction.triggered.connect(self.open_PVconfig)
-        self.gui.controls.setup_btn.clicked.connect(self.settings.show)
-        self.gui.controls.setup_btn.clicked.connect(self.settings.openEvent)
         self.gui.controls.import_btn.clicked.connect(self.import_clicked)
         self.gui.controls.export_btn.clicked.connect(self.export_clicked)
-        self.gui.controls.zero_btn.clicked.connect(self.zero_clicked)
-        self.gui.controls.zero_all_btn.clicked.connect(self.zero_all_clicked)
         self.gui.controls.begin_btn.clicked.connect(self.begin_clicked)
         self.gui.controls.pause_btn.clicked.connect(self.pause_clicked)
         self.gui.controls.continue_btn.clicked.connect(self.continue_clicked)
-        self.gui.controls.abort_btn.clicked.connect(self.abort_line_clicked)
-        self.gui.controls.abort_all_btn.clicked.connect(self.abort_all_clicked)
-        self.gui.controls.points.clicked.connect(self.calculate_points_clicked)
-        self.gui.controls.points_all.clicked.connect(self.calculate_all_points_clicked)
-
+        self.gui.controls.abort_btn.clicked.connect(self.abort_clicked)
         sys.stdout = Stream(newText=self.onUpdateText)
-
         self.start_threads()
         # sys.exit(self.app.exec())
 
@@ -63,10 +48,6 @@ class Launcher(QtWidgets.QWidget):
         time.sleep(3)
         msg = client.recv()
 
-        #try sockets instead:
-        # https://stackoverflow.com/questions/65459872/how-can-i-have-client-socket-continue-listening-for-server-in-python
-        # https: // stackoverflow.com / questions / 10810249 / python - socket - multiple - clients
-
         #TODO: check if server is running:
         # if server_running(host_address):
         #   get_detector_status
@@ -79,113 +60,7 @@ class Launcher(QtWidgets.QWidget):
         #   check if hostcomputer online:
 
 
-
-    def settings_changed(self):
-        scan_generator = self.settings.setup_window.scan_generator.text()
-        pv_status = self.settings.pv_status
-
-        self.xrf_connected = pv_status["xrf"][2]
-        self.eiger_connected = pv_status["eiger"][2]
-        self.struck_connected = pv_status["struck"][2]
-        self.x_motor_connected = pv_status["x_motor"][2]
-        self.y_motor_connected = pv_status["y_motor"][2]
-        self.r_motor_connected = pv_status["r_motor"][2]
-
-        if scan_generator == "profile move":
-            self.gui.controls.import_btn.setVisible(False)
-            self.gui.controls.export_btn.setVisible(False)
-            self.gui.controls.import_lbl.setVisible(False)
-            self.gui.controls.export_lbl.setVisible(False)
-            self.gui.controls.backup_scanrecord_btn.setVisible(False)
-            self.gui.controls.backup_scanrecord_lbl.setVisible(False)
-            self.trajectory = self.settings.setup_window.trajectory_cbbx.currentText()
-            self.profile_move_connected = pv_status["profile_move"][2]
-            self.softgluezynq_connected = pv_status["softgluezynq"][2]
-            if not self.profile_move_connected or not self.softgluezynq_connected or not self.x_motor_connected or not self.y_motor_connected:
-                self.gui.controls.begin_btn.setDisabled(True)
-                self.gui.controls.pause_btn.setDisabled(True)
-                self.gui.controls.continue_btn.setDisabled(True)
-            else:
-                self.gui.controls.begin_btn.setDisabled(False)
-                self.gui.controls.pause_btn.setDisabled(False)
-                self.gui.controls.continue_btn.setDisabled(False)
-            if not self.xrf_connected:
-                # TODO: skip xspress3 setup in backend.
-                pass
-            if not self.eiger_connected:
-                # TODO: skip eiger setup in backend.
-                pass
-
-        elif scan_generator == "ACS program buffer":
-            pass
-            # self.gui.controls.import_btn.setVisible(False)
-            # self.gui.controls.export_btn.setVisible(False)
-            # self.gui.controls.import_lbl.setVisible(False)
-            # self.gui.controls.export_lbl.setVisible(False)
-            # self.trajectory = self.settings.setup_window.trajectory_cbbx.currentText()
-            # self.softgluezynq_connected = pv_status["softgluezynq"][2]
-            # if not self.softgluezynq_connected or not self.x_motor_connected or not self.y_motor_connected:
-            #     self.gui.controls.begin_btn.setDisabled(True)
-            #     self.gui.controls.pause_btn.setDisabled(True)
-            #     self.gui.controls.continue_btn.setDisabled(True)
-            # else:
-            #     self.gui.controls.begin_btn.setDisabled(False)
-            #     self.gui.controls.pause_btn.setDisabled(False)
-            #     self.gui.controls.continue_btn.setDisabled(False)
-            # if not self.xrf_connected:
-            #     # TODO: skip xspress3 setup in backend.
-            #     pass
-            # if not self.eiger_connected:
-            #     # TODO: skip eiger setup in backend.
-            #     pass
-
-        elif scan_generator == "scan record":
-            self.gui.controls.import_btn.setVisible(True)
-            self.gui.controls.export_btn.setVisible(True)
-            self.gui.controls.import_lbl.setVisible(True)
-            self.gui.controls.export_lbl.setVisible(True)
-            self.gui.controls.backup_scanrecord_btn.setVisible(True)
-            self.gui.controls.backup_scanrecord_lbl.setVisible(True)
-            self.trajectory = "raster"
-            self.inner_before_wait_connected = pv_status["inner_before_wait"][2]
-            self.inner_after_wait_connected = pv_status["inner_after_wait"][2]
-            self.outer_before_wait_connected = pv_status["outer_before_wait"][2]
-            self.outer_after_wait_connected = pv_status["outer_after_wait"][2]
-            self.delay_calc_connected = pv_status["delay_calc"][2]
-            self.save_data_connected = pv_status["save_data"][2]
-            self.scan_inner_connected = pv_status["scan_inner"][2]
-            self.scan_outer_connected = pv_status["scan_outer"][2]
-            self.scan_inner_extra_connected = pv_status["scan_inner_extra"][2]
-            self.scan_outer_extra_connected = pv_status["scan_outer_extra"][2]
-            if not self.inner_before_wait_connected or not self.inner_after_wait_connected or not self.outer_before_wait_connected or not self.outer_after_wait_connected:
-                #TODO: use different way of checking before and after scans.
-                pass
-
-            if not self.delay_calc_connected:
-                #TODO: signal to backend to change positioner from delay_calc to regular positioner PV
-                pass
-            if not self.scan_inner_connected or not self.scan_outer_connected or not self.save_data_connected or not self.struck_connected or not self.x_motor_connected or not self.y_motor_connected:
-                # self.gui.controls.begin_btn.setDisabled(True)
-                # self.gui.controls.pause_btn.setDisabled(True)
-                # self.gui.controls.continue_btn.setDisabled(True)
-                pass
-            else:
-                # self.gui.controls.begin_btn.setDisabled(False)
-                # self.gui.controls.pause_btn.setDisabled(False)
-                # self.gui.controls.continue_btn.setDisabled(False)
-                pass
-
-
-        # if not self.r_motor_connected:
-        #     self.gui.controls.tomography_chbx.setVisible(False)
-        #     self.gui.controls.tomography_lbl.setVisible(False)
-        # else:
-        #     self.gui.controls.tomography_chbx.setVisible(True)
-        #     self.gui.controls.tomography_lbl.setVisible(True)
-
-
     def onUpdateText(self, text):
-        # self.gui.controls.message_window.setText(text)
         cursor = self.gui.controls.message_window.textCursor()
         cursor.insertText(text)
         self.gui.controls.message_window.setTextCursor(cursor)
@@ -227,75 +102,20 @@ class Launcher(QtWidgets.QWidget):
             print(e)
             pass
 
-    def calculate_global_eta(self):
-        # TODO: global ETA not working
-        eta = []
-        line_status = []
-        line_action = []
-        lines = []
-        for key in vars(self.gui):
-            if isinstance(vars(self.gui)[key], batch_gui.Line):
-                lines.append(vars(vars(self.gui)[key]))
-
-        for i, line in enumerate(lines):
-            #TODO Somewhere in here causes the program to crash
-            if line["line_action"].currentText() == "normal":
-                eta_str = line["line_eta"].text()
-                hrs = int(eta_str.split(":")[0]) * 60 * 60
-                min = int(eta_str.split(":")[1]) * 60
-                sec = int(eta_str.split(":")[2])
-                total_s = sec + min + hrs
-                if line["line_action"].currentText() == "normal":
-                    if line["scan_type"].text() == "step":
-                        try:
-                            line_eta = (self.backend.Scan1.CPT/self.backend.Scan1.NPTS) * total_s
-                        except:
-                            line_eta = 0
-                            pass
-
-                    else:
-                        try:
-                            line_eta = (self.backend.Fscan1.CPT/self.backend.Fscan1.NPTS) * total_s
-                        except:
-                            line_eta = 0
-                    eta.append(line_eta)
-                else:
-                    eta.append(total_s)
-        self.gui.controls.eta.setText(str(timedelta(seconds=sum(eta))))
-        return
-
-    # def open_PVconfig(self):
-    #     if self.gui.active_line != -1:
-    #         print("scan in progress, cannot open PV config right now.")
-    #     else:
-    #         print("Opening PV config file")
-    #         current_dir = os.path.dirname(os.path.abspath(__file__))+"/"
-    #         file = QtWidgets.QFileDialog.getOpenFileName(directory=current_dir, filter="*.pkl")
-    #         if file[0] == '':
-    #             return
-    #         self.backend.open_settings(file[0])
 
     def update_plot(self):
         try:
             # self.gui.controls.view_box.p1.clear()
             x_pos, y_pos = self.get_scan_progress()
-            scan = self.get_scan(self.gui.active_line)
+            scan = self.gui.get_scan(self.gui.active_line)
             # scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell, r_center, r_width, r_npts
             idx = y_pos*scan[3]+x_pos
-            x_arr,y_arr = self.get_trajectory()
+            x_arr,y_arr = self.gui.get_trajectory()
             self.gui.controls.view_box.plott(x_arr[:idx],y_arr[:idx])
             return
         except:
             return
 
-    def set_plot(self):
-        try:
-            x_arr, y_arr = self.get_trajectory()
-            self.gui.controls.view_box.data_trajectory.setData(x_arr, y_arr)
-            self.gui.controls.view_box.p1.setXRange(x_arr.min(),x_arr.max())
-            self.gui.controls.view_box.p1.setYRange(y_arr.min(),y_arr.max())
-        except:
-            return
     def get_scan_progress(self):
         try:
             x_pos = self.backend.x_motor.RBV
@@ -304,53 +124,12 @@ class Launcher(QtWidgets.QWidget):
             width = self.backend.inner.P1WD
             points = self.backend.inner.NPTS
             faze = self.backend.inner.FAZE
-
-
             if faze == 8:
                 current_x_pos = int(points)
             else:
                 current_x_pos = int(points*(x_pos - start)/(width))
             current_y_pos = self.backend.outer.CPT
             return current_x_pos, current_y_pos
-        except:
-            return
-    def get_trajectory(self):
-        line = [vars(self.gui)[i] for i in self.gui.line_names][self.gui.active_line]
-        scan = self.get_scan(self.gui.active_line)
-        # scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell, r_center, r_width, r_npts
-        try:
-            if line.trajectory.currentText() == "raster":
-                x_line = np.arange(scan[1] - abs(scan[2])/2, scan[1] + abs(scan[2])/2, abs(scan[2])/scan[3])
-                x_coords = np.zeros((scan[6],scan[3]))
-                for i in range(scan[6]):
-                    x_coords[i] = x_line
-                x_coords = np.ndarray.flatten(x_coords)
-
-                y_line = np.arange(scan[4] - abs(scan[5])/2, scan[4] + abs(scan[5])/2, abs(scan[5])/scan[6])
-                y_coords = np.zeros((scan[6], scan[3]))
-                for i in range(scan[6]):
-                    y_coords[i] = np.ones(scan[3])*y_line[i]
-                y_coords = np.ndarray.flatten(y_coords)
-                return x_coords, y_coords
-
-            elif line.trajectory.currentText() == "snake":
-                x_line = np.arange(scan[1] - scan[2] / 2, scan[1] + scan[2] / 2, scan[2] / scan[3])
-                x_coords = np.zeros((scan[6], scan[3]))
-                for i in range(scan[6]):
-                    if i%2 == 1:
-                        x_coords[:i] = np.fliplr(x_line)
-                    else:
-                        x_coords[:i] = x_line
-                x_coords = np.ndarray.flatten(x_coords)
-
-                y_line = np.arange(scan[4] - scan[5] / 2, scan[4] + scan[5] / 2, scan[4] / scan[6])
-                y_coords = np.zeros((scan[6], scan[3]))
-                for i in range(scan[6]):
-                    y_coords[:i] = np.ones(scan[3]) * y_line[i]
-                y_coords = np.ndarray.flatten(y_coords)
-                return x_coords, y_coords
-            else:
-                return
         except:
             return
 
@@ -377,8 +156,6 @@ class Launcher(QtWidgets.QWidget):
         pass
 
     # def setup_clicked(self):
-
-
         # cwd = os.path.dirname(os.path.abspath(__file__))+"/"
         # subprocess.Popen(["python", "{}batch_settings.py".format(cwd)])
 
@@ -438,41 +215,6 @@ class Launcher(QtWidgets.QWidget):
             self.backend.Fscan1.NPTS = lines[checked].y_points.text()
             self.backend.Fscan1.P1WD = lines[checked].y_width.text()
 
-    def zero_clicked(self):
-        lines = [vars(self.gui)[i] for i in self.gui.line_names]
-        checked = [line.current_line.isChecked() for line in lines].index(True)
-        lines[checked].dwell_time.setText("")
-        lines[checked].x_center.setText("")
-        lines[checked].x_points.setText("")
-        lines[checked].x_width.setText("")
-        lines[checked].y_center.setText("")
-        lines[checked].y_points.setText("")
-        lines[checked].y_width.setText("")
-        lines[checked].r_center.setText("")
-        lines[checked].r_points.setText("")
-        lines[checked].r_width.setText("")
-        lines[checked].save_message.setText("")
-        lines[checked].start_time.setText("")
-        lines[checked].finish_time.setText("")
-
-    def zero_all_clicked(self):
-        lines = [vars(self.gui)[i] for i in self.gui.line_names]
-        for line in lines:
-            line.dwell_time.setText("")
-            line.x_center.setText("")
-            line.x_points.setText("")
-            line.x_width.setText("")
-            line.y_center.setText("")
-            line.y_points.setText("")
-            line.y_width.setText("")
-            line.r_center.setText("")
-            line.r_points.setText("")
-            line.r_width.setText("")
-            line.comments.setText("")
-            line.save_message.setText("")
-            line.start_time.setText("")
-            line.finish_time.setText("")
-
     def begin_clicked(self):
         if self.gui.active_line != -1:
             # self.gui.controls.begin_btn.setEnabled(False)
@@ -493,8 +235,8 @@ class Launcher(QtWidgets.QWidget):
         line.start_time.setText(format_datetime)
         line.setStyleSheet("background: yellow")
         line.setAutoFillBackground(True)
-        scan = self.get_scan(first_line)
-        self.set_plot()
+        scan = self.gui.get_scan(first_line)
+        self.gui.set_plot()
         self.gui.controls.status_bar.setText("scanning line {}".format(first_line))
         print("running scanline: {}".format(first_line))
         self.backend.done = False
@@ -513,31 +255,13 @@ class Launcher(QtWidgets.QWidget):
         self.timer.start()
         self.timer_thread.start()
 
-        if self.gui.tomoAction.isChecked() and self.tomo_valid(first_line):
+        if self.gui.tomoAction.isChecked() and self.gui.tomo_valid(first_line):
             self.thread3.params = scan
         else:
             self.thread3.params = scan[:8]
         self.thread3.start()
 
         return
-
-    # def stuck_flag(self):
-    #     self.line_color(self.gui.active_line, "lightsalmon")
-
-    def get_scan(self, line_idx):
-        line = [vars(self.gui)[i] for i in self.gui.line_names][line_idx]
-        scan_type = line.scan_type.text()
-        dwell = eval(line.dwell_time.text())
-        x_center = eval(line.x_center.text())
-        x_npts = eval(line.x_points.text())
-        x_width = eval(line.x_width.text())
-        y_center = eval(line.y_center.text())
-        y_npts = eval(line.y_points.text())
-        y_width = eval(line.y_width.text())
-        r_center = eval(line.r_center.text())
-        r_npts = eval(line.r_points.text())
-        r_width = eval(line.r_width.text())
-        return [scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell, r_center, r_width, r_npts]
 
     def get_datetime(self):
         now = datetime.now()
@@ -551,27 +275,6 @@ class Launcher(QtWidgets.QWidget):
         second = time.second
         formatted = "{} {}-{}-{} {}:{}:{}".format(day, month, cal_day, year, hour, minute, second)
         return formatted
-
-    def tomo_valid(self, line_idx):
-        lines = [vars(self.gui)[i] for i in self.gui.line_names]
-        line = lines[line_idx]
-        invalid = 0
-        if line.r_center.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
-            invalid = 1
-        if line.r_points.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
-            invalid = 1
-        else:
-            if int(line.r_points.text()) <= 0:
-                invalid = 1
-        if line.r_width.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
-            invalid = 1
-        else:
-            if int(line.r_width.text()) <= 0:
-                invalid = 1
-        if invalid:
-            return False
-        else:
-            return True
 
     def line_finished_sig(self):
         print("starting next line")
@@ -602,7 +305,7 @@ class Launcher(QtWidgets.QWidget):
             self.gui.active_line = current_line
             line.setStyleSheet("background: yellow")
             line.setAutoFillBackground(True)
-            scan = self.get_scan(current_line)
+            scan = self.gui.get_scan(current_line)
         else:
             self.gui.controls.status_bar.setText("batch finished")
             self.gui.active_line = -1
@@ -611,10 +314,7 @@ class Launcher(QtWidgets.QWidget):
             return
 
         if line.line_action.currentText() == "skip" or line.line_action.currentText() == "done":
-            # line.save_message.setText("")
-            # line.comments.setText("")
-            # line.start_time.setText("")
-            # line.finish_time.setText("")
+
             print("skipping line {}".format(current_line))
             #TODO: change this logic so it doesnt change any of the line action
             # line.line_action.setCurrentIndex(1)     #setting line_action to "normal" so in the next iteration it goes to the skipped line, then selects the n+1 index from the skipped line.
@@ -634,8 +334,7 @@ class Launcher(QtWidgets.QWidget):
             format_datetime = self.get_datetime()
             line.start_time.setText(format_datetime)
 
-
-        self.set_plot()
+        self.gui.set_plot()
         self.thread3 = myThreads(self, 3, "run_scan")
         self.thread3.lineFinishSig.connect(self.line_finished_sig)
         self.timer_thread = myThreads(self, 4, "timer event")
@@ -645,20 +344,13 @@ class Launcher(QtWidgets.QWidget):
         self.timer_thread.exit_flag = 0
         self.timer_thread.start()
 
-        if self.gui.tomoAction.isChecked() and self.tomo_valid(current_line):
+        if self.gui.tomoAction.isChecked() and self.gui.tomo_valid(current_line):
             self.thread3.params = scan
         else:
             self.thread3.params = scan[:8]
         self.thread3.start()
 
         return
-    def line_color(self, line_idx, color="white"):
-        if color == "red" or color == "white":
-            line = [vars(self.gui)[i] for i in self.gui.line_names][line_idx]
-            line.setStyleSheet("background: {}".format(color))
-            line.setAutoFillBackground(True)
-        else:
-            return
 
     def pause_clicked(self):
         if not self.backend.backend_ready:
@@ -672,7 +364,7 @@ class Launcher(QtWidgets.QWidget):
             return
         else:
             self.backend.add_wait()
-            self.gui.controls.status_bar.setText("Scan Paused")
+            print("Scan Paused")
             self.gui.controls.pause_btn.setText("Paused")
             self.gui.controls.pause_btn.setStyleSheet("QPushButton {background: lightgreen;color: red; border-radius: 4;}" "QPushButton::pressed {background-color: darkgreen;}")
 
@@ -682,7 +374,7 @@ class Launcher(QtWidgets.QWidget):
             return
         retry = 0
         self.backend.continue_scan()
-        self.gui.controls.status_bar.setText("Continuing scan")
+        print("Continuing scan")
         while self.backend.is_paused():
             retry+=1
             self.backend.continue_scan()
@@ -693,20 +385,14 @@ class Launcher(QtWidgets.QWidget):
         self.gui.controls.pause_btn.setText("Pause")
         self.gui.controls.pause_btn.setStyleSheet("QPushButton {background: lightgreen;color: black; border-radius: 4;}" "QPushButton::pressed {background-color: darkgreen;}")
 
-    def abort_line_clicked(self):
-        if not self.backend.backend_ready:
-            print("scan record not connected")
-            return
+    def abort_clicked(self):
         if self.gui.active_line != -1:
             self.backend.abort_scan()
-            self.line_color(self.gui.active_line, color="white")
             saveDate_message = self.backend.saveData_message.split("to")[1]
             self.backend.saveData_message = "{} Aborted".format(saveDate_message)
             lines = [vars(self.gui)[i] for i in self.gui.line_names]
             line = lines[self.gui.active_line]
             line.save_message.setText(self.backend.saveData_message)
-        self.gui.controls.status_bar.setText("Aborting Line")
-        self.gui.active_line = -1
         self.backend.done = True
         try:
                 self.thread3.exit_scan = 1
@@ -716,31 +402,6 @@ class Launcher(QtWidgets.QWidget):
         except:
             print("error aborting scan, try not pressing abort repeatedly")
             pass
-        return
-
-    def abort_all_clicked(self):
-        if not self.backend.backend_ready:
-            print("scan record not connected")
-            return
-        try:
-            self.thread3.exit_scan = 1
-            self.timer_thread.exit_flag = 1
-        except:
-            pass
-        self.gui.active_line = -1
-        self.backend.abort_scan()
-        lines = [vars(self.gui)[i] for i in self.gui.line_names]
-        for line in lines:
-            line.line_action.setCurrentIndex(0)
-        return
-
-    def calculate_points_clicked(self):
-        self.gui.points_clicked()
-        return
-
-    def calculate_all_points_clicked(self):
-        self.gui.all_clicked()
-        return
 
     def custom_draw(self):
         #TODO: create interactive draw windwo but put it under gui
@@ -762,7 +423,7 @@ class Launcher(QtWidgets.QWidget):
 
 
         self.thread1.saveSig.connect(self.gui.save_session)
-        self.thread2.etaSig.connect(self.calculate_global_eta)
+        self.thread2.etaSig.connect(self.gui.calculate_global_eta)
         self.timer = QtCore.QTimer()
         self.timer.setInterval(1000)
         self.timer.timeout.connect(self.update_plot)
@@ -780,8 +441,6 @@ class Launcher(QtWidgets.QWidget):
         self.thread2.exit_eta=1
         self.thread2.quit()
         self.thread2.wait()
-
-        pass
 
 class myThreads(QtCore.QThread):
     saveSig = pyqtSignal(name="saveSig")
@@ -826,8 +485,8 @@ class myThreads(QtCore.QThread):
         self.parent.backend.restore_settings()
         self.parent.backend.connect_pvs()
         self.parent.update_motor_limits()
-        self.parent.settings.caget_all_pvs()
-        self.parent.settings_changed()
+        self.parent.gui.settings.caget_all_pvs()
+        self.parent.gui.settings_changed()
 
     def run_scan(self):
         if len(self.params) == 10:
@@ -854,10 +513,6 @@ class myThreads(QtCore.QThread):
     def run_timer_action(self):
         while self.exit_flag ==0:
             time.sleep(1)
-            # if self.parent.backend.xp3_stuck == True:
-            #     self.xp3StuckSig.emit()
-            # elif self.parent.backend.struck_stuck == True:
-            #     self.struckStuckSig.emit()
             if self.parent.backend.event == True:
                 self.plotSig.emit()
             else:

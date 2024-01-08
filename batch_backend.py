@@ -79,9 +79,7 @@ class BatchSetup(object):
                 #old IOC does not have EraseOnStart, adding this incase running on old ioc.
                 epics.caput(prefix+"det1:EraseOnStart",0)
             except:
-
                 pass
-
         except:
             return None
         return xp3
@@ -144,8 +142,6 @@ class BatchSetup(object):
                                             os.system("mkdir {}".format(file_path))
                                         except:
                                             print("cannot create file path, check file path or permissions")
-
-                # self.XSPRESS3.FileName = file_name
                 self.XSPRESS3.FileTemplate = file_template
 
     def connect_pvs(self):

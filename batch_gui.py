@@ -11,7 +11,8 @@ import os
 import pickle
 from datetime import datetime, timedelta
 import subprocess
-
+import batch_settings
+import sys
 #GUI structure:
 #   Header()  
 #   Lines()
@@ -50,12 +51,17 @@ class BatchScanGui(QtWidgets.QWidget):
 
         self.initUI()
         self.restore_session()
-        # self.setFixedSize(self.view1)
         self.show()
 
     def initUI(self):
         # self.header = Header()
+
+        self.settings = batch_settings.ScanSettings()
+
         self.controls = Controls()
+
+
+
 
         self.scroll = QScrollArea()
         self.scroll_widget = QWidget()
@@ -86,13 +92,27 @@ class BatchScanGui(QtWidgets.QWidget):
         self.exportScanParamsAction.triggered.connect(self.export_scan_params)
         self.importScanParamsAction = QAction(' &import scan parameters', self)
         self.importScanParamsAction.triggered.connect(self.import_scan_params)
-        self.controls.tomography_chbx.clicked.connect(self.view_changed)
+
         self.view_changed()
 
         update_interval = QtWidgets.QMenu("update interval (s)", self)
         update_interval.setStyleSheet("background-color: rgb(49,49,49); color: rgb(255,255,255); border: 1px solid #000;")
         ag2 = QActionGroup(update_interval)
         ag2.setExclusive(True)
+
+
+
+
+        self.closeAction.triggered.connect(sys.exit)
+        self.settings.settings_closed_sig.connect(self.settings_changed)
+        self.controls.setup_btn.clicked.connect(self.settings.show)
+        self.controls.setup_btn.clicked.connect(self.settings.openEvent)
+        self.controls.points_all.clicked.connect(self.all_clicked)
+        self.controls.points.clicked.connect(self.points_clicked)
+        self.controls.abort_btn.clicked.connect(self.abort_clicked)
+        self.controls.tomography_chbx.clicked.connect(self.view_changed)
+        self.controls.zero_all_btn.clicked.connect(self.zero_all_clicked)
+
 
         for i in range(3):
             #dynamically create instance variable interval_S and connect it to action
@@ -130,6 +150,194 @@ class BatchScanGui(QtWidgets.QWidget):
         # # viewMenu.addAction(self.tomoAction)
         # # viewMenu.addAction(self.miscviewAction)
 
+    def tomo_valid(self, line_idx):
+        lines = [vars(self)[i] for i in self.line_names]
+        line = lines[line_idx]
+        invalid = 0
+        if line.r_center.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+            invalid = 1
+        if line.r_points.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+            invalid = 1
+        else:
+            if int(line.r_points.text()) <= 0:
+                invalid = 1
+        if line.r_width.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+            invalid = 1
+        else:
+            if int(line.r_width.text()) <= 0:
+                invalid = 1
+        if invalid:
+            return False
+        else:
+            return True
+
+    def get_scan(self, line_idx):
+        line = [vars(self)[i] for i in self.line_names][line_idx]
+        scan_type = line.scan_type.text()
+        dwell = eval(line.dwell_time.text())
+        x_center = eval(line.x_center.text())
+        x_npts = eval(line.x_points.text())
+        x_width = eval(line.x_width.text())
+        y_center = eval(line.y_center.text())
+        y_npts = eval(line.y_points.text())
+        y_width = eval(line.y_width.text())
+        r_center = eval(line.r_center.text())
+        r_npts = eval(line.r_points.text())
+        r_width = eval(line.r_width.text())
+        return [scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell, r_center, r_width, r_npts]
+
+    def get_trajectory(self):
+        line = [vars(self)[i] for i in self.line_names][self.active_line]
+        scan = self.get_scan(self.active_line)
+        # scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell, r_center, r_width, r_npts
+        try:
+            if line.trajectory.currentText() == "raster":
+                x_line = np.arange(scan[1] - abs(scan[2])/2, scan[1] + abs(scan[2])/2, abs(scan[2])/scan[3])
+                x_coords = np.zeros((scan[6],scan[3]))
+                for i in range(scan[6]):
+                    x_coords[i] = x_line
+                x_coords = np.ndarray.flatten(x_coords)
+
+                y_line = np.arange(scan[4] - abs(scan[5])/2, scan[4] + abs(scan[5])/2, abs(scan[5])/scan[6])
+                y_coords = np.zeros((scan[6], scan[3]))
+                for i in range(scan[6]):
+                    y_coords[i] = np.ones(scan[3])*y_line[i]
+                y_coords = np.ndarray.flatten(y_coords)
+                return x_coords, y_coords
+
+            elif line.trajectory.currentText() == "snake":
+                x_line = np.arange(scan[1] - scan[2] / 2, scan[1] + scan[2] / 2, scan[2] / scan[3])
+                x_coords = np.zeros((scan[6], scan[3]))
+                for i in range(scan[6]):
+                    if i%2 == 1:
+                        x_coords[:i] = np.fliplr(x_line)
+                    else:
+                        x_coords[:i] = x_line
+                x_coords = np.ndarray.flatten(x_coords)
+
+                y_line = np.arange(scan[4] - scan[5] / 2, scan[4] + scan[5] / 2, scan[4] / scan[6])
+                y_coords = np.zeros((scan[6], scan[3]))
+                for i in range(scan[6]):
+                    y_coords[:i] = np.ones(scan[3]) * y_line[i]
+                y_coords = np.ndarray.flatten(y_coords)
+                return x_coords, y_coords
+            else:
+                return
+        except:
+            return
+
+
+    def set_plot(self):
+        try:
+            x_arr, y_arr = self.get_trajectory()
+            self.controls.view_box.data_trajectory.setData(x_arr, y_arr)
+            self.controls.view_box.p1.setXRange(x_arr.min(),x_arr.max())
+            self.controls.view_box.p1.setYRange(y_arr.min(),y_arr.max())
+        except:
+            return
+    def settings_changed(self):
+        scan_generator = self.settings.setup_window.scan_generator.text()
+        pv_status = self.settings.pv_status
+
+        self.xrf_connected = pv_status["xrf"][2]
+        self.eiger_connected = pv_status["eiger"][2]
+        self.struck_connected = pv_status["struck"][2]
+        self.x_motor_connected = pv_status["x_motor"][2]
+        self.y_motor_connected = pv_status["y_motor"][2]
+        self.r_motor_connected = pv_status["r_motor"][2]
+
+        if scan_generator == "profile move":
+            self.controls.import_btn.setVisible(False)
+            self.controls.export_btn.setVisible(False)
+            self.controls.import_lbl.setVisible(False)
+            self.controls.export_lbl.setVisible(False)
+            self.controls.backup_scanrecord_btn.setVisible(False)
+            self.controls.backup_scanrecord_lbl.setVisible(False)
+            self.trajectory = self.settings.setup_window.trajectory_cbbx.currentText()
+            self.profile_move_connected = pv_status["profile_move"][2]
+            self.softgluezynq_connected = pv_status["softgluezynq"][2]
+            if not self.profile_move_connected or not self.softgluezynq_connected or not self.x_motor_connected or not self.y_motor_connected:
+                self.controls.begin_btn.setDisabled(True)
+                self.controls.pause_btn.setDisabled(True)
+                self.controls.continue_btn.setDisabled(True)
+            else:
+                self.controls.begin_btn.setDisabled(False)
+                self.controls.pause_btn.setDisabled(False)
+                self.controls.continue_btn.setDisabled(False)
+            if not self.xrf_connected:
+                # TODO: skip xspress3 setup in backend.
+                pass
+            if not self.eiger_connected:
+                # TODO: skip eiger setup in backend.
+                pass
+
+        elif scan_generator == "ACS program buffer":
+            pass
+            # self.controls.import_btn.setVisible(False)
+            # self.controls.export_btn.setVisible(False)
+            # self.controls.import_lbl.setVisible(False)
+            # self.controls.export_lbl.setVisible(False)
+            # self.trajectory = self.settings.setup_window.trajectory_cbbx.currentText()
+            # self.softgluezynq_connected = pv_status["softgluezynq"][2]
+            # if not self.softgluezynq_connected or not self.x_motor_connected or not self.y_motor_connected:
+            #     self.controls.begin_btn.setDisabled(True)
+            #     self.controls.pause_btn.setDisabled(True)
+            #     self.controls.continue_btn.setDisabled(True)
+            # else:
+            #     self.controls.begin_btn.setDisabled(False)
+            #     self.controls.pause_btn.setDisabled(False)
+            #     self.controls.continue_btn.setDisabled(False)
+            # if not self.xrf_connected:
+            #     # TODO: skip xspress3 setup in backend.
+            #     pass
+            # if not self.eiger_connected:
+            #     # TODO: skip eiger setup in backend.
+            #     pass
+
+        elif scan_generator == "scan record":
+            self.controls.import_btn.setVisible(True)
+            self.controls.export_btn.setVisible(True)
+            self.controls.import_lbl.setVisible(True)
+            self.controls.export_lbl.setVisible(True)
+            self.controls.backup_scanrecord_btn.setVisible(True)
+            self.controls.backup_scanrecord_lbl.setVisible(True)
+            self.trajectory = "raster"
+            self.inner_before_wait_connected = pv_status["inner_before_wait"][2]
+            self.inner_after_wait_connected = pv_status["inner_after_wait"][2]
+            self.outer_before_wait_connected = pv_status["outer_before_wait"][2]
+            self.outer_after_wait_connected = pv_status["outer_after_wait"][2]
+            self.delay_calc_connected = pv_status["delay_calc"][2]
+            self.save_data_connected = pv_status["save_data"][2]
+            self.scan_inner_connected = pv_status["scan_inner"][2]
+            self.scan_outer_connected = pv_status["scan_outer"][2]
+            self.scan_inner_extra_connected = pv_status["scan_inner_extra"][2]
+            self.scan_outer_extra_connected = pv_status["scan_outer_extra"][2]
+            if not self.inner_before_wait_connected or not self.inner_after_wait_connected or not self.outer_before_wait_connected or not self.outer_after_wait_connected:
+                #TODO: use different way of checking before and after scans.
+                pass
+
+            if not self.delay_calc_connected:
+                #TODO: signal to backend to change positioner from delay_calc to regular positioner PV
+                pass
+            if not self.scan_inner_connected or not self.scan_outer_connected or not self.save_data_connected or not self.struck_connected or not self.x_motor_connected or not self.y_motor_connected:
+                # self.controls.begin_btn.setDisabled(True)
+                # self.controls.pause_btn.setDisabled(True)
+                # self.controls.continue_btn.setDisabled(True)
+                pass
+            else:
+                # self.controls.begin_btn.setDisabled(False)
+                # self.controls.pause_btn.setDisabled(False)
+                # self.controls.continue_btn.setDisabled(False)
+                pass
+
+
+        # if not self.r_motor_connected:
+        #     self.controls.tomography_chbx.setVisible(False)
+        #     self.controls.tomography_lbl.setVisible(False)
+        # else:
+        #     self.controls.tomography_chbx.setVisible(True)
+        #     self.controls.tomography_lbl.setVisible(True)
+
     def view_changed(self):
         for line in range(self.num_lines):
             self.__dict__[self.line_names[line]].r_center.setVisible(False)
@@ -142,6 +350,55 @@ class BatchScanGui(QtWidgets.QWidget):
                 self.__dict__[self.line_names[line]].r_points.setVisible(True)
                 self.__dict__[self.line_names[line]].r_width.setVisible(True)
 
+    def abort_clicked(self):
+        if self.active_line != -1:
+            self.line_color(self.active_line, color="white")
+            self.active_line = -1
+            print("Aborting Line")
+        return
+
+    def zero_all_clicked(self):
+        lines = [vars(self)[i] for i in self.line_names]
+        for line in lines:
+            line.dwell_time.setText("")
+            line.x_center.setText("")
+            line.x_points.setText("")
+            line.x_width.setText("")
+            line.y_center.setText("")
+            line.y_points.setText("")
+            line.y_width.setText("")
+            line.r_center.setText("")
+            line.r_points.setText("")
+            line.r_width.setText("")
+            line.comments.setText("")
+            line.save_message.setText("")
+            line.start_time.setText("")
+            line.finish_time.setText("")
+
+    def zero_clicked(self):
+        lines = [vars(self)[i] for i in self.line_names]
+        checked = [line.current_line.isChecked() for line in lines].index(True)
+        lines[checked].dwell_time.setText("")
+        lines[checked].x_center.setText("")
+        lines[checked].x_points.setText("")
+        lines[checked].x_width.setText("")
+        lines[checked].y_center.setText("")
+        lines[checked].y_points.setText("")
+        lines[checked].y_width.setText("")
+        lines[checked].r_center.setText("")
+        lines[checked].r_points.setText("")
+        lines[checked].r_width.setText("")
+        lines[checked].save_message.setText("")
+        lines[checked].start_time.setText("")
+        lines[checked].finish_time.setText("")
+
+    def line_color(self, line_idx, color="white"):
+        if color == "red" or color == "white":
+            line = [vars(self)[i] for i in self.line_names][line_idx]
+            line.setStyleSheet("background: {}".format(color))
+            line.setAutoFillBackground(True)
+        else:
+            return
     def line_changed(self):
         checked_lines = []
         for line in range(self.show_lines):
@@ -198,6 +455,35 @@ class BatchScanGui(QtWidgets.QWidget):
             current_line.x_width.setText(str(np.round(x_width,3)))
             current_line.y_width.setText(str(np.round(y_width,2)))
 
+    def calculate_global_eta(self, cpt_npts=None):
+        # TODO: global ETA not working
+        eta = []
+        line_status = []
+        line_action = []
+        lines = []
+        for key in vars(self):
+            if isinstance(vars(self)[key], Line):
+                lines.append(vars(vars(self)[key]))
+
+        for i, line in enumerate(lines):
+            #TODO Somewhere in here causes the program to crash
+            if line["line_action"].currentText() == "normal":
+                eta_str = line["line_eta"].text()
+                hrs = int(eta_str.split(":")[0]) * 60 * 60
+                min = int(eta_str.split(":")[1]) * 60
+                sec = int(eta_str.split(":")[2])
+                total_s = sec + min + hrs
+                if cpt_npts != None:
+                    try:
+                        line_eta = cpt_npts * total_s
+                    except:
+                        line_eta = 0
+                    eta.append(line_eta)
+                else:
+                    eta.append(total_s)
+        self.controls.eta.setText(str(timedelta(seconds=sum(eta))))
+        return
+
     def points_clicked(self):
         if self.controls.x_step.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
             return
@@ -217,25 +503,6 @@ class BatchScanGui(QtWidgets.QWidget):
         else:
             for i in range(self.show_lines):
                 self.update_npts(i)
-
-    # def num_lines_changed(self):
-    #     show_lines_options = self.num_lines//5
-    #     for i in range(1, show_lines_options+1):
-    #         if self.__dict__["N_line_{}".format(i*5)].isChecked():
-    #             self.show_lines = i*5
-    #             break
-    #     for i in range(self.num_lines):
-    #         if self.__dict__[self.line_names[i]].current_line.isChecked():
-    #             last_checked = i
-    #         self.__dict__[self.line_names[i]].setVisible(False)
-    #     for i in range(self.show_lines):
-    #         self.__dict__[self.line_names[i]].setVisible(True)
-    #
-    #     if last_checked > self.show_lines:
-    #         self.__dict__[self.line_names[last_checked]].current_line.setChecked(False)
-    #         self.__dict__[self.line_names[self.show_lines-1]].current_line.setChecked(True)
-    #     self.view_changed()
-    #     return
 
     def update_interval_changed(self):
         intervals = [10,30,60]
@@ -555,8 +822,7 @@ class Controls(QtWidgets.QWidget):
         self.continue_btn.setFixedWidth(size2)
         self.abort_btn = QtWidgets.QPushButton("Abort")
         self.abort_btn.setFixedWidth(size2)
-        self.abort_all_btn = QtWidgets.QPushButton("Abort")
-        self.abort_all_btn.setFixedWidth(size2)
+
         self.backup_scanrecord_btn = QtWidgets.QPushButton("Backup")
         self.backup_scanrecord_btn.setFixedWidth(size2)
         self.init_pvs_btn = QtWidgets.QPushButton("Init")
@@ -569,8 +835,7 @@ class Controls(QtWidgets.QWidget):
         continue_lbl.setFixedWidth(size3)
         abort_lbl = QtWidgets.QLabel("current line")
         abort_lbl.setFixedWidth(size3)
-        abort_all_lbl = QtWidgets.QLabel("all lines")
-        abort_all_lbl.setFixedWidth(size3)
+
         self.backup_scanrecord_lbl = QtWidgets.QLabel("scan record")
         self.backup_scanrecord_lbl.setFixedWidth(size3)
         self.init_pvs_lbl = QtWidgets.QLabel("PVs and/or scan record")
@@ -581,7 +846,6 @@ class Controls(QtWidgets.QWidget):
         c1.addWidget(self.pause_btn)
         c1.addWidget(self.continue_btn)
         c1.addWidget(self.abort_btn)
-        c1.addWidget(self.abort_all_btn)
         c1.addWidget(self.backup_scanrecord_btn)
         c1.addWidget(self.init_pvs_btn)
         c2 = QtWidgets.QVBoxLayout()
@@ -589,7 +853,6 @@ class Controls(QtWidgets.QWidget):
         c2.addWidget(pause_lbl)
         c2.addWidget(continue_lbl)
         c2.addWidget(abort_lbl)
-        c2.addWidget(abort_all_lbl)
         c2.addWidget(self.backup_scanrecord_lbl)
         c2.addWidget(self.init_pvs_lbl)
         col3 = QtWidgets.QHBoxLayout()
@@ -688,80 +951,6 @@ class Controls(QtWidgets.QWidget):
             else:
                 pass
 
-
-class Header(QtWidgets.QWidget):
-    def __init__(self):
-        super(Header, self).__init__()
-        self.setupUi()
-
-    def setupUi(self):
-        size1 = 30
-        size2 = 60
-        size3 = 220
-        size4 = 120
-        size5 = 75
-        height = 25
-        line = QtWidgets.QHBoxLayout()
-        self.line = QtWidgets.QLabel("line")
-        self.line.setFixedSize(size1, height)
-        self.scan_type = QtWidgets.QLabel("scan \ntype")
-        self.scan_type.setFixedSize(size1, height)
-        # self.trajectory = QtWidgets.QLabel("trajectory")
-        # self.trajectory.setFixedSize(size5, height)
-        self.line_action = QtWidgets.QLabel("action")
-        self.line_action.setFixedSize(size5, height)
-        self.dwell_time = QtWidgets.QLabel("dwell \n(ms)")
-        self.dwell_time.setFixedSize(size1, height)
-        self.x_center = QtWidgets.QLabel("x center")
-        self.x_center.setFixedSize(size2,height)
-        self.x_points = QtWidgets.QLabel("x points")
-        self.x_points.setFixedSize(size2,height)
-        self.x_width = QtWidgets.QLabel("x width")
-        self.x_width.setFixedSize(size2,height)
-        self.y_center = QtWidgets.QLabel("y center")
-        self.y_center.setFixedSize(size2,height)
-        self.y_points = QtWidgets.QLabel("y points")
-        self.y_points.setFixedSize(size2,height)
-        self.y_width = QtWidgets.QLabel("y width")
-        self.y_width.setFixedSize(size2,height)
-        self.comments = QtWidgets.QLabel("comments")
-        self.comments.setFixedSize(size3,height)
-        self.save_message = QtWidgets.QLabel("save message")
-        self.save_message.setFixedSize(size3,height)
-        self.start_time = QtWidgets.QLabel("start time")
-        self.start_time.setFixedSize(size4, height)
-        self.finish_time = QtWidgets.QLabel("finish time")
-        self.finish_time.setFixedSize(size4, height)
-        self.r_center = QtWidgets.QLabel("r center")
-        self.r_center.setFixedSize(size2,height)
-        self.r_points = QtWidgets.QLabel("r points")
-        self.r_points.setFixedSize(size2,height)
-        self.r_width = QtWidgets.QLabel("r width")
-        self.r_width.setFixedSize(size2,height)
-        self.global_eta = QtWidgets.QLabel("eta H:M:S")
-        self.global_eta.setFixedSize(size2,height)
-
-        myFont = QtGui.QFont()
-        myFont.setBold(True)
-        myFont.setPointSize(12)
-
-        for key in self.__dict__:
-            item = getattr(self,key)
-            if isinstance(item,QtWidgets.QLabel):
-                item.setStyleSheet("background: white;color: black; border-color: white")
-                item.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-                item.setFont(myFont)
-            else:
-                pass
-
-        for key in self.__dict__:
-            item = getattr(self,key)
-            if isinstance(item, QtWidgets.QLabel):
-                line.addWidget(item)
-            else:
-                pass
-        line.setContentsMargins(0,10,0,0)
-        self.setLayout(line)
 
 class Line(QtWidgets.QWidget):
     paramsChangedSig = QtCore.pyqtSignal(int)
@@ -955,13 +1144,13 @@ class Line(QtWidgets.QWidget):
                         item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
                     else:
                         item.setStyleSheet("background: lightcoral; color: black; border-radius: 4")
-                    if self.line_action.currentText() == "skip":
+                    if self.line_action.currentText() == "skip" or self.line_action.currentText() == "done":
                         item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
 
                     if not item.isEnabled():
                         item.setStyleSheet("background: lightblue; color: lightblue; border-radius: 4")
                 except:
-                    if self.line_action.currentText() == "skip":
+                    if self.line_action.currentText() == "skip" or self.line_action.currentText() == "done":
                         item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
                     else:
                         item.setStyleSheet("background: lightcoral; color: black; border-radius: 4")
