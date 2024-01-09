@@ -2,7 +2,7 @@ import socket
 from threading import Thread
 import os
 import time
-
+import pickle
 
 def check_host(host):
     response = os.system("ping -c 1 " + host)
@@ -50,6 +50,14 @@ def pause_scan():
     # TODO: send command to pause scan
     pass
 
+def get_test_array():
+    pass
+
+def get_test_dict():
+    client.send(b"get_test_dict")
+    msg = client.recv(1024)
+    data_arr = pickle.loads(msg)
+    print('Received', data_arr)
 
 HOST = '127.0.0.1'
 PORT = 22262

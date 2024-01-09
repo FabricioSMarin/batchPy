@@ -25,7 +25,7 @@ class Launcher(QtWidgets.QWidget):
         super(QtWidgets.QWidget, self).__init__()
 
         self.gui = batch_gui.BatchScanGui()
-        self.backend = batch_backend.BatchSetup()
+        self.backend = batch_backend.BatchScan()
         self.gui.controls.import_btn.clicked.connect(self.import_clicked)
         self.gui.controls.export_btn.clicked.connect(self.export_clicked)
         self.gui.controls.begin_btn.clicked.connect(self.begin_clicked)
@@ -37,28 +37,10 @@ class Launcher(QtWidgets.QWidget):
         # sys.exit(self.app.exec())
 
     def connect_server(self):
-        #TODO: check if host machine is online. if it is, continue, else return.
-        from multiprocessing.connection import Listener, Client
-        address = ('localhost', 6000)  # family is deduced to be 'AF_INET'
-        client = Client(address, authkey=b'secret password')
-        multiprocessing.connection.Client.connect
 
-        # TODO: check if backend process is active.
-        client.send("alive?")
-        time.sleep(3)
-        msg = client.recv()
-
-        #TODO: check if server is running:
-        # if server_running(host_address):
-        #   get_detector_status
-        #   get_motor_status
-        #   get_scan_status
-        #   get_etc_status
-        #   update gui
-
-        # if not server_running(host_address):
-        #   check if hostcomputer online:
-
+        data = s.recv(4096)
+        data_arr = pickle.loads(data)
+        pass
 
     def onUpdateText(self, text):
         cursor = self.gui.controls.message_window.textCursor()
@@ -102,7 +84,6 @@ class Launcher(QtWidgets.QWidget):
             print(e)
             pass
 
-
     def update_plot(self):
         try:
             # self.gui.controls.view_box.p1.clear()
@@ -117,6 +98,7 @@ class Launcher(QtWidgets.QWidget):
             return
 
     def get_scan_progress(self):
+        #TODO: send "get_progress" to server, return percentage
         try:
             x_pos = self.backend.x_motor.RBV
             start = self.backend.inner.P1SP
@@ -160,67 +142,47 @@ class Launcher(QtWidgets.QWidget):
         # subprocess.Popen(["python", "{}batch_settings.py".format(cwd)])
 
     def import_clicked(self):
-        if not self.backend.backend_ready:
-            print("scan record not connected")
+        if not self.server_connected:
+            print("server not connected")
             return
         lines = [vars(self.gui)[i] for i in self.gui.line_names]
         checked = [line.current_line.isChecked() for line in lines].index(True)
-        scan_type = lines[checked].scan_type.text()
-        if scan_type == "step":
-            #use step scan record inner loop
-            lines[checked].x_center.setText(str(np.round(self.backend.x_motor.VAL, 3)))
-            lines[checked].x_points.setText(str(np.round(self.backend.ScanH.NPTS, 3)))
-            lines[checked].x_width.setText(str(np.round(self.backend.ScanH.P1WD, 3)))
-            lines[checked].y_center.setText(str(np.round(self.backend.y_motor.VAL, 3)))
-            lines[checked].y_points.setText(str(np.round(self.backend.Scan1.NPTS, 3)))
-            lines[checked].y_width.setText(str(np.round(self.backend.Scan1.P1WD, 3)))
-            lines[checked].dwell.setText(str(np.round(self.backend.dwell, 3)))
-        elif scan_type == "fly":
-            lines[checked].x_center.setText(str(np.round(self.backend.x_motor.VAL, 3)))
-            lines[checked].x_points.setText(str(np.round(self.backend.FscanH.NPTS, 3)))
-            lines[checked].x_width.setText(str(np.round(self.backend.FscanH.P1WD, 3)))
-            lines[checked].y_center.setText(str(np.round(self.backend.y_motor.VAL, 3)))
-            lines[checked].y_points.setText(str(np.round(self.backend.Fscan1.NPTS, 3)))
-            lines[checked].y_width.setText(str(np.round(self.backend.Fscan1.P1WD, 3)))
-            lines[checked].dwell.setText(str(np.round(self.backend.dwell, 3)))
-
+        parameters = self.get_from_sr()
+        lines[checked].x_center.setText(str(np.round(parameters["x_motor.VAL"], 3)))
+        lines[checked].x_points.setText(str(np.round(parameters["ScanH.NPTS"], 3)))
+        lines[checked].x_width.setText(str(np.round(parameters["ScanH.P1WD"], 3)))
+        lines[checked].y_center.setText(str(np.round(parameters["y_motor.VAL"], 3)))
+        lines[checked].y_points.setText(str(np.round(parameters["Scan1.NPTS"], 3)))
+        lines[checked].y_width.setText(str(np.round(parameters["Scan1.P1WD"], 3)))
+        lines[checked].dwell.setText(str(np.round(parameters["dwell"], 3)))
 
     def export_clicked(self):
         # TODO: export button should move motors to center position in additon to exporting scan params to scan record.
 
-        if not self.backend.backend_ready:
-            print("scan record not connected")
+        if not self.server_connected:
+            print("server not connected")
             return
         lines = [vars(self.gui)[i] for i in self.gui.line_names]
         checked = [line.current_line.isChecked() for line in lines].index(True)
-        scan_type = lines[checked].scan_type.text()
-        if scan_type == "step":
-            #use step scan record inner loop
-            self.backend.ScanH.P1CP = lines[checked].x_center.text()
-            self.backend.x_motor.VAL = lines[checked].x_center.text()
-            self.backend.ScanH.NPTS = lines[checked].x_points.text()
-            self.backend.ScanH.P1WD = lines[checked].x_width.text()
-            self.backend.Scan1.P1CP = lines[checked].y_center.text()
-            self.backend.y_motor.VAL = lines[checked].y_center.text()
-            self.backend.Scan1.NPTS = lines[checked].y_points.text()
-            self.backend.Scan1.P1WD = lines[checked].y_width.text()
-
-        elif scan_type == "fly":
-            self.backend.FscanH.P1CP = lines[checked].x_center.text()
-            self.backend.x_motor.VAL = lines[checked].x_center.text()
-            self.backend.FscanH.NPTS = lines[checked].x_points.text()
-            self.backend.FscanH.P1WD = lines[checked].x_width.text()
-            self.backend.Fscan1.P1CP = lines[checked].y_center.text()
-            self.backend.y_motor.VAL = lines[checked].y_center.text()
-            self.backend.Fscan1.NPTS = lines[checked].y_points.text()
-            self.backend.Fscan1.P1WD = lines[checked].y_width.text()
+        parameters = {}
+        parameters["ScanH.P1CP"] = lines[checked].x_center.text()
+        parameters["x_motor.VAL"] = lines[checked].x_center.text()
+        parameters["ScanH.NPTS"] = lines[checked].x_points.text()
+        parameters["ScanH.P1WD"] = lines[checked].x_width.text()
+        parameters["Scan1.P1CP"] = lines[checked].y_center.text()
+        parameters["y_motor.VAL"] = lines[checked].y_center.text()
+        parameters["Scan1.NPTS"] = lines[checked].y_points.text()
+        parameters["Scan1.P1WD"] = lines[checked].y_width.text()
+        self.send_to_sr(parameters)
+        return
 
     def begin_clicked(self):
+        #TODO: check if lines are valid, if not return
         if self.gui.active_line != -1:
             # self.gui.controls.begin_btn.setEnabled(False)
             print("batch already started")
             return
-        if not self.backend.backend_ready:
+        if not self.server_connected:
             print("scan record not connected")
             return
         lines = [vars(self.gui)[i] for i in self.gui.line_names]
@@ -239,28 +201,27 @@ class Launcher(QtWidgets.QWidget):
         self.gui.set_plot()
         self.gui.controls.status_bar.setText("scanning line {}".format(first_line))
         print("running scanline: {}".format(first_line))
-        self.backend.done = False
+        #TODO: all this stuff should be done in the backend/ queue server
         self.thread3 = myThreads(self, 3, "run_scan")
         self.thread3.lineFinishSig.connect(self.line_finished_sig)
         self.thread3.exit_scan = 0
+
         self.timer_thread = myThreads(self, 4, "timer event")
         self.timer_thread.plotSig.connect(self.update_plot)
-        # self.timer_thread.xp3StuckSig.connect(self.stuck_flag)
-        # self.timer_thread.struckStuckSig.connect(self.stuck_flag)
         self.timer_thread.exit_flag = 0
         self.timer = QtCore.QTimer()
         self.timer.setInterval(1000)
         self.timer.timeout.connect(self.update_plot)
-
         self.timer.start()
         self.timer_thread.start()
 
-        if self.gui.tomoAction.isChecked() and self.gui.tomo_valid(first_line):
-            self.thread3.params = scan
-        else:
-            self.thread3.params = scan[:8]
+        self.thread3.params = scan #contains tomography params
         self.thread3.start()
 
+        #TODO: start thread that periodically updates GUI
+        # get scan status [is_done, warnings]
+        # update plot/image
+        # get
         return
 
     def get_datetime(self):
@@ -482,7 +443,7 @@ class myThreads(QtCore.QThread):
 
     def connect_backend(self):
         #TODO: check if backend python process exists, else start a new one.
-        self.parent.backend.restore_settings()
+        # self.parent.backend.restore_settings()
         self.parent.backend.connect_pvs()
         self.parent.update_motor_limits()
         self.parent.gui.settings.caget_all_pvs()

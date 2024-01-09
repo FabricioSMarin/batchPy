@@ -18,54 +18,61 @@ from threading import Thread
 # check if clients still connected by having client regularly send ping request as a heartbeat,
 #   if no heartbeat received after X seconds, close that connection, terminate that thread, and remove thread from threads
 
+class BatchServer(object):
+    #get pv names from gui and check pvs are connected
+    def __init__(self):
+        self.stop = False
+        self.threads = []
 
-def on_new_client(clientsocket,addr):
-    global stop_server
-    print('Got connection from', addr, flush=True)
-    while True:
-        try:
-            msg = clientsocket.recv(1024).decode('utf-8')
-            if msg == "close":
-                clientsocket.close()
-                threads.remove(addr[0])
+    def on_new_client(self, clientsocket, addr):
+        global stop_server
+        print('Got connection from', addr, flush=True)
+        while True:
+            try:
+                msg = clientsocket.recv(1024).decode('utf-8')
+                if msg == "close":
+                    clientsocket.close()
+                    self.threads.remove(addr[0])
+                    break
+                if msg == "stop":
+                    self.stop = True
+                    break
+                print(addr, ' >> ', msg, flush=True)
+                msg = "message received: {}".format(msg)
+                clientsocket.send(bytes(msg, 'utf-8'))
+            except Exception as error:
+                print(error)
                 break
-            if msg == "stop":
-                stop_server = True
+
+    def start_server(self):
+        hostname = socket.gethostname()
+        self.host = socket.gethostbyname(hostname)
+        self.s = socket.socket()  # Create a socket object
+        print(self.host)
+        port = 22262  # Reserve a port for your service.
+        print('Server started!')
+        print('Waiting for clients...')
+        self.s.bind((self.host, port))  # Bind to the port
+        self.s.listen(5)  # Now wait for client connection.
+        while True:
+            c, addr = self.s.accept()  # Establish connection with client.
+            if len(self.threads) < 5 and addr[0] not in [x.name for x in self.threads]:
+                t = Thread(target=self.on_new_client, args=(c, addr))
+                t.name = addr[0]
+                t.start()
+                self.threads.append(t)
+            elif len(self.threads) == 5:
+                print("maximum number of clients reached. Close some clients and before trying to reconnect ")
+            else:
+                print("address already in list of threads, reconnecting instead.")
+            if self.stop:
                 break
-            print(addr, ' >> ', msg, flush=True)
-            msg = "message received: {}".format(msg)
-            clientsocket.send(bytes(msg, 'utf-8'))
-        except Exception as error:
-            print(error)
-            break
+            print("number of clients connected: ", len(self.threads))
+        self.stop_server()
+    def stop_server(self):
+        self.s.close()
+        return
 
-global stop_server
-hostname = socket.gethostname()
-host = socket.gethostbyname(hostname)
-s = socket.socket()         # Create a socket object
-print(host)
-port = 22262                # Reserve a port for your service.
-print('Server started!')
-print('Waiting for clients...')
-stop_server = False
-s.bind((host, port))        # Bind to the port
-s.listen(5)                 # Now wait for client connection.
-threads = []
 
-while True:
-    c, addr = s.accept()     # Establish connection with client.
-    if len(threads) <5 and addr[0] not in [x.name for x in threads]:
-        t = Thread(target=on_new_client, args=(c, addr))
-        t.name = addr[0]
-        t.start()
-        threads.append(t)
-    elif len(threads) == 5:
-        print("maximum number of clients reached. Close some clients and before trying to reconnect ")
-    else:
-        print("address already in list of threads, reconnecting instead.")
-    if stop_server:
-        break
-    print("number of clients connected: ", len(threads))
 
-s.close()
 

@@ -10,14 +10,12 @@ import os
 from datetime import datetime
 import sys
 
-
 class ScanSettings(QtWidgets.QWidget):
     settings_closed_sig = pyqtSignal()
     def __init__(self):
         super(QtWidgets.QWidget, self).__init__()
         self.setObjectName("bathcscan_flysetup_vPy")
         self.setAutoFillBackground(True)
-        # self.app = app
         self.current_text = ""
         self.var_dict = {}
         self.fname = ""
@@ -28,23 +26,19 @@ class ScanSettings(QtWidgets.QWidget):
 
     def initUI(self):
         self.setup_window = Setup()
-        # self.setup_window = batch_settings.Setup()
-        # self.setup_window.auto_update_pvs.clicked.connect(lambda: self.autoUpdateButton(self.setup_window.auto_update_pvs))
         for key in vars(self.setup_window):
             item = vars(self.setup_window)[key]
             if isinstance(item,QtWidgets.QLineEdit) or isinstance(item,QtWidgets.QPushButton):
                 item.installEventFilter(self)
                 if isinstance(item, QtWidgets.QLineEdit):
                     item.returnPressed.connect(self.line_edit_entered)
-                    # item.setStyleSheet("background-color : default")
                     self.var_dict[item] = item.objectName
 
-        self.setup_window.config_file.clicked.connect(self.openfile)
-        self.setup_window.save_config.clicked.connect(self.savefile)
+        # self.setup_window.config_file.clicked.connect(self.openfile)
+        self.setup_window.save_config.clicked.connect(self.save_settings)
         self.setup_window.scan_generator.clicked.connect(self.scan_generator_clicked)
 
         wid = QtWidgets.QWidget(self)
-        # self.setCentralWidget(wid)
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self.setup_window)
         wid.setLayout(layout)
@@ -53,19 +47,15 @@ class ScanSettings(QtWidgets.QWidget):
         self.restoresettings()
         self.setMinimumSize(300,500)
 
-
     def openEvent(self):
         print("opening window")
-        #check if opening fof the
         if self.first_time:
-            # self.start_threads()
             self.caget_pvs()
         self.first_time = False
 
     def closeEvent(self, a0, QCloseEvent=None):
         print("closing window")
         self.caget_all_pvs()
-        # self.stop_threads()
         self.settings_closed_sig.emit()
         self.first_time = True
 
@@ -128,24 +118,6 @@ class ScanSettings(QtWidgets.QWidget):
                 source.setText(self.current_text)
         return QtWidgets.QLineEdit.eventFilter(self, source, event)
 
-    # def update_lcd(self,val):
-    #     self.setup_window.auto_update_pvs_lcd.display(str(val))
-    #     if val == 1:
-    #         self.caget_pvs()
-
-    # def autoUpdateButton(self,button):
-    #     if button.isChecked():
-            # self.start_threads()
-        #     # self.thread1.start()
-        #     button.setStyleSheet("background-color : lightblue")
-        #     button.setText("Auto Update PVs in ...")
-        # else:
-            # self.stop_threads()
-            # print("Stopping countdown")
-            # self.update_lcd("10")
-            # button.setStyleSheet("background-color : grey")
-            # button.setText("Auto Update disabled")
-
     def changeButton(self,button):
         if button.isChecked():
             button.setStyleSheet("background-color : lightblue")
@@ -157,7 +129,6 @@ class ScanSettings(QtWidgets.QWidget):
 
     def caget_pvs(self):
         pv_dict = self.get_active_pvs()
-        # connected_pvs = {}
         for key in pv_dict.keys():
             line = self.__dict__["setup_window"].__dict__["{}".format(key)]
             pv = pv_dict[key]
@@ -190,11 +161,6 @@ class ScanSettings(QtWidgets.QWidget):
                         key.setChecked(is_true)
                         self.changeButton(key)
 
-        #     is_red = line.itemAt(1).widget().styleSheet() == "border: 1px solid red;"
-        #     if pv != "":
-        #         connected_pvs[pv] = not is_red
-        # self.connected_pvs = connected_pvs
-
     def caget_all_pvs(self):
         pv_dict = self.get_all_pvs() #pv_dict[desc] = [pv, is_used]
         pv_status = {} ##pv_dict[desc] = [pv, is_used, connected]
@@ -217,10 +183,6 @@ class ScanSettings(QtWidgets.QWidget):
         self.pv_status = pv_status
         return
 
-    # def is_connected(self):
-    #     self.caget_pvs()
-    #     return self.connected_pvs
-
     def get_active_pvs(self):
         pv_dict = {}
         for line in range(self.setup_window.num_lines):
@@ -239,7 +201,6 @@ class ScanSettings(QtWidgets.QWidget):
                             pv_dict["line_{}".format(line)] = item.text()
                     else:
                         pv_dict["line_{}".format(line)] = item.text()
-
         return pv_dict
 
     def get_all_pvs(self):
@@ -259,10 +220,10 @@ class ScanSettings(QtWidgets.QWidget):
                     pv_dict[item.objectName] = [item.text(), False]
                 else:
                     pass
-
         return pv_dict
 
-    def savefile(self):
+    def save_settings(self):
+        #TODO: send command to server to save settings instead of saving locally
         #open all pkl files in cwd, set "last opened" status to 0 for all except current file.
         try:
             cwd = os.path.dirname(os.path.abspath(__file__)) + "/"
@@ -281,7 +242,9 @@ class ScanSettings(QtWidgets.QWidget):
         except IOError as e:
             print(e)
 
-    def openfile(self):
+    def open_settings(self):
+        #TODO: remove this function altogether, replace with restore_settings
+
         #open all pkl files in cwd, set "last opened" status to 0 for all except current file.
         current_dir = os.path.dirname(os.path.abspath(__file__))
         file = QtWidgets.QFileDialog.getOpenFileName(self, "Open .pkl", current_dir, "*.pkl")
@@ -307,6 +270,8 @@ class ScanSettings(QtWidgets.QWidget):
         return
 
     def restoresettings(self):
+        #TODO: send command to server to open and get settings instead of opening locally
+
         current_dir = os.path.dirname(os.path.abspath(__file__))+"/"
         valid_files = []
         last_opened = []
@@ -329,7 +294,6 @@ class ScanSettings(QtWidgets.QWidget):
             with open(current_dir + self.fname, 'wb') as f:
                 pickle.dump(["settings",datetime.now(),settings, self.fname, 1], f)
                 f.close()
-
                 return
         #if file does exist,
         else:
@@ -344,11 +308,10 @@ class ScanSettings(QtWidgets.QWidget):
                     try:
                         key.setText(settings[i])
                     except IndexError:
-                        print("settings list changed, ned to discard and update new settings file")
+                        print("settings list changed, need to discard and update new settings file")
                     except:
                         print("cannot set some settings")
         return
-
 
     def scan_generator_clicked(self,sender=None):
         if sender ==None:
@@ -365,8 +328,6 @@ class ScanSettings(QtWidgets.QWidget):
                 for i in range(num_widgets):
                     hbox.itemAt(i).widget().setVisible(False)
 
-            # self.setup_window.auto_update_pvs.setVisible(True)
-            # self.setup_window.auto_update_pvs_lcd.setVisible(True)
             self.setup_window.config_file_lbl.setVisible(True)
             self.setup_window.config_file.setVisible(True)
             self.setup_window.scan_generator_lbl.setVisible(True)
@@ -389,8 +350,6 @@ class ScanSettings(QtWidgets.QWidget):
             self.setup_window.x_motor.setVisible(True)
             self.setup_window.y_motor_lbl.setVisible(True)
             self.setup_window.y_motor.setVisible(True)
-            # self.setup_window.z_motor_lbl.setVisible(True)
-            # self.setup_window.z_motor.setVisible(True)
             self.setup_window.r_motor_lbl.setVisible(True)
             self.setup_window.r_motor.setVisible(True)
             self.setup_window.save_config_lbl.setVisible(True)
@@ -411,8 +370,6 @@ class ScanSettings(QtWidgets.QWidget):
             self.setup_window.trajectory_cbbx.setVisible(False)
             self.setup_window.softgluezynq_lbl.setVisible(False)
             self.setup_window.softgluezynq.setVisible(False)
-        pass
-
 
 class Setup(QtWidgets.QWidget):
     def __init__(self):
@@ -425,19 +382,13 @@ class Setup(QtWidgets.QWidget):
         box.addWidget(self.scroll)
         self.setLayout(box)
 
-        # self.auto_update_pvs.setCheckable(True)
-        # self.auto_update_pvs.setStyleSheet("background-color : lightblue")
-        # self.auto_update_pvs.setChecked(True)
-
         self.scan_generator.setCheckable(True)
         self.scan_generator.setStyleSheet("background-color : grey")
         self.scan_generator.setChecked(False)
         self.scan_generator.setText("scan record")
 
-        # self.auto_update_pvs_lcd.setMaximumHeight(28)
     def scroll_area(self):
         item_dict = {} #[type(button, file, path, dropdown), descriptions[idx], choices[idx],defaults[idx]]
-        # item_dict["auto_update_pvs"] = [["button","lcd"], "enable/disable PV updater.", None, ""]
         item_dict["config_file"] = [["label","file"], "select config file if it exists", None, ""]
         item_dict["scan_generator"] = [["label", "button"], "scan record or profile move", None, None]
         item_dict["profile_move"] = [["label","linedit"], "profile move PV prefix", None, ""]
@@ -464,7 +415,6 @@ class Setup(QtWidgets.QWidget):
         # item_dict["z_motor"] = [["label","linedit"], "z positioner", None, ""]
         item_dict["r_motor"] = [["label","linedit"], "r positioner", None, ""]
         item_dict["save_config"] = [["label","button"], "save config settings.", None, None]
-
 
         v_box = self.create_widget(item_dict)
         v_box.setSpacing(0)
@@ -537,7 +487,6 @@ class Setup(QtWidgets.QWidget):
                     object = self.__dict__[key]
                     object.setFixedWidth(widgetsize)
                     object.setText(attrs[3])
-                    # object.clicked.connect(self.get_file)
                     line.addWidget(object)
 
                 elif widget == "combobox":
@@ -556,19 +505,3 @@ class Setup(QtWidgets.QWidget):
 
             v_box.addLayout(line)
         return v_box
-
-    # def get_file(self):
-    #     try:
-    #         sender = self.sender
-    #         file = QFileDialog.getOpenFileName(self, "Open File", QtCore.QDir.currentPath())
-    #         sender().setText(file)
-    #     except:
-    #         return
-def main():
-    import sys
-    app = QtWidgets.QApplication(sys.argv)
-    mainWindow = ScanSettings(app)
-    sys.exit(app.exec())
-
-if __name__ == "__main__":
-    main()

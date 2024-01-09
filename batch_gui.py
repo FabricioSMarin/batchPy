@@ -14,11 +14,9 @@ import subprocess
 import batch_settings
 import sys
 #GUI structure:
-#   Header()  
 #   Lines()
 #   Controls()
 #   ImageView()
-
 
 #TODO: set the motor minimum velocity to 0.01 for longer dwell times.
 #TODO: current scan line background (yellow) dissappears if any of the text fields are modified.
@@ -55,31 +53,12 @@ class BatchScanGui(QtWidgets.QWidget):
 
     def initUI(self):
         # self.header = Header()
-
+        self.batch_widget = self.make_batch_widget(self.num_lines)
         self.settings = batch_settings.ScanSettings()
-
         self.controls = Controls()
 
-
-
-
-        self.scroll = QScrollArea()
-        self.scroll_widget = QWidget()
-        tmp_layout = QtWidgets.QVBoxLayout()
-        for i in range(self.num_lines):
-            line = self.__dict__[self.line_names[i]]
-            line.objectName = str(i)
-            line.current_line.setText(str(i))
-            line.setAutoFillBackground(True)
-            tmp_layout.addWidget(line, alignment=QtCore.Qt.AlignLeft)
-
-        self.scroll_widget.setLayout(tmp_layout)
-        self.scroll_widget.setStyleSheet("QFrame {background-color: rgb(255, 255, 255);border-width: 1;border-radius: 3;border-style: solid;border-color: rgb(10, 10, 10)}")
-        self.scroll_widget.setMaximumWidth(1700)
-        self.scroll.setWidget(self.scroll_widget)
-
         layout = QtWidgets.QVBoxLayout()
-        layout.addWidget(self.scroll)
+        layout.addWidget(self.batch_widget)
         layout.addWidget(self.controls)
         layout.setSpacing(0)
 
@@ -92,16 +71,12 @@ class BatchScanGui(QtWidgets.QWidget):
         self.exportScanParamsAction.triggered.connect(self.export_scan_params)
         self.importScanParamsAction = QAction(' &import scan parameters', self)
         self.importScanParamsAction.triggered.connect(self.import_scan_params)
-
         self.view_changed()
 
         update_interval = QtWidgets.QMenu("update interval (s)", self)
         update_interval.setStyleSheet("background-color: rgb(49,49,49); color: rgb(255,255,255); border: 1px solid #000;")
         ag2 = QActionGroup(update_interval)
         ag2.setExclusive(True)
-
-
-
 
         self.closeAction.triggered.connect(sys.exit)
         self.settings.settings_closed_sig.connect(self.settings_changed)
@@ -112,7 +87,6 @@ class BatchScanGui(QtWidgets.QWidget):
         self.controls.abort_btn.clicked.connect(self.abort_clicked)
         self.controls.tomography_chbx.clicked.connect(self.view_changed)
         self.controls.zero_all_btn.clicked.connect(self.zero_all_clicked)
-
 
         for i in range(3):
             #dynamically create instance variable interval_S and connect it to action
@@ -127,29 +101,32 @@ class BatchScanGui(QtWidgets.QWidget):
             # self.__dict__["line_{}".format(i)].line_action.connect(self.line_changed)
             # line.setStyleSheet("background: yellow")
 
-
         # TODO: widget class does not have menu bar, add these as buttons or under settings.
-        # menubar = self.menuBar()
-        # menubar.setStyleSheet("background-color: rgb(49,49,49); color: rgb(255,255,255); border: 1px solid #000;")
-        # menubar.setNativeMenuBar(False)
-        #
-        # fileMenu = menubar.addMenu('&File')
-        # fileMenu.addAction(self.closeAction)
-        # # fileMenu.addAction(self.openAction)
-        # # fileMenu.addAction(self.saveAction)
         # fileMenu.addAction(self.exportScanParamsAction)
         # fileMenu.addAction(self.importScanParamsAction)
-        #
-        # settingsMenu = menubar.addMenu(' &Settings')
-        # # settingsMenu.addAction(self.initPVsAction)
-        # # settingsMenu.addAction(self.initRecordAction)
-        # settingsMenu.addMenu(show_lines)
-        # settingsMenu.addMenu(update_interval)
-        #
-        # # viewMenu = menubar.addMenu('&View')
-        # # viewMenu.addAction(self.tomoAction)
-        # # viewMenu.addAction(self.miscviewAction)
 
+    def make_batch_widget(self, num_lines):
+        self.line_names = []
+        for i in range(num_lines): #max number of lines
+            self.line_names.append("line_{}".format(str(i)))
+        for v in self.line_names:
+            setattr(self, v, Line())
+
+        batch_widget = QScrollArea()
+        scroll_widget = QWidget()
+        tmp_layout = QtWidgets.QVBoxLayout()
+        for i in range(num_lines):
+            line = self.__dict__[self.line_names[i]]
+            line.objectName = str(i)
+            line.current_line.setText(str(i))
+            line.setAutoFillBackground(True)
+            tmp_layout.addWidget(line, alignment=QtCore.Qt.AlignLeft)
+        scroll_widget.setLayout(tmp_layout)
+        scroll_widget.setStyleSheet("QFrame {background-color: rgb(255, 255, 255);border-width: 1;border-radius: 3;border-style: solid;border-color: rgb(10, 10, 10)}")
+        scroll_widget.setMaximumWidth(1700)
+        batch_widget.setWidget(scroll_widget)
+
+        return batch_widget
     def tomo_valid(self, line_idx):
         lines = [vars(self)[i] for i in self.line_names]
         line = lines[line_idx]
@@ -225,7 +202,6 @@ class BatchScanGui(QtWidgets.QWidget):
                 return
         except:
             return
-
 
     def set_plot(self):
         try:
@@ -330,13 +306,6 @@ class BatchScanGui(QtWidgets.QWidget):
                 # self.controls.continue_btn.setDisabled(False)
                 pass
 
-
-        # if not self.r_motor_connected:
-        #     self.controls.tomography_chbx.setVisible(False)
-        #     self.controls.tomography_lbl.setVisible(False)
-        # else:
-        #     self.controls.tomography_chbx.setVisible(True)
-        #     self.controls.tomography_lbl.setVisible(True)
 
     def view_changed(self):
         for line in range(self.num_lines):
@@ -502,6 +471,7 @@ class BatchScanGui(QtWidgets.QWidget):
             return
         else:
             for i in range(self.show_lines):
+                #TODO: fails if lines are empty, fix
                 self.update_npts(i)
 
     def update_interval_changed(self):
@@ -519,6 +489,7 @@ class BatchScanGui(QtWidgets.QWidget):
         self.save_session()
 
     def save_session(self):
+        #TODO: send session to host server instead of saving locally.
         try:
             # print("autosaving session")
             cwd = os.path.dirname(os.path.abspath(__file__))+"/"
@@ -553,6 +524,7 @@ class BatchScanGui(QtWidgets.QWidget):
             print("cannot autosave upon close")
 
     def import_scan_params(self):
+        #TODO: send scan params to server after loading parameters from a local file
         try:
             fileName = QFileDialog.getOpenFileName(self, "Open File", QtCore.QDir.currentPath(), "All File (*);;CSV (*.csv *.CSV)")
             if fileName == "":
@@ -637,7 +609,6 @@ class BatchScanGui(QtWidgets.QWidget):
                                  r_points, r_width, line_eta]
                     lines.append(line_list)
 
-
             with open(savedir+".csv", 'w') as f:
                 write = csv.writer(f)
                 write.writerow(fields)
@@ -649,6 +620,7 @@ class BatchScanGui(QtWidgets.QWidget):
         return
 
     def restore_session(self):
+        #TODO: send command to host server to restore session.
         current_dir = os.path.dirname(os.path.abspath(__file__))+"/"
         try:
             with open(current_dir+self.session_file,'rb') as f:
