@@ -18,7 +18,7 @@ def check_server(host):
 
 def connect_server(host, port):
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client.connect((HOST, PORT))
+    client.connect((host, port))
     return client
 def get_connected_services():
     #TODO: connected detectors,
@@ -59,16 +59,40 @@ def get_test_dict():
     data_arr = pickle.loads(msg)
     print('Received', data_arr)
 
-HOST = '127.0.0.1'
+hostname = socket.gethostname()
+HOST = socket.gethostbyname(hostname)
 PORT = 22262
-client = connect_server(HOST,PORT)
+is_connected = True
+try:
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client.connect((HOST, PORT))
+    client.settimeout(5)
 
-if client == None:
+except socket.timeout:
+    print("connection timed out")
+    is_connected = False
+
+except Exception as error:
+    print(error)
     print("client not connected")
-else:
-    client.send(b"test")
-    time.sleep(1)
-    response = client.recv(10240).decode("utf-8")
-    print(response)
+    is_connected = False
 
+while is_connected:
+    try:
+        if client == None:
+            break
+        message = input("enter message: ")
+        message = pickle.dumps(message)
+        client.send(message)
+        time.sleep(1)
+        response = client.recv(1024)
+        response = pickle.loads(response)
+        print(response)
+        if response == "disconnecting client" or "stopping server":
+            break
+
+    except socket.timeout:
+        print("timeout")
+        break
+client.close()
 

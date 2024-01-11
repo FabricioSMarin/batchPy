@@ -53,6 +53,7 @@ class Launcher(QtWidgets.QWidget):
 
     def update_motor_limits(self):
         try:
+            #TODO: send "get_motor_limits" command, parse string, and update limits
             x_hlm = self.backend.x_motor.HLM
             x_llm = self.backend.x_motor.LLM
             x_vmax = self.backend.x_motor.VMAX
