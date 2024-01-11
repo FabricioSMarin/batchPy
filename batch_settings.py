@@ -389,6 +389,7 @@ class Setup(QtWidgets.QWidget):
 
     def scroll_area(self):
         item_dict = {} #[type(button, file, path, dropdown), descriptions[idx], choices[idx],defaults[idx]]
+        item_dict["server_addr"] = [["label","linedit"], "server IP address", None, ""]
         item_dict["config_file"] = [["label","file"], "select config file if it exists", None, ""]
         item_dict["scan_generator"] = [["label", "button"], "scan record or profile move", None, None]
         item_dict["profile_move"] = [["label","linedit"], "profile move PV prefix", None, ""]

@@ -51,16 +51,14 @@ class BatchScan(object):
         self.threads = []
 
 
-
-
-    def init_server(self):
-        #TODO:
-        # start server, return if server already started, print server address and PID otherwise.
-        # open settings_file
-        # if no settings file exists, create new one
-        # connect to PVs listen in settings file.
-        # start listening for new connections.
-        pass
+    # def init_server(self):
+    #     #TODO:
+    #     # start server, return if server already started, print server address and PID otherwise.
+    #     # open settings_file
+    #     # if no settings file exists, create new one
+    #     # connect to PVs listen in settings file.
+    #     # start listening for new connections.
+    #     pass
 
     def create_xspress3(self,prefix):
         try:

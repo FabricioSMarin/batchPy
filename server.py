@@ -3,6 +3,7 @@ from threading import Thread
 import pickle
 import os
 import multiprocessing
+import batch_backend
 
 # TODO: problems/challenges
 #  check if server still listening
@@ -27,6 +28,7 @@ class BatchServer(object):
         self.threads = {}
         self.pid = None
         self.stop = False
+        self.backend = batch_backend.BatchScan()
 
     def on_new_client(self, clientsocket, addr):
         print('Got connection from', addr, flush=True)
@@ -160,7 +162,6 @@ class BatchServer(object):
                 print("address already in list of threads, reconnecting instead.")
                 self.threads[addr[0]]._target(c, addr)
             print("number of clients connected: ", len(self.threads))
-
 
     def disconnect_client(self,clientsocket, addr):
         msg = pickle.dumps("disconnecting client")
