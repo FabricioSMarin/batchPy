@@ -23,7 +23,7 @@ class Stream(QtCore.QObject):
 class Launcher(QtWidgets.QWidget):
     def __init__(self):
         super(QtWidgets.QWidget, self).__init__()
-
+        self.server_connected = False
         self.gui = batch_gui.BatchScanGui()
         self.backend = batch_backend.BatchScan()
         self.gui.controls.import_btn.clicked.connect(self.import_clicked)
