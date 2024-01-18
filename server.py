@@ -5,22 +5,11 @@ import os
 import multiprocessing
 import batch_backend
 
-# TODO: problems/challenges
-#  check if server still listening
-#  establish client/server connection
-#  establish client/server connection from new client
-#  re-establish connection after client disconnects
-#  startup server remotely
-#  server check when client disconnects.
-
 #TODO:
-# DONE establish connection
-# DONE re-establish connection
-# DONE check number of clients connected in threads list
-# DONE connect from client computer
 # check if clients still connected by having client regularly send ping request as a heartbeat,
 #   if no heartbeat received after X seconds, close that connection, terminate that thread, and remove thread from threads
-
+#  startup server remotely
+#  server check when client disconnects.
 
 class BatchServer(object):
     def __init__(self):

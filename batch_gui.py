@@ -40,7 +40,8 @@ class BatchScanGui(QtWidgets.QWidget):
         self.session_file = "default_session.pkl"
 
         self.update_interval = 10
-        self.scan_ids = [0]
+        self.scan_ids = []
+        self.id_counter = 0
         self.initUI()
         self.restore_session()
         self.show()
@@ -76,16 +77,18 @@ class BatchScanGui(QtWidgets.QWidget):
         self.controls.abort_btn.clicked.connect(self.abort_clicked)
         self.controls.tomography_chbx.clicked.connect(self.view_changed)
         self.controls.zero_all_btn.clicked.connect(self.zero_all_clicked)
+        self.controls.zero_btn.clicked.connect(self.zero_clicked)
 
         # TODO: widget class does not have menu bar, add these as buttons or under settings.
         # fileMenu.addAction(self.exportScanParamsAction)
         # fileMenu.addAction(self.importScanParamsAction)
     def add_line(self):
-        if len(self.scan_ids) == 0:
-            self.scan_ids.append(0)
-        scan_id = self.scan_ids[-1]+1
+        self.id_counter = self.id_counter + 1
+        self.scan_ids.append(self.id_counter)
+        scan_id = self.scan_ids[-1]
         setattr(self, "line_{}".format(scan_id), Line(scan_id))
         line = self.__dict__["line_{}".format(scan_id)]
+        # line = self.get_line(scan_id)
         line.current_line.clicked.connect(self.line_changed)
         line.current_line.setText(str(len(self.scan_ids)))
         line.setAutoFillBackground(True)
@@ -101,24 +104,29 @@ class BatchScanGui(QtWidgets.QWidget):
 
         # self.lines_layout.itemAt(line_idx).setParent(None)
         # self.lines_layout.removeItem(self.lines_layout.itemAt(line_idx))
-        line = self.__dict__["line_{}".format(line_idx)]
+        line = self.__dict__["line_{}".format(scan_id)]
+        current_line = int(line.current_line.text())
         line.deleteLater()
         self.lines_layout.removeWidget(line)
-        delattr(self, "line_{}".format(line_idx))
-        self.line_names.pop(line_idx)
+        delattr(self, "line_{}".format(scan_id))
+        self.scan_ids.remove(scan_id)
+
         #TODO: update other line names
+        ids = self.get_scan_ids()
+        some_scan_ids = [i for i in ids if i > scan_id]
+        for i in some_scan_ids:
+          line = self.get_line(i)
+          line["current_line"].setText(str(int(line["current_line"].text())-1))
+
         self.view_changed()
-        # self.lines_layout.show()
-        pass
 
     def duplicate_line(self, scan_id):
         self.add_line()
         params = self.get_scan(scan_id)
-        self.update_scan_line(params,self.scan_id)
+        self.update_scan_line(params,self.scan_ids[-1])
         self.view_changed()
         pass
     def make_batch_widget(self, num_lines):
-        self.line_names = []
         batch_widget = QScrollArea()
         scroll_widget = QWidget()
         self.lines_layout = QtWidgets.QVBoxLayout()
@@ -133,56 +141,82 @@ class BatchScanGui(QtWidgets.QWidget):
 
         return batch_widget
     def tomo_valid(self, line_idx):
-        lines = [vars(self)[i] for i in self.line_names]
-        line = lines[line_idx]
+        line = self.get_line(line_idx)
         invalid = 0
-        if line.r_center.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+        if line["r_center"].styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
             invalid = 1
-        if line.r_points.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+        if line["r_points"].styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
             invalid = 1
         else:
-            if int(line.r_points.text()) <= 0:
+            if int(line["r_points"].text()) <= 0:
                 invalid = 1
-        if line.r_width.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
+        if line['r_width'].styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
             invalid = 1
         else:
-            if int(line.r_width.text()) <= 0:
+            if int(line["r_width"].text()) <= 0:
                 invalid = 1
         if invalid:
             return False
         else:
             return True
 
-    def get_scan(self, line_idx):
-        line = [vars(self)[i] for i in self.line_names][line_idx]
-        keys = ["detectors", "trajectory", "scan_type", "dwell_time", "x_center", "x_points", "x_width", "y_center", "y_points", "y_width", "r_center", "r_points", "r_width"]
-        scan = {}
-        for key in keys:
-            if key == "detectors":
-                scan[key] = line.detectors.checked_items()
-            elif key == "trajectory":
-                scan[key] = line.trajectory.currentIndex()
-            else:
-                scan[key] = line.__dict__[key].text()
+    def get_line(self, scan_id):
+        lines = self.get_lines()
+        for row in lines:
+            if row["id"] == scan_id:
+                line = row
+                return line
+        return None
 
+    def get_checked_line(self,):
+        lines = self.get_lines()
+        for row in lines:
+            if row["current_line"].isChecked():
+                line = row
+                return line, line["id"]
+        return None
+
+    def get_scan_ids(self):
+        lines = self.get_lines()
+        scan_ids = []
+        for line in lines:
+            scan_ids.append(int(line["id"]))
+        return scan_ids
+
+    def get_scan(self, line_idx):
+        line = self.get_line(line_idx)
+        params = self.get_params()
+        scan = {}
+        for key in params:
+            if key == "detectors":
+                scan[key] = line["detectors"].checked_items()
+            elif key == "trajectory":
+                scan[key] = line["trajectory"].currentIndex()
+            else:
+                scan[key] = line[key].text()
         return scan
 
-    def update_scan_line(self,scan,idx):
-        line = [vars(self)[i] for i in self.line_names][idx]
+    def update_scan_line(self,scan,scan_id):
+        line = self.get_line(scan_id)
         for key in scan.keys():
-            if key == "detectors":
-                line.__dict__[key].check_selected(scan[key])
+            if key == "current_line":
+                pass
+            elif key == "detectors":
+                line[key].check_selected(scan[key])
             elif key == "trajectory":
-                line.__dict__[key].setCurrentIndex(scan[key])
+                line[key].setCurrentIndex(scan[key])
             else:
-                line.__dict__[key].setText(scan[key])
+                line[key].setText(scan[key])
     def get_trajectory(self):
-        line = [vars(self)[i] for i in self.line_names][self.active_line]
-        scan = self.get_scan(self.active_line)
+        line, scan_id = self.get_checked_line()
+        if line == None:
+            return
+
+        scan = self.get_scan(scan_id)
         # scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell, r_center, r_width, r_npts
         try:
-            if line.trajectory.currentText() == "raster":
-                x_line = np.arange(scan[1] - abs(scan[2])/2, scan[1] + abs(scan[2])/2, abs(scan[2])/scan[3])
+            if line["trajectory"].currentText() == "raster":
+                x_line = np.arange(line[1] - abs(scan[2])/2, scan[1] + abs(scan[2])/2, abs(scan[2])/scan[3])
                 x_coords = np.zeros((scan[6],scan[3]))
                 for i in range(scan[6]):
                     x_coords[i] = x_line
@@ -195,7 +229,7 @@ class BatchScanGui(QtWidgets.QWidget):
                 y_coords = np.ndarray.flatten(y_coords)
                 return x_coords, y_coords
 
-            elif line.trajectory.currentText() == "snake":
+            elif line["trajectory"].currentText() == "snake":
                 x_line = np.arange(scan[1] - scan[2] / 2, scan[1] + scan[2] / 2, scan[2] / scan[3])
                 x_coords = np.zeros((scan[6], scan[3]))
                 for i in range(scan[6]):
@@ -236,10 +270,10 @@ class BatchScanGui(QtWidgets.QWidget):
         self.r_motor_connected = pv_status["r_motor"][2]
 
         if scan_generator == "profile move":
-            self.controls.import_btn.setVisible(False)
-            self.controls.export_btn.setVisible(False)
-            self.controls.import_lbl.setVisible(False)
-            self.controls.export_lbl.setVisible(False)
+            # self.controls.import_btn.setVisible(False)
+            # self.controls.export_btn.setVisible(False)
+            # self.controls.import_lbl.setVisible(False)
+            # self.controls.export_lbl.setVisible(False)
             self.controls.backup_scanrecord_btn.setVisible(False)
             self.controls.backup_scanrecord_lbl.setVisible(False)
             self.trajectory = self.settings.setup_window.trajectory_cbbx.currentText()
@@ -284,10 +318,10 @@ class BatchScanGui(QtWidgets.QWidget):
             #     pass
 
         elif scan_generator == "scan record":
-            self.controls.import_btn.setVisible(True)
-            self.controls.export_btn.setVisible(True)
-            self.controls.import_lbl.setVisible(True)
-            self.controls.export_lbl.setVisible(True)
+            # self.controls.import_btn.setVisible(True)
+            # self.controls.export_btn.setVisible(True)
+            # self.controls.import_lbl.setVisible(True)
+            # self.controls.export_lbl.setVisible(True)
             self.controls.backup_scanrecord_btn.setVisible(True)
             self.controls.backup_scanrecord_lbl.setVisible(True)
             self.trajectory = "raster"
@@ -321,17 +355,18 @@ class BatchScanGui(QtWidgets.QWidget):
 
 
     def view_changed(self):
-        for line in self.line_names:
-            self.__dict__[line].r_center.setVisible(False)
-            self.__dict__[line].r_points.setVisible(False)
-            self.__dict__[line].r_width.setVisible(False)
+        lines = self.get_lines()
+        for line in lines:
+            line["r_center"].setVisible(False)
+            line["r_points"].setVisible(False)
+            line["r_width"].setVisible(False)
 
         if self.controls.tomography_chbx.isChecked():
-            for line in self.line_names:
-                self.__dict__[line].r_center.setVisible(True)
-                self.__dict__[line].r_points.setVisible(True)
-                self.__dict__[line].r_width.setVisible(True)
-                self.__dict__[line].r_width.setVisible(True)
+            for line in lines:
+                line["r_center"].setVisible(True)
+                line["r_points"].setVisible(True)
+                line["r_width"].setVisible(True)
+                line["r_width"].setVisible(True)
 
     def abort_clicked(self):
         if self.active_line != -1:
@@ -341,39 +376,55 @@ class BatchScanGui(QtWidgets.QWidget):
         return
 
     def zero_all_clicked(self):
-        lines = [vars(self)[i] for i in self.line_names]
+        lines = self.get_lines()
         for line in lines:
-            line.dwell_time.setText("")
-            line.x_center.setText("")
-            line.x_points.setText("")
-            line.x_width.setText("")
-            line.y_center.setText("")
-            line.y_points.setText("")
-            line.y_width.setText("")
-            line.r_center.setText("")
-            line.r_points.setText("")
-            line.r_width.setText("")
-            line.comments.setText("")
-            line.save_message.setText("")
-            line.start_time.setText("")
-            line.finish_time.setText("")
+            for widget in line.keys():
+                if isinstance(line[widget], QtWidgets.QLabel) or isinstance(line[widget], QtWidgets.QLineEdit):
+                    if widget == "line_action":
+                        line[widget].setText("queue")
+                    elif widget == "line_eta":
+                        line[widget].setText("00:00:00")
+                    else:
+                        line[widget].setText("")
+            # line.dwell_time.setText("")
+            # line.x_center.setText("")
+            # line.x_points.setText("")
+            # line.x_width.setText("")
+            # line.y_center.setText("")
+            # line.y_points.setText("")
+            # line.y_width.setText("")
+            # line.r_center.setText("")
+            # line.r_points.setText("")
+            # line.r_width.setText("")
+            # line.comments.setText("")
+            # line.save_message.setText("")
+            # line.start_time.setText("")
+            # line.finish_time.setText("")
 
     def zero_clicked(self):
-        lines = [vars(self)[i] for i in self.line_names]
-        checked = [line.current_line.isChecked() for line in lines].index(True)
-        lines[checked].dwell_time.setText("")
-        lines[checked].x_center.setText("")
-        lines[checked].x_points.setText("")
-        lines[checked].x_width.setText("")
-        lines[checked].y_center.setText("")
-        lines[checked].y_points.setText("")
-        lines[checked].y_width.setText("")
-        lines[checked].r_center.setText("")
-        lines[checked].r_points.setText("")
-        lines[checked].r_width.setText("")
-        lines[checked].save_message.setText("")
-        lines[checked].start_time.setText("")
-        lines[checked].finish_time.setText("")
+        line, scan_id = self.get_checked_line()
+        for widget in line.keys():
+            if isinstance(line[widget], QtWidgets.QLabel) or isinstance(line[widget], QtWidgets.QLineEdit):
+                if widget == "line_action":
+                    line[widget].setText("queue")
+                elif widget == "line_eta":
+                    line[widget].setText("00:00:00")
+                else:
+                    line[widget].setText("")
+
+        # lines[checked].dwell_time.setText("")
+        # lines[checked].x_center.setText("")
+        # lines[checked].x_points.setText("")
+        # lines[checked].x_width.setText("")
+        # lines[checked].y_center.setText("")
+        # lines[checked].y_points.setText("")
+        # lines[checked].y_width.setText("")
+        # lines[checked].r_center.setText("")
+        # lines[checked].r_points.setText("")
+        # lines[checked].r_width.setText("")
+        # lines[checked].save_message.setText("")
+        # lines[checked].start_time.setText("")
+        # lines[checked].finish_time.setText("")
 
     def line_color(self, line_idx, color="white"):
         if color == "red" or color == "white":
@@ -384,12 +435,13 @@ class BatchScanGui(QtWidgets.QWidget):
             return
     def line_changed(self):
         checked_lines = []
-        for scan_id in self.scan_ids:
-            checked_lines.append(self.__dict__["line_{}".format(scan_id)].current_line.isChecked())
+        lines = self.get_lines()
+        for line in lines:
+            checked_lines.append(line["current_line"].isChecked())
         last_clicked = self.sender()
 
-        for id in range(self.scan_ids):
-            self.__dict__["line_{}".format(scan_id)].current_line.setChecked(False)
+        for line in lines:
+            line["current_line"].setChecked(False)
         last_clicked.setChecked(True)
 
     def action_changed(self):
@@ -443,9 +495,10 @@ class BatchScanGui(QtWidgets.QWidget):
         eta = []
         line_status = []
         line_action = []
+        # TODO Somewhere in here causes the program to crash
+        # get list of VALID lines only
         lines = self.get_lines()
         for i, line in enumerate(lines):
-            #TODO Somewhere in here causes the program to crash
             if line["line_action"].text() == "queue":
                 eta_str = line["line_eta"].text()
                 hrs = int(eta_str.split(":")[0]) * 60 * 60
@@ -466,6 +519,14 @@ class BatchScanGui(QtWidgets.QWidget):
     def get_lines(self):
         lines = [self.lines_layout.itemAt(i).widget().__dict__ for i in range(self.lines_layout.count())]
         return lines
+    def get_params(self):
+        line = self.lines_layout.itemAt(0).widget().__dict__
+        keys = line.keys()
+        params = []
+        for key in keys:
+            if isinstance(line[key], QtWidgets.QWidget):
+                params.append(key)
+        return params
     def points_clicked(self):
         if self.controls.x_step.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
             return
@@ -485,7 +546,7 @@ class BatchScanGui(QtWidgets.QWidget):
         else:
             lines = self.get_lines()
             for line in lines:
-                if line.__dict__["current_line"].isChecked():
+                if line["current_line"].isChecked():
                     self.update_npts(line)
 
 
@@ -500,26 +561,26 @@ class BatchScanGui(QtWidgets.QWidget):
             # print("autosaving session")
             cwd = os.path.dirname(os.path.abspath(__file__))+"/"
             file = self.session_file
-            settings = {}
             save_list = []
-            for line in self.line_names:
-                settings[line] = []
+            lines = self.get_lines()
+            params = self.get_params()
+            settings = {}
+            for param in params:
+                settings[param] = []
 
-            for key in vars(self):
-                if isinstance(vars(self)[key], Line):
-                    line_object = vars(vars(self)[key])
-                    for widget in line_object:
-                        if isinstance(line_object[widget], QtWidgets.QRadioButton):
-                            settings[key].append([widget, line_object[widget].isChecked()])
-                        if isinstance(line_object[widget], QtWidgets.QPushButton):
-                            if line_object[widget].isCheckable():
-                                settings[key].append([widget, line_object[widget].isChecked()])
-                        if isinstance(line_object[widget], QtWidgets.QComboBox):
-                            settings[key].append([widget, line_object[widget].currentIndex()])
-                        if isinstance(line_object[widget], QtWidgets.QLineEdit):
-                            settings[key].append([widget, line_object[widget].text()])
-                        if isinstance(line_object[widget], QtWidgets.QLabel):
-                            settings[key].append([widget, line_object[widget].text()])
+            for line in lines:
+                for widget in line.keys():
+                    if isinstance(line[widget], QtWidgets.QRadioButton):
+                        settings[widget].append([widget, line[widget].isChecked()])
+                    if isinstance(line[widget], QtWidgets.QPushButton):
+                        if line[widget].isCheckable():
+                            settings[widget].append([widget, line[widget].isChecked()])
+                    if isinstance(line[widget], QtWidgets.QComboBox):
+                        settings[widget].append([widget, line[widget].currentIndex()])
+                    if isinstance(line[widget], QtWidgets.QLineEdit):
+                        settings[widget].append([widget, line[widget].text()])
+                    if isinstance(line[widget], QtWidgets.QLabel):
+                        settings[widget].append([widget, line[widget].text()])
 
             with open(cwd+file, 'wb') as f:
                 pickle.dump(["session",datetime.now(),settings], f)
@@ -629,6 +690,7 @@ class BatchScanGui(QtWidgets.QWidget):
         #TODO: send command to host server to restore session.
         current_dir = os.path.dirname(os.path.abspath(__file__))+"/"
         try:
+            lines = self.get_lines()
             with open(current_dir+self.session_file,'rb') as f:
                 contents = pickle.load(f)
                 settings = contents[2]
@@ -745,20 +807,20 @@ class Controls(QtWidgets.QWidget):
 
         self.setup_btn = QtWidgets.QPushButton("setup")
         self.setup_btn.setFixedWidth(size2)
-        self.import_btn = QtWidgets.QPushButton("Import")
-        self.import_btn.setFixedWidth(size2)
-        self.export_btn = QtWidgets.QPushButton("Export")
-        self.export_btn.setFixedWidth(size2)
+        # self.import_btn = QtWidgets.QPushButton("Import")
+        # self.import_btn.setFixedWidth(size2)
+        # self.export_btn = QtWidgets.QPushButton("Export")
+        # self.export_btn.setFixedWidth(size2)
         self.zero_btn = QtWidgets.QPushButton("Zero")
         self.zero_btn.setFixedWidth(size2)
         self.zero_all_btn = QtWidgets.QPushButton("Zero all")
         self.zero_all_btn.setFixedWidth(size2)
         setup_lbl = QtWidgets.QLabel("PV setup window")
         setup_lbl.setFixedWidth(size3)
-        self.import_lbl = QtWidgets.QLabel("from scan record")
-        self.import_lbl.setFixedWidth(size3)
-        self.export_lbl = QtWidgets.QLabel("to scan record")
-        self.export_lbl.setFixedWidth(size3)
+        # self.import_lbl = QtWidgets.QLabel("from scan record")
+        # self.import_lbl.setFixedWidth(size3)
+        # self.export_lbl = QtWidgets.QLabel("to scan record")
+        # self.export_lbl.setFixedWidth(size3)
         zero_lbl = QtWidgets.QLabel("scan line")
         zero_lbl.setFixedWidth(size3)
         zero_all_lbl = QtWidgets.QLabel("all scans")
@@ -774,16 +836,16 @@ class Controls(QtWidgets.QWidget):
 
         b1 = QtWidgets.QVBoxLayout()
         b1.addWidget(self.setup_btn)
-        b1.addWidget(self.import_btn)
-        b1.addWidget(self.export_btn)
+        # b1.addWidget(self.import_btn)
+        # b1.addWidget(self.export_btn)
         b1.addWidget(self.zero_btn)
         b1.addWidget(self.zero_all_btn)
         b1.addWidget(self.tomography_chbx)
         # b1.addWidget(self.misc_chbx)
         b2 = QtWidgets.QVBoxLayout()
         b2.addWidget(setup_lbl)
-        b2.addWidget(self.import_lbl)
-        b2.addWidget(self.export_lbl)
+        # b2.addWidget(self.import_lbl)
+        # b2.addWidget(self.export_lbl)
         b2.addWidget(zero_lbl)
         b2.addWidget(zero_all_lbl)
         b2.addWidget(self.tomography_lbl)
@@ -937,7 +999,7 @@ class Line(QtWidgets.QWidget):
     duplicatelinesig = QtCore.pyqtSignal(int)
     def __init__(self, scan_id):
         super(Line, self).__init__()
-        self.id = str(scan_id)
+        self.id = scan_id
         self.setupUi()
         self.make_pretty()
         self.trajectory_arr = []
@@ -968,9 +1030,9 @@ class Line(QtWidgets.QWidget):
             if action == add_line_action:
                 self.addlinesig.emit()
             if action == delete_line_action:
-                self.deletelinesig.emit(int(self.current_line.text()))
+                self.deletelinesig.emit(self.id)
             if action == duplicate_line_action:
-                self.duplicatelinesig.emit(int(self.current_line.text()))
+                self.duplicatelinesig.emit(self.id)
 
     def setupUi(self):
         size1 = 30
@@ -982,7 +1044,6 @@ class Line(QtWidgets.QWidget):
         line = QtWidgets.QHBoxLayout()
         self.setStyleSheet("background: white")
         self.current_line = QtWidgets.QRadioButton()
-        self.current_line.setText(self.id)
         self.current_line.setFixedSize(size1, height)
         self.scan_type = QtWidgets.QPushButton("step", checkable = True)
         self.scan_type.setFixedSize(size1, height)
@@ -1004,7 +1065,7 @@ class Line(QtWidgets.QWidget):
 
         self.dwell_time = QtWidgets.QLineEdit()
         self.dwell_time.setPlaceholderText("dwell")
-        self.dwell_time.setFixedSize(size1, height)
+        self.dwell_time.setFixedSize(size2, height)
         self.x_center = QtWidgets.QLineEdit()
         self.x_center.setPlaceholderText("x center")
         self.x_center.setFixedSize(size2, height)

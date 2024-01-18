@@ -26,8 +26,6 @@ class Launcher(QtWidgets.QWidget):
         self.server_connected = False
         self.gui = batch_gui.BatchScanGui()
         self.backend = batch_backend.BatchScan()
-        self.gui.controls.import_btn.clicked.connect(self.import_clicked)
-        self.gui.controls.export_btn.clicked.connect(self.export_clicked)
         self.gui.controls.begin_btn.clicked.connect(self.begin_clicked)
         self.gui.controls.pause_btn.clicked.connect(self.pause_clicked)
         self.gui.controls.continue_btn.clicked.connect(self.continue_clicked)
@@ -141,41 +139,6 @@ class Launcher(QtWidgets.QWidget):
     # def setup_clicked(self):
         # cwd = os.path.dirname(os.path.abspath(__file__))+"/"
         # subprocess.Popen(["python", "{}batch_settings.py".format(cwd)])
-
-    def import_clicked(self):
-        if not self.server_connected:
-            print("server not connected")
-            return
-        lines = [vars(self.gui)[i] for i in self.gui.line_names]
-        checked = [line.current_line.isChecked() for line in lines].index(True)
-        parameters = self.get_from_sr()
-        lines[checked].x_center.setText(str(np.round(parameters["x_motor.VAL"], 3)))
-        lines[checked].x_points.setText(str(np.round(parameters["ScanH.NPTS"], 3)))
-        lines[checked].x_width.setText(str(np.round(parameters["ScanH.P1WD"], 3)))
-        lines[checked].y_center.setText(str(np.round(parameters["y_motor.VAL"], 3)))
-        lines[checked].y_points.setText(str(np.round(parameters["Scan1.NPTS"], 3)))
-        lines[checked].y_width.setText(str(np.round(parameters["Scan1.P1WD"], 3)))
-        lines[checked].dwell.setText(str(np.round(parameters["dwell"], 3)))
-
-    def export_clicked(self):
-        # TODO: export button should move motors to center position in additon to exporting scan params to scan record.
-
-        if not self.server_connected:
-            print("server not connected")
-            return
-        lines = [vars(self.gui)[i] for i in self.gui.line_names]
-        checked = [line.current_line.isChecked() for line in lines].index(True)
-        parameters = {}
-        parameters["ScanH.P1CP"] = lines[checked].x_center.text()
-        parameters["x_motor.VAL"] = lines[checked].x_center.text()
-        parameters["ScanH.NPTS"] = lines[checked].x_points.text()
-        parameters["ScanH.P1WD"] = lines[checked].x_width.text()
-        parameters["Scan1.P1CP"] = lines[checked].y_center.text()
-        parameters["y_motor.VAL"] = lines[checked].y_center.text()
-        parameters["Scan1.NPTS"] = lines[checked].y_points.text()
-        parameters["Scan1.P1WD"] = lines[checked].y_width.text()
-        self.send_to_sr(parameters)
-        return
 
     def begin_clicked(self):
         #TODO: check if lines are valid, if not return
