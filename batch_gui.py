@@ -386,20 +386,6 @@ class BatchScanGui(QtWidgets.QWidget):
                         line[widget].setText("00:00:00")
                     else:
                         line[widget].setText("")
-            # line.dwell_time.setText("")
-            # line.x_center.setText("")
-            # line.x_points.setText("")
-            # line.x_width.setText("")
-            # line.y_center.setText("")
-            # line.y_points.setText("")
-            # line.y_width.setText("")
-            # line.r_center.setText("")
-            # line.r_points.setText("")
-            # line.r_width.setText("")
-            # line.comments.setText("")
-            # line.save_message.setText("")
-            # line.start_time.setText("")
-            # line.finish_time.setText("")
 
     def zero_clicked(self):
         line, scan_id = self.get_checked_line()
@@ -411,20 +397,6 @@ class BatchScanGui(QtWidgets.QWidget):
                     line[widget].setText("00:00:00")
                 else:
                     line[widget].setText("")
-
-        # lines[checked].dwell_time.setText("")
-        # lines[checked].x_center.setText("")
-        # lines[checked].x_points.setText("")
-        # lines[checked].x_width.setText("")
-        # lines[checked].y_center.setText("")
-        # lines[checked].y_points.setText("")
-        # lines[checked].y_width.setText("")
-        # lines[checked].r_center.setText("")
-        # lines[checked].r_points.setText("")
-        # lines[checked].r_width.setText("")
-        # lines[checked].save_message.setText("")
-        # lines[checked].start_time.setText("")
-        # lines[checked].finish_time.setText("")
 
     def line_color(self, line_idx, color="white"):
         if color == "red" or color == "white":
@@ -571,16 +543,16 @@ class BatchScanGui(QtWidgets.QWidget):
             for line in lines:
                 for widget in line.keys():
                     if isinstance(line[widget], QtWidgets.QRadioButton):
-                        settings[widget].append([widget, line[widget].isChecked()])
+                        settings[widget].append(line[widget].isChecked())
                     if isinstance(line[widget], QtWidgets.QPushButton):
                         if line[widget].isCheckable():
-                            settings[widget].append([widget, line[widget].isChecked()])
+                            settings[widget].append(line[widget].isChecked())
                     if isinstance(line[widget], QtWidgets.QComboBox):
-                        settings[widget].append([widget, line[widget].currentIndex()])
+                        settings[widget].append(line[widget].currentIndex())
                     if isinstance(line[widget], QtWidgets.QLineEdit):
-                        settings[widget].append([widget, line[widget].text()])
+                        settings[widget].append(line[widget].text())
                     if isinstance(line[widget], QtWidgets.QLabel):
-                        settings[widget].append([widget, line[widget].text()])
+                        settings[widget].append(line[widget].text())
 
             with open(cwd+file, 'wb') as f:
                 pickle.dump(["session",datetime.now(),settings], f)
@@ -688,34 +660,35 @@ class BatchScanGui(QtWidgets.QWidget):
 
     def restore_session(self):
         #TODO: send command to host server to restore session.
+        # if there are less settings than lines, clear lines, delete lines, and load settings
+        # if thre are more settings than lines, clear lines, make more lines and apply settings
         current_dir = os.path.dirname(os.path.abspath(__file__))+"/"
         try:
             lines = self.get_lines()
             with open(current_dir+self.session_file,'rb') as f:
                 contents = pickle.load(f)
                 settings = contents[2]
-                for line in settings:
-                    for item in settings[line]:
-                        widget = item[0]
-                        value = item[1]
-                        if isinstance(vars(vars(self)[line])[widget], QtWidgets.QRadioButton):
-                            vars(vars(self)[line])[widget].setChecked(value)
-                        if isinstance(vars(vars(self)[line])[widget], QtWidgets.QPushButton):
-                            vars(vars(self)[line])[widget].setChecked(value)
+                for widget in settings:
+                    for row, line in enumerate(lines):
+                        value = settings[widget][row]
+                        if isinstance(line[widget], QtWidgets.QRadioButton):
+                            line[widget].setChecked(value)
+                        if isinstance(line[widget], QtWidgets.QPushButton):
+                            line[widget].setChecked(value)
                             text = "fly" if value else "step"
-                            vars(vars(self)[line])[widget].setText(text)
-                        if isinstance(vars(vars(self)[line])[widget], QtWidgets.QComboBox):
-                            vars(vars(self)[line])[widget].setCurrentIndex(value)
-                        if isinstance(vars(vars(self)[line])[widget], QtWidgets.QLineEdit):
-                            vars(vars(self)[line])[widget].setText(value)
-                        if isinstance(vars(vars(self)[line])[widget], QtWidgets.QLabel):
-                            vars(vars(self)[line])[widget].setText(value)
+                            line[widget].setText(text)
+                        if isinstance(line[widget], QtWidgets.QComboBox):
+                            line[widget].setCurrentIndex(value)
+                        if isinstance(line[widget], QtWidgets.QLineEdit):
+                            line[widget].setText(value)
+                        if isinstance(line[widget], QtWidgets.QLabel):
+                            line[widget].setText(value)
                             if widget == "line_eta":
                                 hrs = int(value.split(":")[0])*60*60
                                 min = int(value.split(":")[1])*60
                                 sec = int(value.split(":")[2])
                                 total_s = sec + min + hrs
-                                vars(vars(self)[line])["eta"] = timedelta(seconds = total_s)
+                                line["eta"] = timedelta(seconds = total_s)
             f.close()
             return
         except:
@@ -865,8 +838,8 @@ class Controls(QtWidgets.QWidget):
 
         self.backup_scanrecord_btn = QtWidgets.QPushButton("Backup")
         self.backup_scanrecord_btn.setFixedWidth(size2)
-        self.init_pvs_btn = QtWidgets.QPushButton("Init")
-        self.init_pvs_btn.setFixedWidth(size2)
+        self.connect_server_btn = QtWidgets.QPushButton("connect/start")
+        self.connect_server_btn.setFixedWidth(size2)
         begin_lbl = QtWidgets.QLabel("batch scan")
         begin_lbl.setFixedWidth(size3)
         pause_lbl = QtWidgets.QLabel("batch scan")
@@ -878,8 +851,8 @@ class Controls(QtWidgets.QWidget):
 
         self.backup_scanrecord_lbl = QtWidgets.QLabel("scan record")
         self.backup_scanrecord_lbl.setFixedWidth(size3)
-        self.init_pvs_lbl = QtWidgets.QLabel("PVs and/or scan record")
-        self.init_pvs_lbl.setFixedWidth(size3)
+        self.connect_server_lbl = QtWidgets.QLabel("server")
+        self.connect_server_lbl.setFixedWidth(size3)
 
         c1 = QtWidgets.QVBoxLayout()
         c1.addWidget(self.begin_btn)
@@ -887,14 +860,14 @@ class Controls(QtWidgets.QWidget):
         c1.addWidget(self.continue_btn)
         c1.addWidget(self.abort_btn)
         c1.addWidget(self.backup_scanrecord_btn)
-        c1.addWidget(self.init_pvs_btn)
+        c1.addWidget(self.connect_server_btn)
         c2 = QtWidgets.QVBoxLayout()
         c2.addWidget(begin_lbl)
         c2.addWidget(pause_lbl)
         c2.addWidget(continue_lbl)
         c2.addWidget(abort_lbl)
         c2.addWidget(self.backup_scanrecord_lbl)
-        c2.addWidget(self.init_pvs_lbl)
+        c2.addWidget(self.connect_server_lbl)
         col3 = QtWidgets.QHBoxLayout()
         col3.addLayout(c1)
         col3.addLayout(c2)
@@ -1464,7 +1437,7 @@ class ImageView(pyqtgraph.GraphicsLayoutWidget):
         # self.p1.setYRange(0,10, padding=0)
         self.data_trajectory = self.p1.plot([0,1,2,3],[0,0,0,0], pen=pen, symbol='o', symbolSize=5, symbolBrush="w")
         self.data_line = self.p1.plot([0,1,2,3],[0,1,2,3], pen=pen, symbol='o', symbolSize=5, symbolBrush="b")
-        self.projView = pyqtgraph.ImageItem(axisOrder = "row-major")
+        self.image_view = pyqtgraph.ImageItem(axisOrder = "row-major")
         self.p1.setMouseEnabled(x=False, y=False)
         self.vb = self.p1.getViewBox()
         self.vb.setBackgroundColor((255,255,255))

@@ -209,15 +209,13 @@ class ThreadWithReturnValue(Thread):
         Thread.join(self, *args)
         return self._return
 #
-import socket
-from threading import Thread
-import pickle
+
 # import server
-s = BatchServer()
-hostname = socket.gethostname()
-host = socket.gethostbyname(hostname)
-s.start_server(host)
-print("done")
+# s = BatchServer()
+# hostname = socket.gethostname()
+# host = socket.gethostbyname(hostname)
+# s.start_server(host)
+# print("done")
 # t = Thread(target=s.start_server, args=(host))
 
 ##get PID from terminal

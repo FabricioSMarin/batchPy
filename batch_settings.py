@@ -243,7 +243,7 @@ class ScanSettings(QtWidgets.QWidget):
             print(e)
 
     def open_settings(self):
-        #TODO: remove this function altogether, replace with restore_settings
+        #TODO: load as normally
 
         #open all pkl files in cwd, set "last opened" status to 0 for all except current file.
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -270,7 +270,7 @@ class ScanSettings(QtWidgets.QWidget):
         return
 
     def restoresettings(self):
-        #TODO: send command to server to open and get settings instead of opening locally
+        #TODO: load as normally, but once connected to server, pull settings/config from server.
 
         current_dir = os.path.dirname(os.path.abspath(__file__))+"/"
         valid_files = []

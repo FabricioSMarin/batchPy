@@ -14,11 +14,13 @@ import subprocess
 import os
 from datetime import datetime, timedelta
 import pickle
+
+import client
 import server
 import socket
 from threading import Thread
 import pickle
-
+import psutil
 
 # import server
 
@@ -31,18 +33,108 @@ class Launcher(QtWidgets.QWidget):
     def __init__(self):
         super(QtWidgets.QWidget, self).__init__()
         self.server_connected = False
+        self.client_connected = False
+        self.cli = None
         self.gui = batch_gui.BatchScanGui()
         self.backend = batch_backend.BatchScan()
+        self.batch_client = client.BatchClient()
         self.gui.controls.begin_btn.clicked.connect(self.begin_clicked)
         self.gui.controls.pause_btn.clicked.connect(self.pause_clicked)
         self.gui.controls.continue_btn.clicked.connect(self.continue_clicked)
         self.gui.controls.abort_btn.clicked.connect(self.abort_clicked)
+        # self.gui.controls.connect_server_btn.clicked.connect(self.connect_clicked)
+
         sys.stdout = Stream(newText=self.onUpdateText)
         self.start_threads()
         # sys.exit(self.app.exec())
 
-    def connect_server(self):
+    def connect_clicked(self):
+        svr_addr = self.gui.settings.server_addr.text().strip(" ")
+        hostname = socket.gethostname()
+        ip_addr = socket.gethostbyname(hostname)
+        if svr_addr == ip_addr:
+            self.start_server(self)
 
+        elif svr_addr == "":
+            print("no server IP address defined, cannot connect")
+        else:
+            self.connect_server(svr_addr)
+
+    def connect_server(self, host):
+        port = 22262
+        self.batch_client.connect_server(host, port)
+
+    def send_message(self, message):
+        try:
+            message = pickle.dumps(message)
+            self.cli.send(message)
+            time.sleep(1)
+            response = self.cli.recv(1024)
+            response = pickle.loads(response)
+            print(response)
+            if response == "disconnecting client" or "stopping server":
+                self.client_connected = True
+        except socket.timeout:
+            print("timeout")
+        except Exception as error:
+            print(error)
+
+        pass
+
+    def start_server(self):
+        ##check if server already running with PID"
+        # ps -ef | grep "python server.py"
+        ##if server runing, attempt to connec to it"
+        pid = self.command_response("ps -ef | grep \"python server.py\" ")
+
+        PROCNAME = "server.py"
+
+        pids = {}
+        for proc in psutil.process_iter(["pid","name"]):
+            if proc.name() == PROCNAME:
+                pids[proc.name()] = proc.pid
+
+        if len(pids) == 0:
+            print("no server in pid list, starting new server instance")
+        elif len(pids) ==1:
+            print("server pid found, atempting to connect")
+        else:
+            print("more than one server pid found, consider terminating one.")
+            print(pids)
+
+        cwd = os.getcwd()+"/"
+        python_path = self.command_response("where python")
+        if python_path == "":
+            python_path = self.command_response("which python")
+
+        if python_path == "":
+            print("could not connect to server")
+            return
+
+        command = "{}python", "{}server.py".format(python_path,cwd)
+        self.command_detatch(command)
+
+    def command_response(self, command):
+        try:
+            proc = subprocess.Popen(command, stdout=subprocess.PIPE)
+            try:
+                response = proc.communicate(timeout=1.0)
+                response = response[0].decode("utf-8").split("\r")
+                response = response[0] + "/"
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                response = ""
+        except:
+            response = ""
+        return response
+
+    def command_detatch(self, command):
+        # subprocess.call("{}python", "{}server.py".format(python_path,cwd), shell=True)
+        #TODO: check if this starts and detaches from main process.
+        subprocess.Popen([command], shell=True)
+        return
+
+    def start_server(self):
         s = server.BatchServer()
         hostname = socket.gethostname()
         host = socket.gethostbyname(hostname)
@@ -53,7 +145,6 @@ class Launcher(QtWidgets.QWidget):
         ##get PID from terminal
         # ps -ef | grep "python server.py"
         pass
-
     def onUpdateText(self, text):
         cursor = self.gui.controls.message_window.textCursor()
         cursor.insertText(text)

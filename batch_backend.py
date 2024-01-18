@@ -50,7 +50,6 @@ class BatchScan(object):
         self.stop = False
         self.threads = []
 
-
     # def init_server(self):
     #     #TODO:
     #     # start server, return if server already started, print server address and PID otherwise.
