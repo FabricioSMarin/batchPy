@@ -99,7 +99,6 @@ class BatchServer(object):
                 print("error with server")
                 print(error)
                 break
-
         return
 
     def start_server(self, host_addr):

@@ -14,6 +14,13 @@ import subprocess
 import os
 from datetime import datetime, timedelta
 import pickle
+import server
+import socket
+from threading import Thread
+import pickle
+
+
+# import server
 
 class Stream(QtCore.QObject):
     newText = QtCore.pyqtSignal(str)
@@ -36,8 +43,15 @@ class Launcher(QtWidgets.QWidget):
 
     def connect_server(self):
 
-        data = s.recv(4096)
-        data_arr = pickle.loads(data)
+        s = server.BatchServer()
+        hostname = socket.gethostname()
+        host = socket.gethostbyname(hostname)
+        s.start_server(host)
+        print("done")
+        # t = Thread(target=s.start_server, args=(host))
+
+        ##get PID from terminal
+        # ps -ef | grep "python server.py"
         pass
 
     def onUpdateText(self, text):
