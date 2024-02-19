@@ -14,6 +14,8 @@ from datetime import datetime, timedelta
 import subprocess
 import batch_settings
 import sys
+import psutil
+
 #GUI structure:
 #   Lines()
 #   Controls()
@@ -70,6 +72,7 @@ class BatchScanGui(QtWidgets.QWidget):
 
         self.closeAction.triggered.connect(sys.exit)
         self.settings.settings_closed_sig.connect(self.settings_changed)
+        self.controls.connect_server_btn.clicked.connect(self.connect_server_clicked)
         self.controls.setup_btn.clicked.connect(self.settings.show)
         self.controls.setup_btn.clicked.connect(self.settings.openEvent)
         self.controls.points_all.clicked.connect(self.all_clicked)
@@ -78,6 +81,9 @@ class BatchScanGui(QtWidgets.QWidget):
         self.controls.tomography_chbx.clicked.connect(self.view_changed)
         self.controls.zero_all_btn.clicked.connect(self.zero_all_clicked)
         self.controls.zero_btn.clicked.connect(self.zero_clicked)
+        self.controls.continue_btn.clicked.connect(self.continue_clicked)
+        self.controls.pause_btn.clicked.connect(self.pause_clicked)
+
 
         # TODO: widget class does not have menu bar, add these as buttons or under settings.
         # fileMenu.addAction(self.exportScanParamsAction)
@@ -207,6 +213,17 @@ class BatchScanGui(QtWidgets.QWidget):
                 line[key].setCurrentIndex(scan[key])
             else:
                 line[key].setText(scan[key])
+    def update_plot(self):
+        #TODO: get scanID
+        #TOOO: get trajectory
+        #TODO: get scan_progress
+        #TODO: set_plot(trajectory[:scan_progress]
+        # self.gui.controls.view_box.plott(x_arr[:idx], y_arr[:idx])
+        pass
+
+    def get_scan_progress(self):
+
+        pass
     def get_trajectory(self):
         line, scan_id = self.get_checked_line()
         if line == None:
@@ -318,10 +335,7 @@ class BatchScanGui(QtWidgets.QWidget):
             #     pass
 
         elif scan_generator == "scan record":
-            # self.controls.import_btn.setVisible(True)
-            # self.controls.export_btn.setVisible(True)
-            # self.controls.import_lbl.setVisible(True)
-            # self.controls.export_lbl.setVisible(True)
+
             self.controls.backup_scanrecord_btn.setVisible(True)
             self.controls.backup_scanrecord_lbl.setVisible(True)
             self.trajectory = "raster"
@@ -368,12 +382,101 @@ class BatchScanGui(QtWidgets.QWidget):
                 line["r_width"].setVisible(True)
                 line["r_width"].setVisible(True)
 
-    def abort_clicked(self):
-        if self.active_line != -1:
-            self.line_color(self.active_line, color="white")
-            self.active_line = -1
-            print("Aborting Line")
+
+    def connect_server_clicked(self):
+        ##check if server already running with PID"
+        # ps -ef | grep "python server.py"
+        ##if server runing, attempt to connec to it"
+        pid = self.command_response("ps -ef | grep \"python server.py\" ")
+
+        PROCNAME = "server.py"
+
+        pids = {}
+        for proc in psutil.process_iter(["pid", "name"]):
+            if proc.name() == PROCNAME:
+                pids[proc.name()] = proc.pid
+
+        if len(pids) == 0:
+            print("no server in pid list, starting new server instance")
+        elif len(pids) == 1:
+            print("server pid found, atempting to connect")
+        else:
+            print("more than one server pid found, consider terminating one.")
+            print(pids)
+
+        cwd = os.getcwd() + "/"
+        python_path = self.command_response("where python")
+        if python_path == "":
+            python_path = self.command_response("which python")
+
+        if python_path == "":
+            print("could not connect to server")
+            return
+
+        command = "{}python", "{}server.py".format(python_path, cwd)
+        self.command_detatch(command)
+
+    def command_response(self, command):
+        try:
+            proc = subprocess.Popen(command, stdout=subprocess.PIPE)
+            try:
+                response = proc.communicate(timeout=1.0)
+                response = response[0].decode("utf-8").split("\r")
+                response = response[0] + "/"
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                response = ""
+        except:
+            response = ""
+        return response
+
+    def command_detatch(self, command):
+        # subprocess.call("{}python", "{}server.py".format(python_path,cwd), shell=True)
+        # TODO: check if this starts and detaches from main process.
+        subprocess.Popen([command], shell=True)
         return
+
+    def abort_clicked(self):
+
+        #TODO:  get ongoing scan ID
+        #TODO:  send abort request
+        #TODO:  update save data message for line matching scanID with "aborted scan XXXX"
+        #TODO:  aborting does not atuomatically continue other ququed scans, you have to press begin again.
+
+        # scanID = self.backeg.get_scan_id()
+        # self.backend.abort_scan()
+        # savedata_message = self.backend.get_savedata_message()
+        # self.lines[scanID].save_message.setText(savedata_message)
+        pass
+
+    def continue_clicked(self):
+        #TODO:  if server connected, continue, else return and print("server not connected")
+        #TODO:  get ongoing scan ID
+        #TODO: sent coninue request
+        #TODO: get scan status, update gui
+
+
+        # scanID = self.backeg.get_scan_id()
+        # self.backend.continue_scan()
+        # self.lines[scanID].status.setText(savedata_message)
+        pass
+
+    def pause_clicked(self):
+        #TODO: if server connected, pause, else return and print("server not connected")
+        #TODO: get ongoing scan ID
+        #TODO: sent pause request
+        #TODO: get scan status
+        #TODO: update gui
+        pass
+
+    def begin_clicked(self):
+
+        # TODO: if server connected, pause, else return and print("server not connected")
+        # TODO: get_scan_id
+        # TODO: send begin_scan request
+        # TODO: get scan status
+        # TODO: update gui
+        pass
 
     def zero_all_clicked(self):
         lines = self.get_lines()
@@ -1154,6 +1257,37 @@ class Line(QtWidgets.QWidget):
                 else:
                     item.setStyleSheet("background: lightblue; color: lightblue; border-radius: 4")
         self.validate_params()
+
+    def spiral_selected(self):
+        #TODO: set y_width == None disable y_width
+        #TODO: set y_points == None disable y_points
+        #TODO: set scan type to "STEP" (currently canno flyscan multi-axis)
+        pass
+
+    def lissajous_selected(self):
+        #TODO: set y_points == None disable y_points
+        #TODO: open lissajous interactive window
+        #TODO:  x frequency slider 0-1
+        #TODO:  y_frequency slider 0-1
+        #TODO: display LINE number from which lissa option was opened from.
+        #TODO: if trajectory type changes for line, automatically close window.
+        #TODO: return trajectory as [x,y] array, execute as "custom" scan
+        pass
+
+    def custom_selected(self):
+        #TODO: open table window where user can either manually enter list of x,y coordinates, paster them in, OR
+        #TODO: in another tab, open hdf5 file with coordinates, to DRAW over an image to create an enclosed region
+        #TODO: then specify [x_points, y_points] and either [raster, or snake] to generarte trajecrory, update table, and update plot
+        pass
+    def custom_draw(self):
+        #TODO: create interactive draw windwo but put it under gui
+        #open hdf, linedit showing directory
+        #create DATA dropdown that explores hdf5 to simulates file browser
+        #create element dropdown that explores hdf5 to simulates file browser (optional, but likely necessary)
+        #create COORDINATE dropdown that explores hdf5 to simulates file browser find x,y coordinates
+        #apply button updates scan trajectory plot
+        #clear drawing button
+        pass
 
     def scan_type_clicked(self):
         button = self.sender()

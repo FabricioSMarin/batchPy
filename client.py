@@ -64,6 +64,9 @@ class BatchClient(object):
         #TODO: get current scan number, is_scanning,
         pass
 
+    def get_scan_progress(self):
+        #TODO: send command to get scan progress
+        pass
     def begin_scan(self):
         #TODO: send command to begin next scan in queue
         pass
@@ -76,13 +79,37 @@ class BatchClient(object):
         # TODO: send command to pause scan
         pass
 
-    def get_test_array(self):
-        pass
+    def get_motor_limits(self):
+        try:
+            #TODO: send "get_motor_limits" command, parse string, and update limits
+            x_hlm = self.backend.x_motor.HLM
+            x_llm = self.backend.x_motor.LLM
+            x_vmax = self.backend.x_motor.VMAX
+            x_vmin = self.backend.x_motor.VBAS
+            x_res = self.backend.x_motor.MRES
+            y_hlm = self.backend.y_motor.HLM
+            y_llm = self.backend.y_motor.LLM
+            y_res = self.backend.y_motor.MRES
+            if self.backend.r == "empty":
+                r_llm = -1000
+                r_hlm = 1000
+            else:
+                r_llm = self.backend.r_motor.LLM
+                r_hlm = self.backend.r_motor.HLM
 
-    # def get_test_dict(self):
-    #     client.send(b"get_test_dict")
-    #     msg = client.recv(1024)
-    #     data_arr = pickle.loads(msg)
-    #     print('Received', data_arr)
-
+            lines = [vars(self.gui)[i] for i in self.gui.line_names]
+            for line in lines:
+                line.x_hlm = x_hlm
+                line.x_llm = x_llm
+                line.x_vmax = x_vmax
+                line.x_vmin = x_vmin
+                line.x_res = x_res
+                line.y_hlm = y_hlm
+                line.y_llm = y_llm
+                line.y_res = y_res
+                line.r_llm = r_llm
+                line.r_hlm = r_hlm
+        except Exception as e:
+            print(e)
+            pass
 

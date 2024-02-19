@@ -418,8 +418,7 @@ class Setup(QtWidgets.QWidget):
         item_dict["save_config"] = [["label","button"], "save config settings.", None, None]
         item_dict["init"] = [["label", "button"], "Initialize PVs and scan record", None, None]
         item_dict["server_ip"] = [["label", "linedit"], "batch scan server host IP address", None, None]
-        item_dict["connect/start server"] = [["label", "button"], "start or connect to server", None, None]
-
+        item_dict["connect/start server"] = [["label", "button"], "connect to server", None, None]
 
         v_box = self.create_widget(item_dict)
         v_box.setSpacing(0)

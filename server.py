@@ -4,6 +4,8 @@ import pickle
 import os
 import multiprocessing
 import batch_backend
+from datetime import datetime, timedelta
+
 
 #TODO:
 # check if clients still connected by having client regularly send ping request as a heartbeat,
@@ -45,6 +47,8 @@ class BatchServer(object):
                 elif msg == "get_scan_list":
                     pass
                 elif msg == "get_settings":
+                    pass
+                elif msg == "get_Scan_progress":
                     pass
                 elif msg == "update_settings":
                     pass
@@ -183,15 +187,44 @@ class BatchServer(object):
         finally:
             s.close()
 
-    def send_test_dict(self, clientsocket):
-        d = {}
-        d["a"] = 0
-        d["b"] = 1
-        d["c"] = 3
-        data = pickle.dumps(d)
-        print("sending data")
-        clientsocket.send(data)
+    def save_log(self):
+        pass
 
+    def save_queue(self):
+        pass
+
+    def get_eta(self):
+        pass
+
+    def get_scan_progress(self):
+        try:
+            x_pos = self.backend.x_motor.RBV
+            start = self.backend.inner.P1SP
+            end = self.backend.inner.P1EP
+            width = self.backend.inner.P1WD
+            points = self.backend.inner.NPTS
+            faze = self.backend.inner.FAZE
+            if faze == 8:
+                current_x_pos = int(points)
+            else:
+                current_x_pos = int(points*(x_pos - start)/(width))
+            current_y_pos = self.backend.outer.CPT
+            return current_x_pos, current_y_pos
+        except:
+            return
+
+    def get_datetime(self):
+        now = datetime.now()
+        day = now.strftime("%a")
+        cal_day = now.day
+        month = now.month
+        year = now.year
+        time = datetime.today().time()
+        hour = time.hour
+        minute = time.minute
+        second = time.second
+        formatted = "{} {}-{}-{} {}:{}:{}".format(day, month, cal_day, year, hour, minute, second)
+        return formatted
 
 class ThreadWithReturnValue(Thread):
 
