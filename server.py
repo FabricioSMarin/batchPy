@@ -5,7 +5,7 @@ import os
 import multiprocessing
 import batch_backend
 from datetime import datetime, timedelta
-
+import numpy as np
 
 #TODO:
 # check if clients still connected by having client regularly send ping request as a heartbeat,
@@ -34,6 +34,10 @@ class BatchServer(object):
                 elif msg == "stop_server":
                     self.stop_server(clientsocket)
                     break
+                elif msg == "open_session":
+                    pass
+                elif msg == "save_session":
+                    pass
                 elif msg == "start_scan":
                     pass
                 elif msg == "pause_scan":
@@ -45,6 +49,8 @@ class BatchServer(object):
                 elif msg == "get_motor_limits":
                     pass
                 elif msg == "get_scan_list":
+                    pass
+                elif msg == "get_eta":
                     pass
                 elif msg == "get_settings":
                     pass
@@ -155,6 +161,132 @@ class BatchServer(object):
                 self.threads[addr[0]]._target(c, addr)
             print("number of clients connected: ", len(self.threads))
 
+
+    def open_session(self):
+        # #open all pkl files in cwd, set "last opened" status to 0 for all except current file.
+        # current_dir = os.path.dirname(os.path.abspath(__file__))+"/"
+        # file = QtWidgets.QFileDialog.getOpenFileName(self, "Open .pkl", current_dir, "*.pkl")
+        # if file[0] == '':
+        #     return
+        # try:
+        #     with open(current_dir+self.session_file,'rb') as f:
+        #         contents = pickle.load(f)
+        #         settings = contents[2]
+        #         for line in lines:
+        #             for item in settings[line]:
+        #                 widget = item[0]
+        #                 value = item[1]
+        #                 if isinstance(vars(vars(self)[line])[widget], QtWidgets.QRadioButton):
+        #                     vars(vars(self)[line])[widget].setChecked(value)
+        #                 if isinstance(vars(vars(self)[line])[widget], QtWidgets.QPushButton):
+        #                     vars(vars(self)[line])[widget].setChecked(value)
+        #                 if isinstance(vars(vars(self)[line])[widget], QtWidgets.QComboBox):
+        #                     vars(vars(self)[line])[widget].setCurrentIndex(value)
+        #                 if isinstance(vars(vars(self)[line])[widget], QtWidgets.QLineEdit):
+        #                     vars(vars(self)[line])[widget].setText(value)
+        #                 if isinstance(vars(vars(self)[line])[widget], QtWidgets.QLabel):
+        #                     vars(vars(self)[line])[widget].setText(value)
+        #     f.close()
+        #     return
+        # except:
+        #     print("cannot autoload session, or file not found")
+        # return
+        pass
+
+    def save_session(self):
+        # try:
+        #     # print("autosaving session")
+        #     cwd = os.path.dirname(os.path.abspath(__file__))+"/"
+        #     file = self.session_file
+        #     save_list = []
+        #     lines = self.get_lines()
+        #     params = self.get_params()
+        #     settings = {}
+        #     for param in params:
+        #         settings[param] = []
+        #
+        #     for line in lines:
+        #         for widget in line.keys():
+        #             if isinstance(line[widget], QtWidgets.QRadioButton):
+        #                 settings[widget].append(line[widget].isChecked())
+        #             if isinstance(line[widget], QtWidgets.QPushButton):
+        #                 if line[widget].isCheckable():
+        #                     settings[widget].append(line[widget].isChecked())
+        #             if isinstance(line[widget], QtWidgets.QComboBox):
+        #                 settings[widget].append(line[widget].currentIndex())
+        #             if isinstance(line[widget], QtWidgets.QLineEdit):
+        #                 settings[widget].append(line[widget].text())
+        #             if isinstance(line[widget], QtWidgets.QLabel):
+        #                 settings[widget].append(line[widget].text())
+        #
+        #     with open(cwd+file, 'wb') as f:
+        #         pickle.dump(["session",datetime.now(),settings], f)
+        #         f.close()
+        #
+        # except IOError as e:
+        #     print(e)
+        #     print("cannot autosave upon close")
+        pass
+
+    def validate_motor_limits(self, scan_id):
+        #TODO:
+        # x_hlm = self.x_hlm
+        # x_llm = self.x_llm
+        # x_vmax = self.x_vmax
+        # x_vmin = self.x_vmin
+        # x_res = self.x_res
+        # y_hlm = self.y_hlm
+        # y_llm = self.y_llm
+        # y_res = self.y_res
+        # r_hlm = self.r_hlm
+        # r_llm = self.r_llm
+        # x_center = eval(self.x_center.text())
+        # y_center = eval(self.y_center.text())
+        # r_center = eval(self.r_center.text())
+        # x_width = eval(self.x_width.text())
+        # y_width = eval(self.y_width.text())
+        # r_width = eval(self.r_width.text())
+        # x_points = eval(self.x_points.text())
+        # y_points = eval(self.y_points.text())
+        # r_points = eval(self.r_points.text())
+        # dwell_time = eval(self.dwell_time.text())
+        #
+        # velocity_violation = False
+        # scan = [self.x_center, self.y_center, self.x_width, self.y_width, self.x_points, self.y_points, self.dwell_time]
+        #
+        # try:
+        #     x_step = abs(x_width/x_points)
+        #     y_step = abs(y_width/y_points)
+        #     if x_vmax == 0:
+        #         velocity_violation = False
+        #     elif x_step/(dwell_time/1000) > x_vmax:
+        #         velocity_violation = True
+        #
+        #     if x_step < x_res:
+        #         print("step size smaller than x_motor resolution, cannot run scan. ")
+        #         return False
+        #
+        #     if y_step < y_res:
+        #         print("step size smaller than y_motor resolution, cannot run scan. ")
+        #         return False
+        # except ZeroDivisionError:
+        #     velocity_violation = True
+        #     pass
+        #
+        # if (x_center - abs(x_width)/2) <= x_llm or (x_center + abs(x_width)/2) >= x_hlm or (y_center - abs(y_width)/2) <= y_llm or (y_center + abs(y_width)/2) >= y_hlm:
+        #     print((x_center - abs(x_width)/2), x_llm, (x_center + abs(x_width)/2), x_hlm, (y_center - abs(y_width)/2), y_llm, (y_center + abs(y_width)/2), y_hlm)
+        #     print("scan outside motor limits")
+        #     #TODO: Figure out how to add r_motor logic.
+        #     #(r_center - r_width / 2) <= r_llm or (r_center + r_width / 2) >= r_hlm:
+        #     return False
+        #
+        # if velocity_violation:
+        #     print("step size / dwell time exceeds positioner velocity")
+        #     return False
+        # else:
+        #     return True
+        pass
+
     def disconnect_client(self,clientsocket, addr):
         msg = pickle.dumps("disconnecting client")
         clientsocket.send(msg)
@@ -195,6 +327,50 @@ class BatchServer(object):
 
     def get_eta(self):
         pass
+
+    def get_trajectory(self,scan_id):
+        line, scan_id = self.get_checked_line()
+        if line == None:
+            return
+
+        scan = self.get_scan(scan_id)
+        #TODO: change list type to object type: line.x_center, line.x_width, etc
+        # scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell, r_center, r_width, r_npts
+        try:
+            if line["trajectory"].currentText() == "raster":
+                x_line = np.arange(line[1] - abs(scan[2])/2, scan[1] + abs(scan[2])/2, abs(scan[2])/scan[3])
+                x_coords = np.zeros((scan[6],scan[3]))
+                for i in range(scan[6]):
+                    x_coords[i] = x_line
+                x_coords = np.ndarray.flatten(x_coords)
+
+                y_line = np.arange(scan[4] - abs(scan[5])/2, scan[4] + abs(scan[5])/2, abs(scan[5])/scan[6])
+                y_coords = np.zeros((scan[6], scan[3]))
+                for i in range(scan[6]):
+                    y_coords[i] = np.ones(scan[3])*y_line[i]
+                y_coords = np.ndarray.flatten(y_coords)
+                return x_coords, y_coords
+
+            elif line["trajectory"].currentText() == "snake":
+                x_line = np.arange(scan[1] - scan[2] / 2, scan[1] + scan[2] / 2, scan[2] / scan[3])
+                x_coords = np.zeros((scan[6], scan[3]))
+                for i in range(scan[6]):
+                    if i%2 == 1:
+                        x_coords[:i] = np.fliplr(x_line)
+                    else:
+                        x_coords[:i] = x_line
+                x_coords = np.ndarray.flatten(x_coords)
+
+                y_line = np.arange(scan[4] - scan[5] / 2, scan[4] + scan[5] / 2, scan[4] / scan[6])
+                y_coords = np.zeros((scan[6], scan[3]))
+                for i in range(scan[6]):
+                    y_coords[:i] = np.ones(scan[3]) * y_line[i]
+                y_coords = np.ndarray.flatten(y_coords)
+                return x_coords, y_coords
+            else:
+                return
+        except:
+            return
 
     def get_scan_progress(self):
         try:

@@ -71,7 +71,7 @@ class BatchScan(object):
             return None
         return xp3
 
-    def setupxspress3_filesavi_ng(self):
+    def setupxspress3_filesaving(self):
         print("setting up xspress3 file saving... \n")
         if self.XSPRESS3 is not None:
             file_path = epics.caget(self.savePath,as_string=True).split("mda")[0]+"flyXRF"
