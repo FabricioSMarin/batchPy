@@ -1,8 +1,30 @@
 import socket
-from threading import Thread
 import os
-import time
-import pickle
+
+''' API calls: 
+# 
+queue_scan:         returns true, false, message
+begin:              returns true, false
+pause:              returns true, false
+resume:             returns true, false
+abort:              returns true, false
+change_settings:    returns, true, false, message
+connect_request:    returns true, false
+
+get_current_scan:           returns scan_id
+get_scan(scan_id):          returns scan params
+get_trajecotry(scan_id):    returns x_pos, y_pos
+get_progress(scan_id):      returns percentage from 0-100
+get_scan_params(scan_id):   retuns dictionary with param keys: value
+get_scan_eta(scan_id):      returns time in hrs, min, sec
+get_total_eta:              returns eta of all queued scans
+get_device_status:          returns dictionary of connected device keys: connected, not_connected
+get_queue:                  returns queue to update client
+
+remove_from_queue(scan_id): 
+rearange_queue(scan_id, new_pos):
+clear_queue:
+'''
 
 class BatchClient(object):
     def __init__(self):

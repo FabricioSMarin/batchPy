@@ -370,7 +370,7 @@ class ScanSettings(QtWidgets.QWidget):
                         print("cannot set some settings")
         return
 
-    def scan_generator_clicked(self,sender=None):
+    def scan_generator_changed(self,sender=None):
         if sender ==None:
             checked = False
         else:
@@ -409,8 +409,8 @@ class ScanSettings(QtWidgets.QWidget):
             self.setup_window.y_motor.setVisible(True)
             self.setup_window.r_motor_lbl.setVisible(True)
             self.setup_window.r_motor.setVisible(True)
-            self.setup_window.save_config_lbl.setVisible(True)
-            self.setup_window.save_config.setVisible(True)
+            # self.setup_window.save_config_lbl.setVisible(True)
+            # self.setup_window.save_config.setVisible(True)
 
         else:
             self.setup_window.scan_generator.setStyleSheet("background-color : lightblue")
@@ -476,7 +476,6 @@ class Setup(QtWidgets.QWidget):
         item_dict["r_motor"] = [["label","linedit"], "r positioner", None, ""]
         # item_dict["save_config"] = [["label","button"], "save config settings.", None, None]
         item_dict["init"] = [["label", "button"], "Initialize PVs and scan record", None, None]
-
 
         v_box = self.create_widget(item_dict)
         v_box.setSpacing(0)

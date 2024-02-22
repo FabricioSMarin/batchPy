@@ -13,6 +13,17 @@ import numpy as np
 #  startup server remotely
 #  server check when client disconnects.
 
+'''
+open_config
+save_config
+
+open_session
+save_session
+
+save_event_log
+save_scan_log
+'''
+
 class BatchServer(object):
     def __init__(self):
         # self.stop = False
