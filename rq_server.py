@@ -7,22 +7,20 @@ import os
 import pickle
 import datetime
 import epics
+from datetime import datetime, timedelta
 
 #TODO:
-# check if clients still connected by having client regularly send ping request as a heartbeat,
-#   if no heartbeat received after X seconds, close that connection, terminate that thread, and remove thread from threads
-#  startup server remotely
 #  server check when client disconnects.
 
 '''
-open_config
-save_config
-
+TODO
 open_session
 save_session
 
 save_event_log
 save_scan_log
+
+get_connected_clients
 '''
 
 class rqServer(object):
@@ -31,9 +29,10 @@ class rqServer(object):
         self.pid = None
         self.backend = batch_backend.BatchScan()
         pv_dict = self.open_config()
-        self.cage_pvs(pv_dict)
+        self.pv_dict = self.caget_pvs(pv_dict)
+        self.r = None
 
-    def init_server(self, addr, port, confile="redis.conf"):
+    def start_server(self, addr, port, confile="redis.conf"):
         #check if server running
         r = redis.Redis(host=addr, port=port, decode_responses=True, socket_connect_timeout=1)  # short timeout for the test
         try:
@@ -42,22 +41,21 @@ class rqServer(object):
         except:
             print("redis server not running, starting server...")
             command = "redis-server {}".format(confile)
-            self.command_detatch(command)
-
-        r = redis.Redis(host=addr, port=port, decode_responses=True, socket_connect_timeout=1)  # short timeout for the test
-
-
-
-        #TODO:
-        # open settings_file {key: PV_name}
-        # start listening for new connections.
-        pass
-
-    def command_detatch(self, command):
-        # subprocess.call("{}python", "{}server.py".format(python_path,cwd), shell=True)
-        # TODO: check if this starts and detaches from main process.
-        subprocess.Popen([command], shell=True)
+            subprocess.Popen([command], shell=True)
         return
+
+    def caget_pvs(self,pv_dict):
+        for pv in pv_dict.keys():
+            try:
+                value = epics.caget(pv, as_string=True,connection_timeout=0.05,use_monitor=False)
+            except:
+                value = None
+
+            if value == None:
+                pv_dict[pv] = [False,value]
+            else:
+                pv_dict[pv] = [True,value]
+        return pv_dict
 
     def open_config(self):
         #TODO: get PV config file
@@ -92,6 +90,24 @@ class rqServer(object):
                 settings = contents[2]
         return settings
 
-    def caget_pvs(self,pv_dict):
-        for key in pv_dict:
-            epics.caget(key, timeout=0.3)
+    def save_config(self):
+        current_dir = os.path.dirname(os.path.abspath(__file__))+"/"
+        valid_files = []
+        for i, file in enumerate(os.listdir(current_dir)):
+            if file.endswith(".pkl"):
+                with open(current_dir+file,'rb') as f:
+                    contents = pickle.load(f)
+                    if contents[0] == "settings":
+                        valid_files.append(file)
+                    f.close()
+        #use latest file
+        fname = max(valid_files, key=os.path.getmtime)
+        with open(current_dir + fname, 'wb') as f:
+            pickle.dump(["settings",datetime.now(),self.pv_dict], f)
+            f.close()
+            return
+
+    def connected_clients(self):
+        clients = self.r.client_list()
+        #TODO: parse ip adds only
+        return self.r.client_list()
