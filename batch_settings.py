@@ -232,49 +232,8 @@ class ScanSettings(QtWidgets.QWidget):
         return
 
     def restoresettings(self):
-        #TODO: load as normally, but once connected to server, pull settings/config from server.
-
-        current_dir = os.path.dirname(os.path.abspath(__file__))+"/"
-        valid_files = []
-        last_opened = []
-        #check if files are .pkl and contain "settings" keyword.
-        for i, file in enumerate(os.listdir(current_dir)):
-            if file.endswith(".pkl"):
-                with open(current_dir+file,'rb') as f:
-                    contents = pickle.load(f)
-                    if contents[0] == "settings":
-                        last_opened.append(contents[1])
-                        valid_files.append(file)
-                    f.close()
-        #if no  valid files exist, create new one.
-        if len(valid_files) ==0:
-            self.fname = "default_settings.pkl"
-            self.setup_window.config_file.setText(self.fname)
-            settings = []
-            for key in self.var_dict:
-                settings.append(key.text())
-            with open(current_dir + self.fname, 'wb') as f:
-                pickle.dump(["settings",datetime.now(),settings, self.fname, 1], f)
-                f.close()
-                return
-        #if file does exist,
-        else:
-            #check which settings file is last opened, open that one.
-            most_recent_file = valid_files[last_opened.index(max(last_opened))]
-            with open(current_dir+most_recent_file,'rb') as f:
-                contents = pickle.load(f)
-                settings = contents[2]
-                self.fname = most_recent_file
-                self.setup_window.config_file.setText(self.fname)
-                for i, key in enumerate(self.var_dict):
-                    try:
-                        key.setText(settings[i])
-                    except IndexError:
-                        print("settings list changed, need to discard and update new settings file")
-                    except:
-                        print("cannot set some settings")
-        return
-
+        #TODO: pull settings/config from server.
+        pass
     def scan_generator_changed(self,sender=None):
         if sender ==None:
             checked = False

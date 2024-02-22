@@ -3,13 +3,13 @@ import os
 
 ''' API calls: 
 # 
-queue_scan:         returns true, false, message
-begin:              returns true, false
-pause:              returns true, false
-resume:             returns true, false
-abort:              returns true, false
-change_settings:    returns, true, false, message
-connect_request:    returns true, false
+queue_scan:         
+begin_scan:              
+pause_scan:              
+resume_scan:             
+abort_scan:              
+change_settings:    
+connect_request:    
 
 get_current_scan:           returns scan_id
 get_scan(scan_id):          returns scan params

@@ -44,15 +44,6 @@ class BatchScan(object):
         self.stop = False
         self.threads = []
 
-    # def init_server(self):
-    #     #TODO:
-    #     # start server, return if server already started, print server address and PID otherwise.
-    #     # open settings_file
-    #     # if no settings file exists, create new one
-    #     # connect to PVs listen in settings file.
-    #     # start listening for new connections.
-    #     pass
-
     def create_xspress3(self,prefix):
         try:
             xp3 = epics.Device(prefix+"det1:", attrs=("DetectorState_RBV", "NumImages", "AcquireTime",
@@ -352,7 +343,6 @@ class BatchScan(object):
                     print("finished in {} seconds.".format(finish))
                     self.cleanup()
                     self.done = True
-
         return True
 
     def run_tomo(self,scan_type, x_center, x_width, x_npts, y_center, y_width, y_npts, dwell, r_center, r_width, r_npts):
@@ -510,7 +500,6 @@ class BatchScan(object):
 
             if self.STRUCK is not None:
                 self.setup_struck(x_npts,x_step)
-
 
         elif scan_type == "step":
             self.scan_speed = self.fast_speed
