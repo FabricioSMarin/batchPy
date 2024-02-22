@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import *
 import sys
 import batch_gui
 
-# Example code to add batch_launcher widget into another gui.
+# Example code to add batch_gui widget into another gui.
 class your_main_gui(QMainWindow):
     def __init__(self):
         super(QMainWindow, self).__init__()

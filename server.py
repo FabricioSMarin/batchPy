@@ -328,6 +328,11 @@ class BatchServer(object):
     def get_eta(self):
         pass
 
+    def get_current_line(self):
+        #TODO: if no active scan return none
+        # else: return dictionary with scan parameters including scan_ID, eta, etc.
+        pass
+
     def get_trajectory(self,scan_id):
         line, scan_id = self.get_checked_line()
         if line == None:
@@ -401,6 +406,91 @@ class BatchServer(object):
         second = time.second
         formatted = "{} {}-{}-{} {}:{}:{}".format(day, month, cal_day, year, hour, minute, second)
         return formatted
+
+    def settings_changed(self):
+        # scan_generator = self.settings.setup_window.scan_generator.text()
+        # pv_status = self.settings.pv_status
+        #
+        # self.xrf_connected = pv_status["xrf"][2]
+        # self.eiger_connected = pv_status["eiger"][2]
+        # self.struck_connected = pv_status["struck"][2]
+        # self.x_motor_connected = pv_status["x_motor"][2]
+        # self.y_motor_connected = pv_status["y_motor"][2]
+        # self.r_motor_connected = pv_status["r_motor"][2]
+        #
+        # if scan_generator == "profile move":
+        #     self.trajectory = self.settings.setup_window.trajectory_cbbx.currentText()
+        #     self.profile_move_connected = pv_status["profile_move"][2]
+        #     self.softgluezynq_connected = pv_status["softgluezynq"][2]
+        #     if not self.profile_move_connected or not self.softgluezynq_connected or not self.x_motor_connected or not self.y_motor_connected:
+        #         self.controls.begin_btn.setDisabled(True)
+        #         self.controls.pause_btn.setDisabled(True)
+        #         self.controls.continue_btn.setDisabled(True)
+        #     else:
+        #         self.controls.begin_btn.setDisabled(False)
+        #         self.controls.pause_btn.setDisabled(False)
+        #         self.controls.continue_btn.setDisabled(False)
+        #     if not self.xrf_connected:
+        #         # TODO: skip xspress3 setup in backend.
+        #         pass
+        #     if not self.eiger_connected:
+        #         # TODO: skip eiger setup in backend.
+        #         pass
+        #
+        # elif scan_generator == "ACS program buffer":
+        #     pass
+        #     # self.controls.import_btn.setVisible(False)
+        #     # self.controls.export_btn.setVisible(False)
+        #     # self.controls.import_lbl.setVisible(False)
+        #     # self.controls.export_lbl.setVisible(False)
+        #     # self.trajectory = self.settings.setup_window.trajectory_cbbx.currentText()
+        #     # self.softgluezynq_connected = pv_status["softgluezynq"][2]
+        #     # if not self.softgluezynq_connected or not self.x_motor_connected or not self.y_motor_connected:
+        #     #     self.controls.begin_btn.setDisabled(True)
+        #     #     self.controls.pause_btn.setDisabled(True)
+        #     #     self.controls.continue_btn.setDisabled(True)
+        #     # else:
+        #     #     self.controls.begin_btn.setDisabled(False)
+        #     #     self.controls.pause_btn.setDisabled(False)
+        #     #     self.controls.continue_btn.setDisabled(False)
+        #     # if not self.xrf_connected:
+        #     #     # TODO: skip xspress3 setup in backend.
+        #     #     pass
+        #     # if not self.eiger_connected:
+        #     #     # TODO: skip eiger setup in backend.
+        #     #     pass
+        #
+        # elif scan_generator == "scan record":
+        #
+        #     self.trajectory = "raster"
+        #     self.inner_before_wait_connected = pv_status["inner_before_wait"][2]
+        #     self.inner_after_wait_connected = pv_status["inner_after_wait"][2]
+        #     self.outer_before_wait_connected = pv_status["outer_before_wait"][2]
+        #     self.outer_after_wait_connected = pv_status["outer_after_wait"][2]
+        #     self.delay_calc_connected = pv_status["delay_calc"][2]
+        #     self.save_data_connected = pv_status["save_data"][2]
+        #     self.scan_inner_connected = pv_status["scan_inner"][2]
+        #     self.scan_outer_connected = pv_status["scan_outer"][2]
+        #     self.scan_inner_extra_connected = pv_status["scan_inner_extra"][2]
+        #     self.scan_outer_extra_connected = pv_status["scan_outer_extra"][2]
+        #     if not self.inner_before_wait_connected or not self.inner_after_wait_connected or not self.outer_before_wait_connected or not self.outer_after_wait_connected:
+        #         #TODO: use different way of checking before and after scans.
+        #         pass
+        #
+        #     if not self.delay_calc_connected:
+        #         #TODO: signal to backend to change positioner from delay_calc to regular positioner PV
+        #         pass
+        #     if not self.scan_inner_connected or not self.scan_outer_connected or not self.save_data_connected or not self.struck_connected or not self.x_motor_connected or not self.y_motor_connected:
+        #         # self.controls.begin_btn.setDisabled(True)
+        #         # self.controls.pause_btn.setDisabled(True)
+        #         # self.controls.continue_btn.setDisabled(True)
+        #         pass
+        #     else:
+        #         # self.controls.begin_btn.setDisabled(False)
+        #         # self.controls.pause_btn.setDisabled(False)
+        #         # self.controls.continue_btn.setDisabled(False)
+        #         pass
+        pass
 
 class ThreadWithReturnValue(Thread):
 

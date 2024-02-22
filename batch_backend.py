@@ -2,16 +2,10 @@
 
 import epics
 import epics.devices
-from epics.devices import xspress3
 from epics import caput, caget
-from epics import PV
 import time
 import numpy as np
-import pickle
 import os
-import socket
-from threading import Thread
-from datetime import datetime
 import pickle
 
 class BatchScan(object):

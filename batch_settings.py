@@ -3,12 +3,11 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import pyqtSignal
 from epics import *
-# import batch_settings
-import time
 import pickle
 import os
 from datetime import datetime
-import sys
+import psutil
+import subprocess
 
 class ScanSettings(QtWidgets.QWidget):
     settings_closed_sig = pyqtSignal()
@@ -34,28 +33,79 @@ class ScanSettings(QtWidgets.QWidget):
                     item.returnPressed.connect(self.line_edit_entered)
                     self.var_dict[item] = item.objectName
 
-        # self.setup_window.config_file.clicked.connect(self.openfile)
-        self.setup_window.save_config.clicked.connect(self.save_settings)
-        self.setup_window.scan_generator.clicked.connect(self.scan_generator_clicked)
+        self.setup_window.scan_generator.clicked.connect(self.scan_generator_changed)
+        self.setup_window.connect_server.clicked.connect(self.connect_server_clicked)
 
         wid = QtWidgets.QWidget(self)
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self.setup_window)
         wid.setLayout(layout)
         wid.setMinimumSize(300, 500)        # self.show()
-        self.scan_generator_clicked()
+        self.scan_generator_changed()
         self.restoresettings()
         self.setMinimumSize(300,500)
+    def connect_server_clicked(self):
+        ##check if server already running with PID"
+        # ps -ef | grep "python server.py"
+        ##if server runing, attempt to connec to it"
+        pid = self.command_response("ps -ef | grep \"python server.py\" ")
+
+        PROCNAME = "server.py"
+
+        pids = {}
+        for proc in psutil.process_iter(["pid", "name"]):
+            if proc.name() == PROCNAME:
+                pids[proc.name()] = proc.pid
+
+        if len(pids) == 0:
+            print("no server in pid list, starting new server instance")
+        elif len(pids) == 1:
+            print("server pid found, atempting to connect")
+        else:
+            print("more than one server pid found, consider terminating one.")
+            print(pids)
+
+        cwd = os.getcwd() + "/"
+        python_path = self.command_response("where python")
+        if python_path == "":
+            python_path = self.command_response("which python")
+
+        if python_path == "":
+            print("could not connect to server")
+            return
+
+        command = "{}python", "{}server.py".format(python_path, cwd)
+        self.command_detatch(command)
+
+    def command_detatch(self, command):
+        # subprocess.call("{}python", "{}server.py".format(python_path,cwd), shell=True)
+        # TODO: check if this starts and detaches from main process.
+        subprocess.Popen([command], shell=True)
+        return
+
+    def command_response(self, command):
+        try:
+            proc = subprocess.Popen(command, stdout=subprocess.PIPE)
+            try:
+                response = proc.communicate(timeout=1.0)
+                response = response[0].decode("utf-8").split("\r")
+                response = response[0] + "/"
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                response = ""
+        except:
+            response = ""
+        return response
 
     def openEvent(self):
         print("opening window")
         if self.first_time:
-            self.caget_pvs()
+            self.probe_pvs()
         self.first_time = False
 
     def closeEvent(self, a0, QCloseEvent=None):
         print("closing window")
-        self.caget_all_pvs()
+        self.probe_pvs()
         self.settings_closed_sig.emit()
         self.first_time = True
 
@@ -127,100 +177,107 @@ class ScanSettings(QtWidgets.QWidget):
             button.setStyleSheet("background-color : grey")
             button.setText("False")
 
-    def caget_pvs(self):
-        pv_dict = self.get_active_pvs()
-        for key in pv_dict.keys():
-            line = self.__dict__["setup_window"].__dict__["{}".format(key)]
-            pv = pv_dict[key]
+    def probe_pvs(self):
+        #TODO: send request to server to get PV status for all those specified in this window.
+        #if active, border = None
+        #if not connected, border = red
+        #update pv dict
+        pass
 
-            if pv != "" and pv != None:
-                try:
-                    value = caget(pv, as_string=True,connection_timeout=0.05,use_monitor=False)
-                except:
-                    value = None
-
-                if value == None:
-                    if isinstance(line.itemAt(0).widget(),QtWidgets.QComboBox):
-                        if line.itemAt(0).widget().currentText()=="None":
-                            line.itemAt(1).widget().setStyleSheet("border: None;")
-                        else:
-                            line.itemAt(1).widget().setStyleSheet("border: 1px solid red;")
-                    else:
-                        line.itemAt(1).widget().setStyleSheet("border: 1px solid red;")
-                else:
-                    key.setStyleSheet("border: None;")
-                    pv_dict.update({key:[pv,value]})
-                    if isinstance(key, QtWidgets.QLineEdit):
-                        key.setText(value)
-                    if isinstance(key, QtWidgets.QComboBox):
-                        box_items = list(PV(pv,connection_timeout=0.05).enum_strs)
-                        key.addItems(box_items)
-                        key.setCurrentIndex(PV(pv,connection_timeout=0.05).value)
-                    if isinstance(key,QtWidgets.QPushButton):
-                        is_true = PV(pv,connection_timeout=0.05).value == 1
-                        key.setChecked(is_true)
-                        self.changeButton(key)
-
-    def caget_all_pvs(self):
-        pv_dict = self.get_all_pvs() #pv_dict[desc] = [pv, is_used]
-        pv_status = {} ##pv_dict[desc] = [pv, is_used, connected]
-        for line in pv_dict.keys():
-            pv = pv_dict[line][0]
-
-            if pv != "" and pv != None:
-                try:
-                    value = caget(pv, as_string=True,connection_timeout=0.05,use_monitor=False)
-                except:
-                    value = None
-
-                if value == None:
-                    pv_status[line] = [pv_dict[line][0],pv_dict[line][1],False]
-                else:
-                    pv_status[line] = [pv_dict[line][0],pv_dict[line][1],True]
-            else:
-                pv_status[line] = [pv_dict[line][0],pv_dict[line][1],False]
-
-        self.pv_status = pv_status
-        return
-
-    def get_active_pvs(self):
-        pv_dict = {}
-        for line in range(self.setup_window.num_lines):
-            hbox = self.__dict__["setup_window"].__dict__["line_{}".format(line)]
-            num_widgets = hbox.count()
-
-            for i in range(num_widgets):
-                item = hbox.itemAt(i).widget()
-                line_has_ccbx = isinstance(hbox.itemAt(0).widget(), QtWidgets.QComboBox)
-                if isinstance(item, QtWidgets.QLineEdit) and line != 1 and item.isVisible():
-                    if line_has_ccbx:
-                        cbbx_is_none = hbox.itemAt(0).widget().currentText() == "None"
-                        if cbbx_is_none:
-                            pass
-                        else:
-                            pv_dict["line_{}".format(line)] = item.text()
-                    else:
-                        pv_dict["line_{}".format(line)] = item.text()
-        return pv_dict
-
-    def get_all_pvs(self):
-        pv_dict = {} # pv_dict[desc] = [pv, is_used (is visible and cbbx is not None)
-        for line in range(self.setup_window.num_lines):
-            hbox = self.__dict__["setup_window"].__dict__["line_{}".format(line)]
-            num_widgets = hbox.count()
-            item = hbox.itemAt(1).widget()
-            if num_widgets >=2 and isinstance(item, QtWidgets.QLineEdit):
-                line_has_ccbx = isinstance(hbox.itemAt(0).widget(), QtWidgets.QComboBox)
-                if isinstance(item, QtWidgets.QLineEdit) and line != 1:
-                    pv_dict[item.objectName] = [item.text(), True]
-                if line_has_ccbx:
-                    if hbox.itemAt(0).widget().currentText() == "None":
-                        pv_dict[item.objectName] = [item.text(), False]
-                elif not item.isVisible():
-                    pv_dict[item.objectName] = [item.text(), False]
-                else:
-                    pass
-        return pv_dict
+    # def caget_pvs(self):
+    #     pv_dict = self.get_active_pvs()
+    #     for key in pv_dict.keys():
+    #         line = self.__dict__["setup_window"].__dict__["{}".format(key)]
+    #         pv = pv_dict[key]
+    #
+    #         if pv != "" and pv != None:
+    #             try:
+    #                 value = caget(pv, as_string=True,connection_timeout=0.05,use_monitor=False)
+    #             except:
+    #                 value = None
+    #
+    #             if value == None:
+    #                 if isinstance(line.itemAt(0).widget(),QtWidgets.QComboBox):
+    #                     if line.itemAt(0).widget().currentText()=="None":
+    #                         line.itemAt(1).widget().setStyleSheet("border: None;")
+    #                     else:
+    #                         line.itemAt(1).widget().setStyleSheet("border: 1px solid red;")
+    #                 else:
+    #                     line.itemAt(1).widget().setStyleSheet("border: 1px solid red;")
+    #             else:
+    #                 key.setStyleSheet("border: None;")
+    #                 pv_dict.update({key:[pv,value]})
+    #                 if isinstance(key, QtWidgets.QLineEdit):
+    #                     key.setText(value)
+    #                 if isinstance(key, QtWidgets.QComboBox):
+    #                     box_items = list(PV(pv,connection_timeout=0.05).enum_strs)
+    #                     key.addItems(box_items)
+    #                     key.setCurrentIndex(PV(pv,connection_timeout=0.05).value)
+    #                 if isinstance(key,QtWidgets.QPushButton):
+    #                     is_true = PV(pv,connection_timeout=0.05).value == 1
+    #                     key.setChecked(is_true)
+    #                     self.changeButton(key)
+    #
+    # def caget_all_pvs(self):
+    #     # pv_dict = self.get_all_pvs() #pv_dict[desc] = [pv, is_used]
+    #     # pv_status = {} ##pv_dict[desc] = [pv, is_used, connected]
+    #     # for line in pv_dict.keys():
+    #     #     pv = pv_dict[line][0]
+    #     #
+    #     #     if pv != "" and pv != None:
+    #     #         try:
+    #     #             value = caget(pv, as_string=True,connection_timeout=0.05,use_monitor=False)
+    #     #         except:
+    #     #             value = None
+    #     #
+    #     #         if value == None:
+    #     #             pv_status[line] = [pv_dict[line][0],pv_dict[line][1],False]
+    #     #         else:
+    #     #             pv_status[line] = [pv_dict[line][0],pv_dict[line][1],True]
+    #     #     else:
+    #     #         pv_status[line] = [pv_dict[line][0],pv_dict[line][1],False]
+    #     #
+    #     # self.pv_status = pv_status
+    #     pass
+    #
+    # def get_active_pvs(self):
+    #     pv_dict = {}
+    #     for line in range(self.setup_window.num_lines):
+    #         hbox = self.__dict__["setup_window"].__dict__["line_{}".format(line)]
+    #         num_widgets = hbox.count()
+    #
+    #         for i in range(num_widgets):
+    #             item = hbox.itemAt(i).widget()
+    #             line_has_ccbx = isinstance(hbox.itemAt(0).widget(), QtWidgets.QComboBox)
+    #             if isinstance(item, QtWidgets.QLineEdit) and line != 1 and item.isVisible():
+    #                 if line_has_ccbx:
+    #                     cbbx_is_none = hbox.itemAt(0).widget().currentText() == "None"
+    #                     if cbbx_is_none:
+    #                         pass
+    #                     else:
+    #                         pv_dict["line_{}".format(line)] = item.text()
+    #                 else:
+    #                     pv_dict["line_{}".format(line)] = item.text()
+    #     return pv_dict
+    #
+    # def get_all_pvs(self):
+    #     pv_dict = {} # pv_dict[desc] = [pv, is_used (is visible and cbbx is not None)
+    #     for line in range(self.setup_window.num_lines):
+    #         hbox = self.__dict__["setup_window"].__dict__["line_{}".format(line)]
+    #         num_widgets = hbox.count()
+    #         item = hbox.itemAt(1).widget()
+    #         if num_widgets >=2 and isinstance(item, QtWidgets.QLineEdit):
+    #             line_has_ccbx = isinstance(hbox.itemAt(0).widget(), QtWidgets.QComboBox)
+    #             if isinstance(item, QtWidgets.QLineEdit) and line != 1:
+    #                 pv_dict[item.objectName] = [item.text(), True]
+    #             if line_has_ccbx:
+    #                 if hbox.itemAt(0).widget().currentText() == "None":
+    #                     pv_dict[item.objectName] = [item.text(), False]
+    #             elif not item.isVisible():
+    #                 pv_dict[item.objectName] = [item.text(), False]
+    #             else:
+    #                 pass
+    #     return pv_dict
 
     def save_settings(self):
         #TODO: send command to server to save settings instead of saving locally
@@ -389,7 +446,8 @@ class Setup(QtWidgets.QWidget):
 
     def scroll_area(self):
         item_dict = {} #[type(button, file, path, dropdown), descriptions[idx], choices[idx],defaults[idx]]
-        item_dict["server_addr"] = [["label","linedit"], "server IP address", None, ""]
+        item_dict["server_addr"] = [["label", "linedit"], "batch scan server host IP address", None, None]
+        item_dict["connect_server"] = [["label", "button"], "connect to server", None, None]
         item_dict["config_file"] = [["label","file"], "select config file if it exists", None, ""]
         item_dict["scan_generator"] = [["label", "button"], "scan record or profile move", None, None]
         item_dict["profile_move"] = [["label","linedit"], "profile move PV prefix", None, ""]
@@ -406,6 +464,7 @@ class Setup(QtWidgets.QWidget):
         item_dict["scan_outer"] = [["label","linedit"], "scan record outer loop", None, ""]
         item_dict["scan_inner_extra"] = [["label","linedit"], "extra scan record inner loop", None, ""]
         item_dict["scan_outer_extra"] = [["label","linedit"], "extra scan record outer loop", None, ""]
+
         # item_dict["ca_addr_list"] = [["label","linedit"], "Channel Access address list incase one or more IOC cannot connect to machine running batchscan.", None, ""]
 
         item_dict["xrf"] = [["combobox","linedit"], "xrf processor pv prefix", ["None", "xspress3","xmap"], "xspress3"]
@@ -415,10 +474,9 @@ class Setup(QtWidgets.QWidget):
         item_dict["y_motor"] = [["label","linedit"], "y positioner", None, ""]
         # item_dict["z_motor"] = [["label","linedit"], "z positioner", None, ""]
         item_dict["r_motor"] = [["label","linedit"], "r positioner", None, ""]
-        item_dict["save_config"] = [["label","button"], "save config settings.", None, None]
+        # item_dict["save_config"] = [["label","button"], "save config settings.", None, None]
         item_dict["init"] = [["label", "button"], "Initialize PVs and scan record", None, None]
-        item_dict["server_ip"] = [["label", "linedit"], "batch scan server host IP address", None, None]
-        item_dict["connect/start server"] = [["label", "button"], "connect to server", None, None]
+
 
         v_box = self.create_widget(item_dict)
         v_box.setSpacing(0)

@@ -1,39 +1,12 @@
-
-
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import *
-
-from PyQt5.QtCore import pyqtSignal
-import csv
-import numpy as np
 import pyqtgraph
-from pyqtgraph import PlotWidget, plot
-import os
-import pickle
-from datetime import datetime, timedelta
-import subprocess
+from datetime import timedelta
 import batch_settings
 import sys
-import psutil
 
-#GUI structure:
-#   Lines()
-#   Controls()
-#   ImageView()
-
-#TODO: set the motor minimum velocity to 0.01 for longer dwell times.
-#TODO: current scan line background (yellow) dissappears if any of the text fields are modified.
-#TODO: FIX global ETA
-#DONE: npts = round_to_whole number(width/step_size), npts*step_size = new_width
-#DONE: zero dwell time turns red even if line is set to skip.
-#DONE: save message gets written even if scan was skipped.
-#TODO: set line background to light gray if line set to normal
 #TODO: dynamically adjust font size to fit inside box
 
-class Stream(QtCore.QObject):
-    newText = QtCore.pyqtSignal(str)
-    def write(self, text):
-        self.newText.emit(str(text))
 class BatchScanGui(QtWidgets.QWidget):
     def __init__(self):
         super(QtWidgets.QWidget, self).__init__()
@@ -54,7 +27,6 @@ class BatchScanGui(QtWidgets.QWidget):
         self.show()
 
     def initUI(self):
-        # self.header = Header()
         self.controls = Controls()
         self.batch_widget = self.make_batch_widget(5)
         self.settings = batch_settings.ScanSettings()
@@ -69,25 +41,18 @@ class BatchScanGui(QtWidgets.QWidget):
         self.line_1.current_line.setChecked(True)
         self.closeAction = QAction(' &close', self)
         self.closeAction.setShortcut(' Ctrl+Q')
-        # self.view_changed()
 
         self.closeAction.triggered.connect(sys.exit)
         self.settings.settings_closed_sig.connect(self.settings_changed)
-        self.controls.connect_server_btn.clicked.connect(self.connect_server_clicked)
         self.controls.setup_btn.clicked.connect(self.settings.show)
         self.controls.setup_btn.clicked.connect(self.settings.openEvent)
-        self.controls.points_all.clicked.connect(self.all_clicked)
-        self.controls.points.clicked.connect(self.points_clicked)
         self.controls.abort_btn.clicked.connect(self.abort_clicked)
-        self.controls.zero_all_btn.clicked.connect(self.zero_all_clicked)
-        self.controls.zero_btn.clicked.connect(self.zero_clicked)
         self.controls.continue_btn.clicked.connect(self.continue_clicked)
         self.controls.pause_btn.clicked.connect(self.pause_clicked)
 
-
-        # TODO: widget class does not have menu bar, add these as buttons or under settings.
-        # fileMenu.addAction(self.exportScanParamsAction)
-        # fileMenu.addAction(self.importScanParamsAction)
+    def settings_changed(self):
+        #TODO: send new settings to server and
+        pass
 
     def onUpdateText(self, text):
         cursor = self.controls.message_window.textCursor()
@@ -97,7 +62,6 @@ class BatchScanGui(QtWidgets.QWidget):
 
     def __del__(self):
         sys.stdout = sys.__stdout__
-
 
     def add_line(self):
         self.id_counter = self.id_counter + 1
@@ -111,37 +75,39 @@ class BatchScanGui(QtWidgets.QWidget):
         line.addlinesig.connect(self.add_line)
         line.deletelinesig.connect(self.delete_line)
         line.duplicatelinesig.connect(self.duplicate_line)
+        line.duplicatelinesig.connect(self.clear_line)
         self.lines_layout.addWidget(line, alignment=QtCore.Qt.AlignLeft)
-        # self.view_changed()
         pass
 
     def delete_line(self, scan_id):
-        #TODO: find line by index, delete it somehow
-
-        # self.lines_layout.itemAt(line_idx).setParent(None)
-        # self.lines_layout.removeItem(self.lines_layout.itemAt(line_idx))
         line = self.__dict__["line_{}".format(scan_id)]
-        current_line = int(line.current_line.text())
         line.deleteLater()
         self.lines_layout.removeWidget(line)
         delattr(self, "line_{}".format(scan_id))
         self.scan_ids.remove(scan_id)
-
-        #TODO: update other line names
         ids = self.get_scan_ids()
         some_scan_ids = [i for i in ids if i > scan_id]
         for i in some_scan_ids:
           line = self.get_line(i)
           line["current_line"].setText(str(int(line["current_line"].text())-1))
 
-        # self.view_changed()
-
     def duplicate_line(self, scan_id):
         self.add_line()
         params = self.get_scan(scan_id)
         self.update_scan_line(params,self.scan_ids[-1])
-        # self.view_changed()
-        pass
+        return
+
+    def clear_line(self, scan_id):
+        line = self.__dict__["line_{}".format(scan_id)]
+        for widget in line.keys():
+            if isinstance(line[widget], QtWidgets.QLabel) or isinstance(line[widget], QtWidgets.QLineEdit):
+                if widget == "line_action":
+                    line[widget].setText("idle")
+                elif widget == "line_eta":
+                    line[widget].setText("00:00:00")
+                else:
+                    line[widget].setText("")
+
     def make_batch_widget(self, num_lines):
         batch_widget = QScrollArea()
         scroll_widget = QWidget()
@@ -233,150 +199,6 @@ class BatchScanGui(QtWidgets.QWidget):
             self.controls.view_box.p1.setYRange(y_arr.min(),y_arr.max())
         except:
             return
-    def settings_changed(self):
-        scan_generator = self.settings.setup_window.scan_generator.text()
-        pv_status = self.settings.pv_status
-
-        self.xrf_connected = pv_status["xrf"][2]
-        self.eiger_connected = pv_status["eiger"][2]
-        self.struck_connected = pv_status["struck"][2]
-        self.x_motor_connected = pv_status["x_motor"][2]
-        self.y_motor_connected = pv_status["y_motor"][2]
-        self.r_motor_connected = pv_status["r_motor"][2]
-
-        if scan_generator == "profile move":
-            # self.controls.import_btn.setVisible(False)
-            # self.controls.export_btn.setVisible(False)
-            # self.controls.import_lbl.setVisible(False)
-            # self.controls.export_lbl.setVisible(False)
-            self.controls.backup_scanrecord_btn.setVisible(False)
-            self.controls.backup_scanrecord_lbl.setVisible(False)
-            self.trajectory = self.settings.setup_window.trajectory_cbbx.currentText()
-            self.profile_move_connected = pv_status["profile_move"][2]
-            self.softgluezynq_connected = pv_status["softgluezynq"][2]
-            if not self.profile_move_connected or not self.softgluezynq_connected or not self.x_motor_connected or not self.y_motor_connected:
-                self.controls.begin_btn.setDisabled(True)
-                self.controls.pause_btn.setDisabled(True)
-                self.controls.continue_btn.setDisabled(True)
-            else:
-                self.controls.begin_btn.setDisabled(False)
-                self.controls.pause_btn.setDisabled(False)
-                self.controls.continue_btn.setDisabled(False)
-            if not self.xrf_connected:
-                # TODO: skip xspress3 setup in backend.
-                pass
-            if not self.eiger_connected:
-                # TODO: skip eiger setup in backend.
-                pass
-
-        elif scan_generator == "ACS program buffer":
-            pass
-            # self.controls.import_btn.setVisible(False)
-            # self.controls.export_btn.setVisible(False)
-            # self.controls.import_lbl.setVisible(False)
-            # self.controls.export_lbl.setVisible(False)
-            # self.trajectory = self.settings.setup_window.trajectory_cbbx.currentText()
-            # self.softgluezynq_connected = pv_status["softgluezynq"][2]
-            # if not self.softgluezynq_connected or not self.x_motor_connected or not self.y_motor_connected:
-            #     self.controls.begin_btn.setDisabled(True)
-            #     self.controls.pause_btn.setDisabled(True)
-            #     self.controls.continue_btn.setDisabled(True)
-            # else:
-            #     self.controls.begin_btn.setDisabled(False)
-            #     self.controls.pause_btn.setDisabled(False)
-            #     self.controls.continue_btn.setDisabled(False)
-            # if not self.xrf_connected:
-            #     # TODO: skip xspress3 setup in backend.
-            #     pass
-            # if not self.eiger_connected:
-            #     # TODO: skip eiger setup in backend.
-            #     pass
-
-        elif scan_generator == "scan record":
-
-            self.controls.backup_scanrecord_btn.setVisible(True)
-            self.controls.backup_scanrecord_lbl.setVisible(True)
-            self.trajectory = "raster"
-            self.inner_before_wait_connected = pv_status["inner_before_wait"][2]
-            self.inner_after_wait_connected = pv_status["inner_after_wait"][2]
-            self.outer_before_wait_connected = pv_status["outer_before_wait"][2]
-            self.outer_after_wait_connected = pv_status["outer_after_wait"][2]
-            self.delay_calc_connected = pv_status["delay_calc"][2]
-            self.save_data_connected = pv_status["save_data"][2]
-            self.scan_inner_connected = pv_status["scan_inner"][2]
-            self.scan_outer_connected = pv_status["scan_outer"][2]
-            self.scan_inner_extra_connected = pv_status["scan_inner_extra"][2]
-            self.scan_outer_extra_connected = pv_status["scan_outer_extra"][2]
-            if not self.inner_before_wait_connected or not self.inner_after_wait_connected or not self.outer_before_wait_connected or not self.outer_after_wait_connected:
-                #TODO: use different way of checking before and after scans.
-                pass
-
-            if not self.delay_calc_connected:
-                #TODO: signal to backend to change positioner from delay_calc to regular positioner PV
-                pass
-            if not self.scan_inner_connected or not self.scan_outer_connected or not self.save_data_connected or not self.struck_connected or not self.x_motor_connected or not self.y_motor_connected:
-                # self.controls.begin_btn.setDisabled(True)
-                # self.controls.pause_btn.setDisabled(True)
-                # self.controls.continue_btn.setDisabled(True)
-                pass
-            else:
-                # self.controls.begin_btn.setDisabled(False)
-                # self.controls.pause_btn.setDisabled(False)
-                # self.controls.continue_btn.setDisabled(False)
-                pass
-
-    def connect_server_clicked(self):
-        ##check if server already running with PID"
-        # ps -ef | grep "python server.py"
-        ##if server runing, attempt to connec to it"
-        pid = self.command_response("ps -ef | grep \"python server.py\" ")
-
-        PROCNAME = "server.py"
-
-        pids = {}
-        for proc in psutil.process_iter(["pid", "name"]):
-            if proc.name() == PROCNAME:
-                pids[proc.name()] = proc.pid
-
-        if len(pids) == 0:
-            print("no server in pid list, starting new server instance")
-        elif len(pids) == 1:
-            print("server pid found, atempting to connect")
-        else:
-            print("more than one server pid found, consider terminating one.")
-            print(pids)
-
-        cwd = os.getcwd() + "/"
-        python_path = self.command_response("where python")
-        if python_path == "":
-            python_path = self.command_response("which python")
-
-        if python_path == "":
-            print("could not connect to server")
-            return
-
-        command = "{}python", "{}server.py".format(python_path, cwd)
-        self.command_detatch(command)
-
-    def command_response(self, command):
-        try:
-            proc = subprocess.Popen(command, stdout=subprocess.PIPE)
-            try:
-                response = proc.communicate(timeout=1.0)
-                response = response[0].decode("utf-8").split("\r")
-                response = response[0] + "/"
-            except subprocess.TimeoutExpired:
-                proc.kill()
-                response = ""
-        except:
-            response = ""
-        return response
-
-    def command_detatch(self, command):
-        # subprocess.call("{}python", "{}server.py".format(python_path,cwd), shell=True)
-        # TODO: check if this starts and detaches from main process.
-        subprocess.Popen([command], shell=True)
-        return
 
     def abort_clicked(self):
 
@@ -396,8 +218,6 @@ class BatchScanGui(QtWidgets.QWidget):
         #TODO:  get ongoing scan ID
         #TODO: sent coninue request
         #TODO: get scan status, update gui
-
-
         # scanID = self.backeg.get_scan_id()
         # self.backend.continue_scan()
         # self.lines[scanID].status.setText(savedata_message)
@@ -420,28 +240,6 @@ class BatchScanGui(QtWidgets.QWidget):
         # TODO: update gui
         pass
 
-    def zero_all_clicked(self):
-        lines = self.get_lines()
-        for line in lines:
-            for widget in line.keys():
-                if isinstance(line[widget], QtWidgets.QLabel) or isinstance(line[widget], QtWidgets.QLineEdit):
-                    if widget == "line_action":
-                        line[widget].setText("queue")
-                    elif widget == "line_eta":
-                        line[widget].setText("00:00:00")
-                    else:
-                        line[widget].setText("")
-
-    def zero_clicked(self):
-        line, scan_id = self.get_checked_line()
-        for widget in line.keys():
-            if isinstance(line[widget], QtWidgets.QLabel) or isinstance(line[widget], QtWidgets.QLineEdit):
-                if widget == "line_action":
-                    line[widget].setText("queue")
-                elif widget == "line_eta":
-                    line[widget].setText("00:00:00")
-                else:
-                    line[widget].setText("")
 
     def line_color(self, line_idx, color="white"):
         if color == "red" or color == "white":
@@ -468,44 +266,6 @@ class BatchScanGui(QtWidgets.QWidget):
         if row.currentIndex() == 1:
             row.parent().setStyleSheet("background: lavender")
         return
-    def update_npts(self, line):
-        x_step = eval(self.controls.x_step.text())
-        y_step = eval(self.controls.y_step.text())
-        x_npts = "-1"
-        y_npts = "-1"
-
-
-        x_width = np.abs(eval(line.__dict__["x_width"].text()))
-        y_width = np.abs(eval(line.__dict__["y_width"].text()))
-        if x_step < x_width:
-            x_npts = np.ceil(x_width/x_step)
-            x_width = x_npts*x_step
-            line.__dict__["x_points"].setText(str(x_npts))
-        elif x_step == x_width:
-            x_npts = 2
-            print("x_step same as width")
-        else:
-            x_npts = 1
-            print("x_step larger than width")
-
-        if y_step < y_width:
-            y_npts = np.ceil(y_width/y_step)
-            y_width = y_npts*y_step
-        elif y_step == y_width:
-            y_npts = 2
-            print("y_step same as width")
-        else:
-            y_npts = 1
-            print("y_step larger than width")
-
-        if x_npts<=0 or y_npts<= 0:
-            print("erorr setting npts from step size")
-            return
-        else:
-            line.__dict__["x_points"].setText(str(int(x_npts)))
-            line.__dict__["y_points"].setText(str(int(y_npts)))
-            line.__dict__["x_width"].setText(str(np.round(x_width,3)))
-            line.__dict__["y_width"].setText(str(np.round(y_width,2)))
 
     def get_eta(self):
         #TODO: send command to server to get_eta(scan_params)
@@ -525,28 +285,6 @@ class BatchScanGui(QtWidgets.QWidget):
             if isinstance(line[key], QtWidgets.QWidget):
                 params.append(key)
         return params
-    def points_clicked(self):
-        if self.controls.x_step.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
-            return
-        if self.controls.y_step.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
-            return
-        else:
-            lines = self.get_lines()
-            for line in lines:
-                if line.__dict__["current_line"].isChecked():
-                    self.update_npts(line)
-
-    def all_clicked(self):
-        if self.controls.x_step.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
-            return
-        if self.controls.y_step.styleSheet().split(";")[0].split(":")[1].strip() == "lightcoral":
-            return
-        else:
-            lines = self.get_lines()
-            for line in lines:
-                if line["current_line"].isChecked():
-                    self.update_npts(line)
-
 
     def closeEvent(self, event):
         #do other stuff if necessary, perhaps signal to batch_launcher to gracefully disconnect from PVS or something.
@@ -560,6 +298,7 @@ class BatchScanGui(QtWidgets.QWidget):
     def open_session(self):
         #TODO: lines = self.client.get_session()
         pass
+
 class Controls(QtWidgets.QWidget):
     def __init__(self):
         super(Controls, self).__init__()
@@ -577,67 +316,28 @@ class Controls(QtWidgets.QWidget):
         eta_lbl.setFixedWidth(size1)
         self.eta = QtWidgets.QLabel("0")
         self.eta.setFixedWidth(size4)
-        self.points = QtWidgets.QPushButton("pts")
-        self.points.setFixedWidth(size1)
-        self.points_all = QtWidgets.QPushButton("all")
-        self.points_all.setFixedWidth(size1)
+
         self.x_step = QtWidgets.QLineEdit("0.002")
         self.x_step.setFixedWidth(size2)
         self.y_step = QtWidgets.QLineEdit("0.002")
         self.y_step.setFixedWidth(size2)
-        points_lbl = QtWidgets.QLabel("calculate points for selected scan line")
-        points_lbl.setFixedWidth(size4)
-        points_all_lbl = QtWidgets.QLabel("calculate points for all scan lines")
-        points_all_lbl.setFixedWidth(size4)
-        x_step_lbl = QtWidgets.QLabel("X step")
-        x_step_lbl.setFixedWidth(size2)
-        y_step_lbl = QtWidgets.QLabel("Y step")
-        y_step_lbl.setFixedWidth(size2)
+
+
         a1 = QtWidgets.QHBoxLayout()
         a1.addWidget(eta_lbl)
         a1.addWidget(self.eta)
         a2 = QtWidgets.QHBoxLayout()
-        a2.addWidget(self.points)
-        a2.addWidget(points_lbl)
-        a3 = QtWidgets.QHBoxLayout()
-        a3.addWidget(self.points_all)
-        a3.addWidget(points_all_lbl)
         a4 = QtWidgets.QHBoxLayout()
-        a4.addWidget(x_step_lbl)
-        a4.addWidget(self.x_step)
-        a4.addWidget(y_step_lbl)
-        a4.addWidget(self.y_step)
         col1= QtWidgets.QVBoxLayout()
         col1.addLayout(a1)
         col1.addLayout(a2)
-        col1.addLayout(a3)
         col1.addLayout(a4)
         col1.setContentsMargins(0,10,0,0)
 
         self.setup_btn = QtWidgets.QPushButton("setup")
         self.setup_btn.setFixedWidth(size2)
-        self.zero_btn = QtWidgets.QPushButton("Zero")
-        self.zero_btn.setFixedWidth(size2)
-        self.zero_all_btn = QtWidgets.QPushButton("Zero all")
-        self.zero_all_btn.setFixedWidth(size2)
         setup_lbl = QtWidgets.QLabel("PV setup window")
         setup_lbl.setFixedWidth(size3)
-        zero_lbl = QtWidgets.QLabel("scan line")
-        zero_lbl.setFixedWidth(size3)
-        zero_all_lbl = QtWidgets.QLabel("all scans")
-        zero_all_lbl.setFixedWidth(size3)
-
-        b1 = QtWidgets.QVBoxLayout()
-        b1.addWidget(self.setup_btn)
-        b1.addWidget(self.zero_btn)
-        b1.addWidget(self.zero_all_btn)
-        b2 = QtWidgets.QVBoxLayout()
-        b2.addWidget(setup_lbl)
-        b2.addWidget(zero_lbl)
-        b2.addWidget(zero_all_lbl)
-        col2 = QtWidgets.QHBoxLayout()
-        col2.addLayout(b1)
-        col2.addLayout(b2)
 
         self.begin_btn = QtWidgets.QPushButton("Begin")
         self.begin_btn.setFixedWidth(size2)
@@ -648,10 +348,6 @@ class Controls(QtWidgets.QWidget):
         self.abort_btn = QtWidgets.QPushButton("Abort")
         self.abort_btn.setFixedWidth(size2)
 
-        self.backup_scanrecord_btn = QtWidgets.QPushButton("Backup")
-        self.backup_scanrecord_btn.setFixedWidth(size2)
-        self.connect_server_btn = QtWidgets.QPushButton("connect/start")
-        self.connect_server_btn.setFixedWidth(size2)
         begin_lbl = QtWidgets.QLabel("batch scan")
         begin_lbl.setFixedWidth(size3)
         pause_lbl = QtWidgets.QLabel("batch scan")
@@ -661,25 +357,18 @@ class Controls(QtWidgets.QWidget):
         abort_lbl = QtWidgets.QLabel("current line")
         abort_lbl.setFixedWidth(size3)
 
-        self.backup_scanrecord_lbl = QtWidgets.QLabel("scan record")
-        self.backup_scanrecord_lbl.setFixedWidth(size3)
-        self.connect_server_lbl = QtWidgets.QLabel("server")
-        self.connect_server_lbl.setFixedWidth(size3)
-
         c1 = QtWidgets.QVBoxLayout()
         c1.addWidget(self.begin_btn)
         c1.addWidget(self.pause_btn)
         c1.addWidget(self.continue_btn)
         c1.addWidget(self.abort_btn)
-        c1.addWidget(self.backup_scanrecord_btn)
-        c1.addWidget(self.connect_server_btn)
+        c1.addWidget(self.setup_btn)
         c2 = QtWidgets.QVBoxLayout()
         c2.addWidget(begin_lbl)
         c2.addWidget(pause_lbl)
         c2.addWidget(continue_lbl)
         c2.addWidget(abort_lbl)
-        c2.addWidget(self.backup_scanrecord_lbl)
-        c2.addWidget(self.connect_server_lbl)
+        c2.addWidget(setup_lbl)
         col3 = QtWidgets.QHBoxLayout()
         col3.addLayout(c1)
         col3.addLayout(c2)
@@ -689,13 +378,8 @@ class Controls(QtWidgets.QWidget):
         self.message_window.setStyleSheet("background: beige; color: black")
         self.message_window.setReadOnly(True)
 
-        self.status_bar = QtWidgets.QLabel("status bar")
-        self.status_bar.setFixedWidth(700)
-        self.status_bar.setStyleSheet("background: lightgray; color: black")
-
         control_layout = QtWidgets.QHBoxLayout()
         control_layout.addLayout(col1)
-        control_layout.addLayout(col2)
         control_layout.addLayout(col3)
         control_layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
 
@@ -711,7 +395,6 @@ class Controls(QtWidgets.QWidget):
 
         combined = QtWidgets.QVBoxLayout()
         combined.addWidget(controlframe)
-        combined.addWidget(self.status_bar)
         combined.addWidget(self.message_window)
 
         combined2 = QtWidgets.QHBoxLayout()
@@ -770,7 +453,6 @@ class Controls(QtWidgets.QWidget):
             else:
                 pass
 
-
 class Line(QtWidgets.QWidget):
     paramsChangedSig = QtCore.pyqtSignal(int)
     addlinesig = QtCore.pyqtSignal()
@@ -804,6 +486,8 @@ class Line(QtWidgets.QWidget):
             add_line_action = menu.addAction("add line")
             delete_line_action = menu.addAction("delete line")
             duplicate_line_action = menu.addAction("duplicate line")
+            clear_line_action = menu.addAction("clear line")
+
             action = menu.exec_(self.mapToGlobal(pos.pos()))
             menu.popup(QtGui.QCursor.pos())
             if action == add_line_action:
@@ -812,7 +496,8 @@ class Line(QtWidgets.QWidget):
                 self.deletelinesig.emit(self.id)
             if action == duplicate_line_action:
                 self.duplicatelinesig.emit(self.id)
-
+            if action == clear_line_action:
+                self.clearlinesig.emit(self.id)
     def setupUi(self):
         size1 = 30
         size2 = 60
@@ -827,7 +512,7 @@ class Line(QtWidgets.QWidget):
         self.scan_type = QtWidgets.QPushButton("step", checkable = True)
         self.scan_type.setFixedSize(size1, height)
         self.scan_type.clicked.connect(self.scan_type_clicked)
-        self.scan_geometry = QtWidgets.QPushButton("2D", checkable = True)
+        self.scan_geometry = QtWidgets.QPushButton("3D", checkable = True)
         self.scan_geometry.setFixedSize(size1, height)
         self.scan_geometry.clicked.connect(self.scan_geometry_clicked)
         self.detectors = CheckableComboBox()
@@ -848,29 +533,35 @@ class Line(QtWidgets.QWidget):
         self.x_center = QtWidgets.QLineEdit()
         self.x_center.setPlaceholderText("x center")
         self.x_center.setFixedSize(size2, height)
-        self.x_points = QtWidgets.QLineEdit()
-        self.x_points.setPlaceholderText("x points")
-        self.x_points.setFixedSize(size2, height)
+        self.x_size = QtWidgets.QLineEdit()
+        self.x_size.setPlaceholderText("x points")
+        self.x_size.editingFinished.connect(self.update_width)
+        self.x_size.setFixedSize(size2, height)
         self.x_width = QtWidgets.QLineEdit()
         self.x_width.setPlaceholderText("x width")
         self.x_width.setFixedSize(size2,height)
+        self.x_size.editingFinished.connect(self.update_width)
         self.y_center = QtWidgets.QLineEdit()
         self.y_center.setPlaceholderText("y center")
         self.y_center.setFixedSize(size2,height)
-        self.y_points = QtWidgets.QLineEdit()
-        self.y_points.setPlaceholderText("y points")
-        self.y_points.setFixedSize(size2,height)
+        self.y_size = QtWidgets.QLineEdit()
+        self.y_size.setPlaceholderText("y points")
+        self.y_size.setFixedSize(size2,height)
+        self.y_size.editingFinished.connect(self.update_width)
         self.y_width = QtWidgets.QLineEdit()
         self.y_width.setPlaceholderText("y width")
+        self.y_width.editingFinished.connect(self.update_width)
         self.y_width.setFixedSize(size2,height)
         self.r_center = QtWidgets.QLineEdit()
         self.r_center.setPlaceholderText("r center")
         self.r_center.setFixedSize(size2,height)
-        self.r_points = QtWidgets.QLineEdit()
-        self.r_points.setPlaceholderText("r points")
-        self.r_points.setFixedSize(size2,height)
+        self.r_size = QtWidgets.QLineEdit()
+        self.r_size.editingFinished.connect(self.update_width)
+        self.r_size.setPlaceholderText("r points")
+        self.r_size.setFixedSize(size2,height)
         self.r_width = QtWidgets.QLineEdit()
         self.r_width.setPlaceholderText("r width")
+        self.r_width.editingFinished.connect(self.update_width)
         self.r_width.setFixedSize(size2,height)
         self.comments = QtWidgets.QLineEdit("")
         self.comments.setPlaceholderText("notes:")
@@ -886,7 +577,6 @@ class Line(QtWidgets.QWidget):
         self.finish_time.setFixedSize(size4, height)
         self.line_eta = QtWidgets.QLabel("00:00:00")
         self.line_eta.setFixedSize(size2,height)
-
 
         for key in self.__dict__:
             item = getattr(self,key)
@@ -914,35 +604,35 @@ class Line(QtWidgets.QWidget):
         trajectory = self.sender()
         if trajectory.currentText() == "raster" or trajectory.currentText() == "snake" :
             self.x_center.setEnabled(True)
-            self.x_points.setEnabled(True)
+            self.x_size.setEnabled(True)
             self.x_width.setEnabled(True)
             self.y_center.setEnabled(True)
-            self.y_points.setEnabled(True)
+            self.y_size.setEnabled(True)
             self.y_width.setEnabled(True)
         elif self.trajectory.currentText() == "spiral":
             #TODO: change placeholder txt to match spiral parameters
             self.x_center.setEnabled(True)
-            self.x_points.setEnabled(True)
+            self.x_size.setEnabled(True)
             self.x_width.setEnabled(True)
             self.y_center.setEnabled(False)
-            self.y_points.setEnabled(False)
+            self.y_size.setEnabled(False)
             self.y_width.setEnabled(False)
         elif self.trajectory.currentText() == "lissajous":
             #TODO: change placeholder txt to match lisa parameters
             self.x_center.setEnabled(True)
-            self.x_points.setEnabled(True)
+            self.x_size.setEnabled(True)
             self.x_width.setEnabled(True)
             self.y_center.setEnabled(False)
-            self.y_points.setEnabled(False)
+            self.y_size.setEnabled(False)
             self.y_width.setEnabled(False)
         elif self.trajectory.currentText() == "custom":
             #TODO: change placeholder txt to match lisa parameters
             #TODO: blank out parameter fields.
             self.x_center.setEnabled(False)
-            self.x_points.setEnabled(False)
+            self.x_size.setEnabled(False)
             self.x_width.setEnabled(False)
             self.y_center.setEnabled(False)
-            self.y_points.setEnabled(False)
+            self.y_size.setEnabled(False)
             self.y_width.setEnabled(False)
 
         for key in self.__dict__:
@@ -956,12 +646,12 @@ class Line(QtWidgets.QWidget):
 
     def spiral_selected(self):
         #TODO: set y_width == None disable y_width
-        #TODO: set y_points == None disable y_points
+        #TODO: set y_size == None disable y_size
         #TODO: set scan type to "STEP" (currently canno flyscan multi-axis)
         pass
 
     def lissajous_selected(self):
-        #TODO: set y_points == None disable y_points
+        #TODO: set y_size == None disable y_size
         #TODO: open lissajous interactive window
         #TODO:  x frequency slider 0-1
         #TODO:  y_frequency slider 0-1
@@ -973,8 +663,9 @@ class Line(QtWidgets.QWidget):
     def custom_selected(self):
         #TODO: open table window where user can either manually enter list of x,y coordinates, paster them in, OR
         #TODO: in another tab, open hdf5 file with coordinates, to DRAW over an image to create an enclosed region
-        #TODO: then specify [x_points, y_points] and either [raster, or snake] to generarte trajecrory, update table, and update plot
+        #TODO: then specify [x_size, y_size] and either [raster, or snake] to generarte trajecrory, update table, and update plot
         pass
+
     def custom_draw(self):
         #TODO: create interactive draw windwo but put it under gui
         #open hdf, linedit showing directory
@@ -985,6 +676,11 @@ class Line(QtWidgets.QWidget):
         #clear drawing button
         pass
 
+    def update_width(self, scan_id):
+        #TODO: change number of points to step size and adjust width based on step size, ceil to narest step-size multiple
+        #TODO:
+        pass
+    
     def scan_type_clicked(self):
         button = self.sender()
         if button.isChecked():
@@ -999,16 +695,16 @@ class Line(QtWidgets.QWidget):
         if button.isChecked():
             button.setText("2D")
             self.r_center.setVisible(False)
-            self.r_points.setVisible(False)
+            self.r_size.setVisible(False)
             self.r_width.setVisible(False)
         else:
             button.setText("3D")
             self.r_center.setVisible(True)
-            self.r_points.setVisible(True)
+            self.r_size.setVisible(True)
             self.r_width.setVisible(True)
-
         # scan_id = button.scan_id()
         # self.validate_params(scan_id)
+
     def validate_params(self):
         #TODO: is_valid = self.client.validate_params(scan_id)
         # if is_valid: color = white
@@ -1055,6 +751,10 @@ class Line(QtWidgets.QWidget):
                 pass
         return
 
+class Stream(QtCore.QObject):
+    newText = QtCore.pyqtSignal(str)
+    def write(self, text):
+        self.newText.emit(str(text))
 class CheckableComboBox(QComboBox):
     def __init__(self):
         super(CheckableComboBox, self).__init__()
@@ -1099,7 +799,6 @@ class CheckableComboBox(QComboBox):
         for i in range(self.count()):
             item = self.model().item(i, 0)
             item.setCheckState(QtCore.Qt.Unchecked)
-
 class ImageView(pyqtgraph.GraphicsLayoutWidget):
     def __init__(self):
         super(ImageView, self).__init__()
