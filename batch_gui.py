@@ -122,9 +122,15 @@ class BatchScanGui(QtWidgets.QWidget):
         batch_widget.setWidgetResizable(True)
 
         return batch_widget
-    def validate_line(self, line):
+
+    def validate_line(self):
+        line = self.sender
         #TODO: get scan params from line params = line.params
         # is_valid = self.client.validate_params(params)
+        #TODO: is_valid = self.client.validate_params(scan_id)
+        # if is_valid: color = white
+        # else: color = salmon
+        # self.paint_line(color)
         pass
 
     def get_line(self, scan_id):
@@ -411,47 +417,21 @@ class Controls(QtWidgets.QWidget):
 
         for key in self.__dict__:
             item = getattr(self,key)
-            if isinstance(item, QtWidgets.QLineEdit):
-                item.textChanged.connect(self.validate_params)
-                item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
-            elif isinstance(item,QtWidgets.QLabel):
+
+            if isinstance(item,QtWidgets.QLabel):
                 item.setStyleSheet("QLabel {background-color: white;" 
                                            "color: black;"
                                            "border-width: 0;"
                                            "border-radius: 3;"
                                            "border-style: solid;"
                                            "border-color: white}")
-            elif isinstance(item,QtWidgets.QComboBox):
-                item.setStyleSheet("background: lightyellow; color: black")
+
             elif isinstance(item, QtWidgets.QPushButton):
                 item.setStyleSheet("QPushButton {background: lightgreen;color: black; border-radius: 4;}" "QPushButton::pressed {background-color: darkgreen;}")
-            elif isinstance(item,QtWidgets.QRadioButton):
-                item.setStyleSheet("background: white;color: black; border-radius: 4")
             else:
                 pass
         self.setStyleSheet("background: white")
         self.setLayout(combined2)
-
-    def validate_params(self):
-        for key in self.__dict__:
-            item = getattr(self, key)
-            if isinstance(item, QtWidgets.QLineEdit):
-                try:
-                    value = eval(item.text())
-                    if value<=0:
-                        if item.isEnabled():
-                            item.setStyleSheet("background: lightcoral; color: black; border-radius: 4")
-                        else:
-                            item.setStyleSheet("background: lightblue; color: lightblue; border-radius: 4")
-                    else:
-                        if item.isEnabled():
-                            item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
-                        else:
-                            item.setStyleSheet("background: lightblue; color: lightblue; border-radius: 4")
-                except:
-                    item.setStyleSheet("background: lightcoral; color: black; border-radius: 4")
-            else:
-                pass
 
 class Line(QtWidgets.QWidget):
     paramsChangedSig = QtCore.pyqtSignal(int)
@@ -584,11 +564,12 @@ class Line(QtWidgets.QWidget):
                 item.currentIndexChanged.connect(self.trajector_changed)
 
             if isinstance(item, QtWidgets.QLineEdit):
-                item.editingFinished.connect(self.validate_params)
+                # item.editingFinished.connect(self.validate_line)
+                pass
 
             elif isinstance(item, QtWidgets.QComboBox):
-                item.currentIndexChanged.connect(self.validate_params)
-
+                # item.currentIndexChanged.connect(self.validate_line)
+                pass
             if isinstance(item, QtWidgets.QHBoxLayout):
                 pass
             if isinstance(item, QtCore.pyqtSignal):
@@ -642,7 +623,7 @@ class Line(QtWidgets.QWidget):
                     item.setStyleSheet("background: lightblue; color: black; border-radius: 4")
                 else:
                     item.setStyleSheet("background: lightblue; color: lightblue; border-radius: 4")
-        self.validate_params()
+        # self.validate_line()
 
     def spiral_selected(self):
         #TODO: set y_width == None disable y_width
@@ -688,7 +669,7 @@ class Line(QtWidgets.QWidget):
         else:
             button.setText("step")
         # scan_id = button.scan_id()
-        # self.validate_params(scan_id)
+        # self.validate_line(scan_id)
 
     def scan_geometry_clicked(self):
         button = self.sender()
@@ -703,14 +684,7 @@ class Line(QtWidgets.QWidget):
             self.r_size.setVisible(True)
             self.r_width.setVisible(True)
         # scan_id = button.scan_id()
-        # self.validate_params(scan_id)
-
-    def validate_params(self):
-        #TODO: is_valid = self.client.validate_params(scan_id)
-        # if is_valid: color = white
-        # else: color = salmon
-        # self.paint_line(color)
-        pass
+        # self.validate_line(scan_id)
 
     def paint_line(self, color):
         self.setStyleSheet("background: {}".format(color))
