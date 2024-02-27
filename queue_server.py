@@ -13,19 +13,18 @@ import epics
 from datetime import datetime, timedelta
 
 
-class rqServer(object):
+class rqs(object):
     def __init__(self):
         self.threads = {}
         self.pid = None
         self.backend = batch_backend.BatchScan()
-        pv_dict = self.open_config()
-        self.pv_dict = self.caget_pvs(pv_dict)
+        self.settings = self.open_settings()
         self.r = None
         self.scan_id = 0
 
-    def start_server(self, addr, port, confile="redis.conf"):
+    def start_server(self, host, port, confile="redis.conf"):
         #check if server running
-        self.r = redis.Redis(host=addr, port=port, decode_responses=True, socket_connect_timeout=1)  # short timeout for the test
+        self.r = redis.Redis(host=host, port=port, decode_responses=True, socket_connect_timeout=1)  # short timeout for the test
         try:
             self.r.ping()
             print("redis server: {}".format(addr))
@@ -34,6 +33,8 @@ class rqServer(object):
             command = "redis-server {}".format(confile)
             subprocess.Popen([command], shell=True)
         return
+    def connect_server(self, host, port):
+    	self.r = redis.Redis(host=host, port=port, decode_responses=True, socket_connect_timeout=1)  
 
     def caget_pvs(self,pv_dict):
         for pv in pv_dict.keys():
@@ -48,7 +49,7 @@ class rqServer(object):
                 pv_dict[pv] = [True,value]
         return pv_dict
 
-    def open_config(self):
+    def open_settings(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))+"/"
         fname = "default_settings.pkl"
         valid_files = []
@@ -73,7 +74,7 @@ class rqServer(object):
             settings = contents[1]
         return settings
 
-    def save_config(self):
+    def save_settings(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))+"/"
         valid_files = []
         for i, file in enumerate(os.listdir(current_dir)):
@@ -166,6 +167,7 @@ class rqServer(object):
     def get_scan_eta(self,params):
         #TODO: calculate eta based on params
         pass
+
     def generate_scan_id(self):
         #TODO: increase scan id counter, add new id and scan to database self.save_batches()
         pass
