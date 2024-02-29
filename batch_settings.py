@@ -2,12 +2,13 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import pyqtSignal
-from epics import *
 import pickle
 import os
 from datetime import datetime
 import psutil
 import subprocess
+from queue_server import rqs
+from redis import Redis
 
 class ScanSettings(QtWidgets.QWidget):
     settings_closed_sig = pyqtSignal()
@@ -15,26 +16,23 @@ class ScanSettings(QtWidgets.QWidget):
         super(QtWidgets.QWidget, self).__init__()
         self.setObjectName("bathcscan_flysetup_vPy")
         self.setAutoFillBackground(True)
-        self.current_text = ""
-        self.var_dict = {}
-        self.fname = ""
-        self.first_time = True
         self.initUI()
         self.make_pretty()
-        self.pv_status= {}
+        self.settings_dict = None
+        self.var_dict = None
 
     def initUI(self):
         self.setup_window = Setup()
         for key in vars(self.setup_window):
             item = vars(self.setup_window)[key]
-            if isinstance(item,QtWidgets.QLineEdit) or isinstance(item,QtWidgets.QPushButton):
-                item.installEventFilter(self)
+            if isinstance(item,QtWidgets.QLineEdit):
+                # item.installEventFilter(self)
                 if isinstance(item, QtWidgets.QLineEdit):
-                    item.returnPressed.connect(self.line_edit_entered)
                     self.var_dict[item] = item.objectName
 
         self.setup_window.scan_generator.clicked.connect(self.scan_generator_changed)
         self.setup_window.connect_server.clicked.connect(self.connect_server_clicked)
+        self.setup_window.send_settings.clicked.connect(self.send_settings_clicked)
 
         wid = QtWidgets.QWidget(self)
         layout = QtWidgets.QVBoxLayout()
@@ -44,38 +42,16 @@ class ScanSettings(QtWidgets.QWidget):
         self.scan_generator_changed()
         self.restoresettings()
         self.setMinimumSize(300,500)
+
     def connect_server_clicked(self):
-        ##check if server already running with PID"
-        # ps -ef | grep "python server.py"
-        ##if server runing, attempt to connec to it"
-        pid = self.command_response("ps -ef | grep \"python server.py\" ")
-
-        PROCNAME = "server.py"
-
-        pids = {}
-        for proc in psutil.process_iter(["pid", "name"]):
-            if proc.name() == PROCNAME:
-                pids[proc.name()] = proc.pid
-
-        if len(pids) == 0:
-            print("no server in pid list, starting new server instance")
-        elif len(pids) == 1:
-            print("server pid found, atempting to connect")
-        else:
-            print("more than one server pid found, consider terminating one.")
-            print(pids)
-
-        cwd = os.getcwd() + "/"
-        python_path = self.command_response("where python")
-        if python_path == "":
-            python_path = self.command_response("which python")
-
-        if python_path == "":
+        host = self.setup_window.server_addr.text()
+        port = self.setup_window.server_port.text()
+        self.r = Redis(host=host, port=port, decode_responses=True, socket_connect_timeout=1)  
+        if self.batch.r.ping():
+            print("connected to server")
+        else: 
             print("could not connect to server")
-            return
-
-        command = "{}python", "{}server.py".format(python_path, cwd)
-        self.command_detatch(command)
+        return
 
     def command_detatch(self, command):
         # subprocess.call("{}python", "{}server.py".format(python_path,cwd), shell=True)
@@ -99,14 +75,11 @@ class ScanSettings(QtWidgets.QWidget):
 
     def openEvent(self):
         print("opening window")
-        if self.first_time:
-            self.probe_pvs()
-        self.first_time = False
+        self.open_local_settings()
 
     def closeEvent(self, a0, QCloseEvent=None):
         print("closing window")
         self.probe_pvs()
-        self.settings_closed_sig.emit()
         self.first_time = True
 
     def make_pretty(self):
@@ -133,40 +106,17 @@ class ScanSettings(QtWidgets.QWidget):
             else:
                 pass
         return
-    def line_edit_entered(self):
-        #check which widget has focus
-        for key in self.var_dict:
-            if isinstance(key, QtWidgets.QLineEdit):
-                focused = key.hasFocus()
-                if focused:
-                    proposed = key.text()
-                    try:
-                        print("cagetting PV, test")
-                        new_val = caget(proposed, as_string=True,connection_timeout=0.05)
-                        if new_val is None:
-                            raise
-                        self.current_text = proposed
-                        key.setStyleSheet("border: none;")
-                    except:
-                        self.current_text = proposed
-                        if proposed == "":
-                            pass
-                            key.setStyleSheet("border: none;")
-                        else:
-                            key.setStyleSheet("border: 1px solid red;")
-                            print("cannot caput pv {}".format(key.objectName))
 
-
-    def eventFilter(self, source, event):   #this is to emmulate epics behavior where changes only take effect if cursor is within field.
-        if event.type() == 10: # 10== Enter
-            source.setFocus()
-            if isinstance(source, QtWidgets.QLineEdit):
-                self.current_text = source.text()
-        elif event.type() == 11: # 11== Leave
-            source.clearFocus()
-            if isinstance(source, QtWidgets.QLineEdit):
-                source.setText(self.current_text)
-        return QtWidgets.QLineEdit.eventFilter(self, source, event)
+    # def eventFilter(self, source, event):   #this is to emmulate epics behavior where changes only take effect if cursor is within field.
+    #     if event.type() == 10: # 10== Enter
+    #         source.setFocus()
+    #         if isinstance(source, QtWidgets.QLineEdit):
+    #             self.current_text = source.text()
+    #     elif event.type() == 11: # 11== Leave
+    #         source.clearFocus()
+    #         if isinstance(source, QtWidgets.QLineEdit):
+    #             source.setText(self.current_text)
+    #     return QtWidgets.QLineEdit.eventFilter(self, source, event)
 
     def changeButton(self,button):
         if button.isChecked():
@@ -184,6 +134,11 @@ class ScanSettings(QtWidgets.QWidget):
         #update pv dict
         pass
 
+    def send_settings_clicked(self):
+        self.r.set("settings", self.settings)
+        #TODO: send new settings to server and
+        pass
+
     def save_settings(self):
         #TODO: send command to server to save settings instead of saving locally
         #open all pkl files in cwd, set "last opened" status to 0 for all except current file.
@@ -195,7 +150,7 @@ class ScanSettings(QtWidgets.QWidget):
                 item = vars(self.setup_window)[key]
                 if isinstance(item, QtWidgets.QLineEdit):
                     settings.append(item.text())
-            save_list = ["settings", datetime.now(), settings, file, 1]
+            save_list = ["settings", settings, file, 1]
 
             with open(cwd + file, 'wb') as f:
                 pickle.dump(save_list, f)
@@ -204,36 +159,55 @@ class ScanSettings(QtWidgets.QWidget):
         except IOError as e:
             print(e)
 
-    def open_settings(self):
-        #TODO: load as normally
+    def open_local_settings(self):
+            current_dir = os.path.dirname(os.path.abspath(__file__))+"/"
+            fname = "local_settings.pkl"
+            valid_files = []
+            #check if files are .pkl and contain "settings" keyword.
+            for i, file in enumerate(os.listdir(current_dir)):
+                if file.endswith(".pkl"):
+                    with open(current_dir+file,'rb') as f:
+                        contents = pickle.load(f)
+                        if contents[0] == "local_settings":
+                            valid_files.append(file)
+                        f.close()
+            #if no  valid files exist, create new one.
+            if len(valid_files) ==0:
+                settings = self.settings_dict
 
-        #open all pkl files in cwd, set "last opened" status to 0 for all except current file.
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        file = QtWidgets.QFileDialog.getOpenFileName(self, "Open .pkl", current_dir, "*.pkl")
-        if file[0] == '':
+                with open(current_dir + fname, 'wb') as f:
+                    pickle.dump(["local_settings",settings], f)
+                    f.close()
+            with open(current_dir + fname,'rb') as f:
+                contents = pickle.load(f)
+                self.settings_dict = contents[1]
+ 
+
+    def save_settings(self):
+        current_dir = os.path.dirname(os.path.abspath(__file__))+"/"
+        valid_files = []
+        for i, file in enumerate(os.listdir(current_dir)):
+            if file.endswith(".pkl"):
+                with open(current_dir+file,'rb') as f:
+                    contents = pickle.load(f)
+                    if contents[0] == "local_settings":
+                        valid_files.append(file)
+                    f.close()
+        #use latest file
+        fname = max(valid_files, key=os.path.getmtime)
+        with open(current_dir + fname, 'wb') as f:
+            pickle.dump(["local_settings",self.settings_dict], f)
+            f.close()
             return
 
-        with open(file[0],'rb') as f:
-            contents = pickle.load(f)
-            if f.name.split(".")[-1] != "pkl" or contents[0] != "settings":
-                print("incorrect filetype or not a settings file")
-                return
-
-            last_opened = contents[1]
-            settings = contents[2]
-            self.fname = file[0].split("/")[-1]
-            self.setup_window.config_file.setText(self.fname)
-            for i, key in enumerate(self.var_dict):
-                try:
-                    key.setText(settings[i])
-                except:
-                    print("failed to load some settings")
-            f.close()
-        return
 
     def restoresettings(self):
-        #TODO: pull settings/config from server.
+        settings = self.r.get("settings")
+        self.settings_dict = settings
+        for key in settings.keys():
+
         pass
+
     def scan_generator_changed(self,sender=None):
         if sender ==None:
             checked = False
@@ -309,8 +283,10 @@ class Setup(QtWidgets.QWidget):
     def scroll_area(self):
         item_dict = {} #[type(button, file, path, dropdown), descriptions[idx], choices[idx],defaults[idx]]
         item_dict["server_addr"] = [["label", "linedit"], "batch scan server host IP address", None, None]
+        item_dict["server_port"] = [["label", "linedit"], "batch scan server port", None, None]
         item_dict["connect_server"] = [["label", "button"], "connect to server", None, None]
-        item_dict["config_file"] = [["label","file"], "select config file if it exists", None, ""]
+        item_dict["send_settings"] = [["label", "button"], "send settings to server", None, None]
+
         item_dict["scan_generator"] = [["label", "button"], "scan record or profile move", None, None]
         item_dict["profile_move"] = [["label","linedit"], "profile move PV prefix", None, ""]
         item_dict["trajectory"] = [["label","combobox"], "scan trajectory options", ["raster", "snake", "spiral", "lissajous", "custom"], "raster"]
@@ -333,7 +309,6 @@ class Setup(QtWidgets.QWidget):
         item_dict["x_motor"] = [["label","linedit"], "x positioner", None, ""]
         item_dict["y_motor"] = [["label","linedit"], "y positioner", None, ""]
         item_dict["r_motor"] = [["label","linedit"], "r positioner", None, ""]
-        item_dict["init"] = [["label", "button"], "Initialize PVs and scan record", None, None]
 
         v_box = self.create_widget(item_dict)
         v_box.setSpacing(0)

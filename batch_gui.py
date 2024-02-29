@@ -43,16 +43,11 @@ class BatchScanGui(QtWidgets.QWidget):
         self.closeAction.setShortcut(' Ctrl+Q')
 
         self.closeAction.triggered.connect(sys.exit)
-        self.settings.settings_closed_sig.connect(self.settings_changed)
         self.controls.setup_btn.clicked.connect(self.settings.show)
         self.controls.setup_btn.clicked.connect(self.settings.openEvent)
         self.controls.abort_btn.clicked.connect(self.abort_clicked)
         self.controls.continue_btn.clicked.connect(self.continue_clicked)
         self.controls.pause_btn.clicked.connect(self.pause_clicked)
-
-    def settings_changed(self):
-        #TODO: send new settings to server and
-        pass
 
     def onUpdateText(self, text):
         cursor = self.controls.message_window.textCursor()
