@@ -9,6 +9,7 @@ import psutil
 import subprocess
 from queue_server import rqs
 from redis import Redis
+import json
 
 class ScanSettings(QtWidgets.QWidget):
     settings_closed_sig = pyqtSignal()
@@ -16,10 +17,11 @@ class ScanSettings(QtWidgets.QWidget):
         super(QtWidgets.QWidget, self).__init__()
         self.setObjectName("bathcscan_flysetup_vPy")
         self.setAutoFillBackground(True)
+        self.settings_dict = {}
+        self.var_dict = {}
+        self.r=None
         self.initUI()
         self.make_pretty()
-        self.settings_dict = None
-        self.var_dict = None
 
     def initUI(self):
         self.setup_window = Setup()
@@ -28,8 +30,12 @@ class ScanSettings(QtWidgets.QWidget):
             if isinstance(item,QtWidgets.QLineEdit):
                 # item.installEventFilter(self)
                 if isinstance(item, QtWidgets.QLineEdit):
-                    self.var_dict[item] = item.objectName
+                    self.var_dict[item.objectName] = item
 
+        settings =  self.var_dict.keys()
+        for setting in settings: 
+            self.settings_dict[setting] = ""
+       
         self.setup_window.scan_generator.clicked.connect(self.scan_generator_changed)
         self.setup_window.connect_server.clicked.connect(self.connect_server_clicked)
         self.setup_window.send_settings.clicked.connect(self.send_settings_clicked)
@@ -40,16 +46,19 @@ class ScanSettings(QtWidgets.QWidget):
         wid.setLayout(layout)
         wid.setMinimumSize(300, 500)        # self.show()
         self.scan_generator_changed()
-        self.restoresettings()
+        self.open_local_settings()
         self.setMinimumSize(300,500)
 
     def connect_server_clicked(self):
-        host = self.setup_window.server_addr.text()
-        port = self.setup_window.server_port.text()
+        host = self.settings_dict["server_addr"]
+        port = self.settings_dict["server_port"]
         self.r = Redis(host=host, port=port, decode_responses=True, socket_connect_timeout=1)  
-        if self.batch.r.ping():
-            print("connected to server")
-        else: 
+        try:
+            if self.r.ping():
+                print("connected to server")
+            else:
+                print("could not connect to server")
+        except: 
             print("could not connect to server")
         return
 
@@ -79,8 +88,8 @@ class ScanSettings(QtWidgets.QWidget):
 
     def closeEvent(self, a0, QCloseEvent=None):
         print("closing window")
-        self.probe_pvs()
-        self.first_time = True
+        self.save_local_settings()
+        # self.send_save_settings
 
     def make_pretty(self):
         myFont = QtGui.QFont()
@@ -135,29 +144,15 @@ class ScanSettings(QtWidgets.QWidget):
         pass
 
     def send_settings_clicked(self):
-        self.r.set("settings", self.settings)
-        #TODO: send new settings to server and
-        pass
-
-    def save_settings(self):
-        #TODO: send command to server to save settings instead of saving locally
-        #open all pkl files in cwd, set "last opened" status to 0 for all except current file.
         try:
-            cwd = os.path.dirname(os.path.abspath(__file__)) + "/"
-            file = self.setup_window.config_file.text()
-            settings = []
-            for key in vars(self.setup_window):
-                item = vars(self.setup_window)[key]
-                if isinstance(item, QtWidgets.QLineEdit):
-                    settings.append(item.text())
-            save_list = ["settings", settings, file, 1]
-
-            with open(cwd + file, 'wb') as f:
-                pickle.dump(save_list, f)
-                f.close()
-            return
-        except IOError as e:
+            self.r.set("settings", json.dumps(self.settings_dict))
+        except Exception as e:
             print(e)
+        return
+
+    def send_save_settings(self):
+        #TODO: send command to server to save settings .
+        pass
 
     def open_local_settings(self):
             current_dir = os.path.dirname(os.path.abspath(__file__))+"/"
@@ -180,11 +175,19 @@ class ScanSettings(QtWidgets.QWidget):
                     f.close()
             with open(current_dir + fname,'rb') as f:
                 contents = pickle.load(f)
-                self.settings_dict = contents[1]
- 
+                settings = contents[1]
+                for key in settings:
+                    self.settings_dict[key] = settings[key]
+                for key in self.settings_dict.keys():
+                    self.var_dict[key].setText(self.settings_dict[key])
+            return
 
-    def save_settings(self):
+    def save_local_settings(self):
+        for key in self.settings_dict.keys():
+            self.settings_dict[key] = self.var_dict[key].text()
+
         current_dir = os.path.dirname(os.path.abspath(__file__))+"/"
+        fname = "local_settings.pkl"
         valid_files = []
         for i, file in enumerate(os.listdir(current_dir)):
             if file.endswith(".pkl"):
@@ -205,7 +208,7 @@ class ScanSettings(QtWidgets.QWidget):
         settings = self.r.get("settings")
         self.settings_dict = settings
         for key in settings.keys():
-
+            print(key)
         pass
 
     def scan_generator_changed(self,sender=None):
