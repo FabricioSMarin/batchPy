@@ -1,1 +1,1 @@
-{"profile_move": "", "busy1": "", "busy2": "", "busy3": "", "busy4": "", "delay_calc": "", "save_data": "", "scan_inner": "2idbtst:scan1", "scan_outer": "2idbtst:scan2", "softgluezynq": "2i", "xspress3": "", "eiger": "", "struck": "", "xmap": "", "tetramm": "", "meascompctr": "", "x_motor": "2idbsft:m1", "y_motor": "2idbsft:m2", "r_motor": "2idbsft:m3"}
+{"scan_device_1": "2idsft:m1", "scan_device_2": "2idsft:m2", "scan_device_3": "2idsft:m3", "scan_device_4": "2idsft:temp", "scan_device_5": "2idsft:volts", "scan_device_6": "2idsft:energy"}
