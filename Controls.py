@@ -1,8 +1,8 @@
 
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtWidgets import QWidget, QFrame, QVBoxLayout, QLabel, QLineEdit, QPushButton, QHBoxLayout, QTextEdit, QCheckBox, QComboBox
-import ComboBoxWithPlaceholder
-import ImageView
+from ComboBoxWithPlaceholder import ComboBoxWithPlaceholder
+from ImageView import ImageView
 
 class Controls(QWidget):
     def __init__(self):

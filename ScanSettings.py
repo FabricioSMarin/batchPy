@@ -1,9 +1,8 @@
+import os, json
 from PyQt5 import QtGui
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QComboBox, QVBoxLayout, QWidget
 from PyQt5.QtCore import pyqtSignal
-import Setup
-import os
-import json
+from Setup import Setup
 
 class ScanSettings(QWidget):
     settings_closed_sig = pyqtSignal()

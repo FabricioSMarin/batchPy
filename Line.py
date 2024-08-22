@@ -1,7 +1,7 @@
 from PyQt5 import QtGui
 from PyQt5.QtWidgets import  QWidget, QLabel, QLineEdit, QHBoxLayout, QPushButton, QMenu, QComboBox, QCheckBox
 from PyQt5.QtCore import pyqtSignal
-import ComboBoxWithPlaceholder
+from ComboBoxWithPlaceholder import ComboBoxWithPlaceholder
 
 class Line(QWidget):
     sendToQueueSig = pyqtSignal(int)

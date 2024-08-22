@@ -1,23 +1,19 @@
 
-import sys
-import os
+import sys, os, json, time, re
 os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = "/Users/marinf/anaconda3/envs/py310/plugins" #everytime pyqt updates, something breaks.. need to point to plugins now. 
 sys.path.insert(0,"/".join(os.path.realpath(__file__).split("/")[:-2])) #adds parent directory to path so importing from other directories work. 
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QAction, QFrame, QVBoxLayout, QLabel, QLineEdit, QScrollArea, QPushButton, QTableWidgetItem
 from bluesky_queueserver_api.zmq import REManagerAPI
 from bluesky_queueserver_api import BPlan, BItem, BInst, BFunc
-import json
-import time
-from trajectories import *
-import re
 
-import TableWidgetWithContextMenu
-import ComboBoxWithPlaceholder
-import Controls
-import ScanSettings
-import Line
-import Stream
+from trajectories import *
+from TableWidgetWithContextMenu import TableWidgetWithContextMenu
+from ComboBoxWithPlaceholder import ComboBoxWithPlaceholder
+from Controls import Controls
+from ScanSettings import ScanSettings
+from Line import Line
+from Stream import Stream 
 
 #DONE: revise scan_record_plan 
 #DONE: figure out the param structure for scan_record plan
@@ -40,7 +36,8 @@ import Stream
 #TODO: implenent save--> history and current queue as csv 
 #TODO: impleemnt save--> log 
 #TODO: implement pi_directory autosave and autoload 
-
+#TODO: get motor limits
+#TODO: get deteector limits
 
 class BatchScanGui(QMainWindow):
     def __init__(self, app):
@@ -73,9 +70,8 @@ class BatchScanGui(QMainWindow):
         self.settings.setup.qserver.clicked.connect(self.connect2qserver)
         self.settings.settings_closed_sig.connect(self.update_loop_items)
 
-        #TODO: get motor limits
-        #TODO: get deteector limits
-         
+
+        
         layout = QVBoxLayout()
         layout.addWidget(self.batch_widget)
         layout.addWidget(self.queue_widget)
@@ -213,7 +209,6 @@ class BatchScanGui(QMainWindow):
         self.lines_layout.addWidget(line, alignment=QtCore.Qt.AlignLeft)
 
     def validate_params(self):
-        #TODO: move prevalidate function to BatchScanGui class and remove get_params function from Line class
         line = self.get_line(self.sender().id)
         preval = self.pre_validate(line)
         if preval is None: 
@@ -224,7 +219,6 @@ class BatchScanGui(QMainWindow):
         print("line validation passed")
         line["line_action"].setText("ready")
         params = self.get_params(line)
-        #TODO: create trajectory
         trajectory  = params["trajectory"][0][params["trajectory"][1][0]-1]
         if trajectory=="raster":
             x, y, t = raster(eval(params["dwell_time"]), eval(params["l1_size"]), eval(params["l1_center"]), eval(params["l2_center"]), eval(params["l1_width"]), eval(params["l2_width"]), 2)
@@ -491,7 +485,6 @@ class BatchScanGui(QMainWindow):
     def queue_abort(self):
         if self.RM is not None: 
             self.RM.re_abort()
-
 
     def queue_resume(self):
         if self.RM is not None: 
