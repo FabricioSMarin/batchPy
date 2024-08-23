@@ -69,8 +69,6 @@ class BatchScanGui(QMainWindow):
         self.settings.setup.load_session.clicked.connect(self.open_local_session)
         self.settings.setup.qserver.clicked.connect(self.connect2qserver)
         self.settings.settings_closed_sig.connect(self.update_loop_items)
-
-
         
         layout = QVBoxLayout()
         layout.addWidget(self.batch_widget)
@@ -158,8 +156,6 @@ class BatchScanGui(QMainWindow):
             params["user"] = user
             params["item_uid"] = item_uid
             self.populate_next_available_row(self.table_widget,params)
-            #TODO: parse out parameter and update the table. 
-            #clear and re-populate or update each line? 
         return
             
 
@@ -492,15 +488,10 @@ class BatchScanGui(QMainWindow):
 
     def queue_pause(self):
         if self.RM is not None: 
-            # self.RM.re_pause()
-            # pause_script = "def pause_plan():\n\t    is_paused = True\n"
-            print("trying script_upload")
-            test_function = """def pause_plan():\n\t    is_paused = True\n"""
-            test_function = """def test_function():\n\t    import epics; epics.caput("hometst:m1", 1)\n test_function()\n"""
-            self.RM.script_upload(test_function, run_in_background=True)
+            #TODO: get scan record wait PV and set it to 1. 
+            # scrit = """def pause_queue():\n\t    import epics; epics.caput("hometst:m1", 1)\n pause_queue()\n"""
+            # self.RM.script_upload(scrit, run_in_background=True)
             self.RM.function_execute(BFunc("test_function"), run_in_background=True, user_group="root")
-            # self.RM.task_result()
-
 
     def queue_start(self):
         if self.RM is not None: #check if queue empty 
