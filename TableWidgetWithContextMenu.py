@@ -3,6 +3,7 @@ from PyQt5.QtCore import pyqtSignal, Qt, QPoint
 
 class TableWidgetWithContextMenu(QTableWidget):
     deleteRowSig = pyqtSignal(int)
+    moveRowSig = pyqtSignal(list)
     def __init__(self, *args, **kwargs):
         super(TableWidgetWithContextMenu, self).__init__(*args, **kwargs)
         
@@ -58,7 +59,7 @@ class TableWidgetWithContextMenu(QTableWidget):
 
         # Remove the original dragged row
         self.removeRow(dragged_row + (1 if drop_row < dragged_row else 0))
-
+        self.moveRowSig.emit([dragged_row, drop_row])
         event.accept()
 
     def handle_item_changed(self, item: QTableWidgetItem):
