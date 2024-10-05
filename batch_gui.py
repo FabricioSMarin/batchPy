@@ -14,6 +14,7 @@ from Controls import Controls
 from ScanSettings import ScanSettings
 from Line import Line
 from Stream import Stream 
+from customEnter import KeyPressEater
 
 #DONE: revise scan_record_plan 
 #DONE: figure out the param structure for scan_record plan
@@ -29,16 +30,15 @@ from Stream import Stream
 #TOOD: implement get devices
 #TOOD: implement get positioners
 #DONE: implement queue_item Delete 
+#DONE: implement queitem update 
 
 #TODO: figure out how to subscribe to PVA position stream
 #TODO: figure out how to subscribe to PVA spectra stream
-
 
 #TODO: add pre-configured scan options; specify positioners, step/fly, 
 #TODO: set rules for valid trajectories for fly/step scans 
 #TODO: locally cache scanned items up to some number for quick visualization 
 #TODO  alternatively click-to-open scanned lines to pop up a processed image map of a scan or just the roi sum. 
-#TODO: implement queitem update 
 #TODO: implement console_monitor callback function for when queitem changed and call update quueu list
 #TODO: implenent save--> history and current queue as csv 
 #TODO: impleemnt save--> log
@@ -65,8 +65,6 @@ class BatchScanGui(QMainWindow):
         self.show()
 
     def initUI(self):
-
-
         savelog_action = QAction('save terminal log', self)
         savelog_action.triggered.connect(self.save_log)
         savequeuelog_action = QAction('save queue log', self)
@@ -409,6 +407,7 @@ class BatchScanGui(QMainWindow):
         self.table_widget.setColumnCount(len(header))
         self.table_widget.deleteRowSig.connect(self.queue_delete_item)
         self.table_widget.moveRowSig.connect(self.queue_item_move)
+        self.table_widget.editedSig.connect(self.queue_edited)
         
         # Optional: Add headers (for clarity)
         self.table_widget.setHorizontalHeaderLabels([item for item in header])
@@ -487,20 +486,25 @@ class BatchScanGui(QMainWindow):
             except Exception as e: 
                 print(e)
 
-    def queue_edited(self):
-        #RM.item_update()
-        pass
-    
-    def queue_item_deleted(self,id):
-        # RM.item_remove(id)
-        pass
+    def queue_edited(self, packed):
+        if self.RM is not None: 
+            try: 
+                row, key, new_value = packed[0], packed[1], packed[2]
+                uid = self.table_widget.get_cell_content(row, "item_uid")
+                response = self.RM.item_get(uid=uid)
+                item = BItem(response["item"])
+                item.kwargs[key] = new_value
+                self.RM.item_update(item)      
+                self.update_queue()
+  
+            except Exception as e: 
+                print(e)
 
     def queue_clear(self):
         if self.RM is not None: 
             self.RM.clear()
     
-    def queue_item_move(self,idxs):
-        #RM.item_move(id, pos)
+    def queue_item_move(self, idxs):
         if self.RM is not None: 
             print(f"moving row from pos {idxs[0]} to pos {idxs[1]}")
             # self.RM.item_move(uid="uid-source", before_uid="uid-dest")
