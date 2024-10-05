@@ -14,7 +14,6 @@ from Controls import Controls
 from ScanSettings import ScanSettings
 from Line import Line
 from Stream import Stream 
-from customEnter import KeyPressEater
 
 #DONE: revise scan_record_plan 
 #DONE: figure out the param structure for scan_record plan
@@ -34,7 +33,8 @@ from customEnter import KeyPressEater
 
 #TODO: figure out how to subscribe to PVA position stream
 #TODO: figure out how to subscribe to PVA spectra stream
-
+#TODO: add queue history to the table 
+#TODO: Hide inactive header items
 #TODO: add pre-configured scan options; specify positioners, step/fly, 
 #TODO: set rules for valid trajectories for fly/step scans 
 #TODO: locally cache scanned items up to some number for quick visualization 
@@ -113,33 +113,11 @@ class BatchScanGui(QMainWindow):
 
         # self.settings.setup.load_session.clicked.connect(self.open_local_session)
         # self.settings.setup.qserver.clicked.connect(self.connect2qserver)
-        # self.settings.settings_closed_sig.connect(self.update_loop_items)
         #TODO: define positioners some other way ex: from iconfig file
 
-        # self.update_loop_items()
         self.open_local_session()
         self.connect2qserver()
         return layout
-    
-    # def update_loop_items(self):
-    #     lines = self.get_lines()
-    #     items = [self.settings.setup.scan_device_1.text(), 
-    #              self.settings.setup.scan_device_2.text(),
-    #              self.settings.setup.scan_device_3.text(),
-    #              self.settings.setup.scan_device_4.text(),
-    #              self.settings.setup.scan_device_5.text(),
-    #              self.settings.setup.scan_device_6.text(),
-    #     ]
-    #     items = [s for s in items if s]
-    #     for line in lines:
-    #         self.remove_all_but_first(line["loop1"])
-    #         self.remove_all_but_first(line["loop2"])
-    #         self.remove_all_but_first(line["loop3"])
-    #         self.remove_all_but_first(line["loop4"])
-    #         line["loop1"].addItems(items)
-    #         line["loop2"].addItems(items)
-    #         line["loop3"].addItems(items)
-    #         line["loop4"].addItems(items)
 
     def remove_all_but_first(self,combobox):
         # Get the total number of items in the combo box
