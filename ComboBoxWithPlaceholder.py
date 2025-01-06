@@ -54,6 +54,7 @@ class ComboBoxWithPlaceholder(QComboBox):
         for i in selected:
             item = self.model().item(i, 0)
             item.setCheckState(QtCore.Qt.Checked)
+            
     def checked_indices(self):
         checked_indices = []
         for i in range(self.count()):
@@ -61,6 +62,7 @@ class ComboBoxWithPlaceholder(QComboBox):
                 # checkedItems.append(self.model().item(i, 0).text())
                 checked_indices.append(i)
         return checked_indices
+
     def checked_names(self):
         checked_items = []
         for i in range(1, self.model().rowCount()):

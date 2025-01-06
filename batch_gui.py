@@ -22,18 +22,26 @@ from Stream import Stream
 #DONE: fix line prevalidation
 #DONE: implement Pause
 #DONE: implement Resume
+#DONE: implement Abort
+#DONE: implement Start/Begin
+#DONE: implement queue clear
+#DONE: implement queue_item move
+#TOOD: implement get devices
+#TOOD: implement get positioners
+#DONE: implement queue_item Delete 
+#DONE: implement queitem update 
 
 #TODO: figure out how to subscribe to PVA position stream
 #TODO: figure out how to subscribe to PVA spectra stream
-#TODO: implement Abort
-#TODO: implement queue clear
-#TODO: implement queue_item move
-#TODO: implement queue_item Delete 
+#TODO: add queue history to the table 
+#TODO: Hide inactive header items
+#TODO: add pre-configured scan options; specify positioners, step/fly, 
+#TODO: set rules for valid trajectories for fly/step scans 
+#TODO: locally cache scanned items up to some number for quick visualization 
+#TODO  alternatively click-to-open scanned lines to pop up a processed image map of a scan or just the roi sum. 
 #TODO: implement console_monitor callback function for when queitem changed and call update quueu list
-#TODO: implement queitem update 
-#TODO: implement save--> queue history save as csv 
 #TODO: implenent save--> history and current queue as csv 
-#TODO: impleemnt save--> log 
+#TODO: impleemnt save--> log
 #TODO: implement pi_directory autosave and autoload 
 #TODO: get motor limits
 #TODO: get deteector limits
@@ -57,17 +65,33 @@ class BatchScanGui(QMainWindow):
         self.show()
 
     def initUI(self):
+        savelog_action = QAction('save terminal log', self)
+        savelog_action.triggered.connect(self.save_log)
+        savequeuelog_action = QAction('save queue log', self)
+        savequeuelog_action.triggered.connect(self.queue_save)
+        clearqueue_action = QAction('request clear queue', self)
+        clearqueue_action.triggered.connect(self.queue_clear)
+
+        menubar = self.menuBar()
+        menubar.setNativeMenuBar(False)
+        self.file_menu = menubar.addMenu(' &File')
+        self.file_menu.addAction(savelog_action)
+        # self.file_menu.addAction(savequeuelog_action)
+        self.settings_menu = menubar.addMenu(' &settings')
+        # self.settings_menu.addAction(openH5Action)
+        self.queue_menu = menubar.addMenu(' &queue')
+        self.queue_menu.addAction(savequeuelog_action)
+        self.queue_menu.addAction(clearqueue_action)
+
         self.controls = Controls()
         self.batch_widget = self.make_batch_widget(1)
         self.batch_widget.setMaximumHeight(120)
         self.batch_widget.setMinimumHeight(80)
 
         self.queue_widget = self.make_queue_widget()
-        self.settings = ScanSettings(self)
-        self.settings.open_local_settings()
-        self.settings.setup.load_session.clicked.connect(self.open_local_session)
-        self.settings.setup.qserver.clicked.connect(self.connect2qserver)
-        self.settings.settings_closed_sig.connect(self.update_loop_items)
+        # self.settings = ScanSettings(self)
+        # self.settings.open_local_settings()
+
         
         layout = QVBoxLayout()
         layout.addWidget(self.batch_widget)
@@ -79,38 +103,21 @@ class BatchScanGui(QMainWindow):
         self.closeAction = QAction(' &close', self)
         self.closeAction.setShortcut(' Ctrl+Q')
         self.closeAction.triggered.connect(sys.exit)
-        self.controls.setup_btn.clicked.connect(self.settings.show)
-        self.controls.setup_btn.clicked.connect(self.settings.openEvent)
+        # self.controls.setup_btn.clicked.connect(self.settings.show)
+        # self.controls.setup_btn.clicked.connect(self.settings.openEvent)
         self.controls.abort_btn.clicked.connect(self.queue_abort)
         self.controls.continue_btn.clicked.connect(self.queue_resume)
         self.controls.pause_btn.clicked.connect(self.queue_pause)
         self.controls.begin_btn.clicked.connect(self.queue_start)
         self.controls.visual_box.model().itemChanged.connect(self.view_option_changed)
 
-        self.update_loop_items()
+        # self.settings.setup.load_session.clicked.connect(self.open_local_session)
+        # self.settings.setup.qserver.clicked.connect(self.connect2qserver)
+        #TODO: define positioners some other way ex: from iconfig file
+
         self.open_local_session()
         self.connect2qserver()
         return layout
-    
-    def update_loop_items(self):
-        lines = self.get_lines()
-        items = [self.settings.setup.scan_device_1.text(), 
-                 self.settings.setup.scan_device_2.text(),
-                 self.settings.setup.scan_device_3.text(),
-                 self.settings.setup.scan_device_4.text(),
-                 self.settings.setup.scan_device_5.text(),
-                 self.settings.setup.scan_device_6.text(),
-        ]
-        items = [s for s in items if s]
-        for line in lines:
-            self.remove_all_but_first(line["loop1"])
-            self.remove_all_but_first(line["loop2"])
-            self.remove_all_but_first(line["loop3"])
-            self.remove_all_but_first(line["loop4"])
-            line["loop1"].addItems(items)
-            line["loop2"].addItems(items)
-            line["loop3"].addItems(items)
-            line["loop4"].addItems(items)
 
     def remove_all_but_first(self,combobox):
         # Get the total number of items in the combo box
@@ -155,7 +162,6 @@ class BatchScanGui(QMainWindow):
             params["user"] = user
             params["item_uid"] = item_uid
             self.populate_next_available_row(self.table_widget,params)
-        return
             
     def populate_next_available_row(self, table_widget, data_dict):
         # Find the next available row (first empty row)
@@ -317,7 +323,9 @@ class BatchScanGui(QMainWindow):
         
     def pack_params(self, params):
         #NOTE: need to make sure param in params have the same name as params from "get_plan_params"
-        scan_generator = self.settings.setup.scan_generator.text()
+        # scan_generator = self.settings.setup.scan_generator.text()
+        #TODO: replace this ^
+        scan_generator = "scan record"
         params["scan_type"] = params["scan_type"][0]
         params["devices"] = [params["devices"][0][i-1] for i in params["devices"][1]] #-1 because placeholder text item does not count
         params["trajectory"] = params["trajectory"][0][params["trajectory"][1][0]]
@@ -376,6 +384,8 @@ class BatchScanGui(QMainWindow):
         self.table_widget.setRowCount(num_rows)
         self.table_widget.setColumnCount(len(header))
         self.table_widget.deleteRowSig.connect(self.queue_delete_item)
+        self.table_widget.moveRowSig.connect(self.queue_item_move)
+        self.table_widget.editedSig.connect(self.queue_edited)
         
         # Optional: Add headers (for clarity)
         self.table_widget.setHorizontalHeaderLabels([item for item in header])
@@ -445,31 +455,39 @@ class BatchScanGui(QMainWindow):
         except:
             return
 
-    def queue_delete_item(self,row_index):
+    def queue_delete_item(self, row_index):
         if self.RM is not None: 
             try: 
                 uid = self.table_widget.get_cell_content(row_index, "item_uid")
                 self.RM.item_remove(uid=uid)
                 self.table_widget.removeRow(row_index)
-
             except Exception as e: 
                 print(e)
 
-    def queue_edited(self):
-        #RM.item_update()
-        pass
-    
-    def queue_item_deleted(self,id):
-        # RM.item_remove(id)
-        pass
+    def queue_edited(self, packed):
+        if self.RM is not None: 
+            try: 
+                row, key, new_value = packed[0], packed[1], packed[2]
+                uid = self.table_widget.get_cell_content(row, "item_uid")
+                response = self.RM.item_get(uid=uid)
+                item = BItem(response["item"])
+                item.kwargs[key] = new_value
+                self.RM.item_update(item)      
+                self.update_queue()
+  
+            except Exception as e: 
+                print(e)
 
-    def queue_cleared(self):
+    def queue_clear(self):
         if self.RM is not None: 
             self.RM.clear()
     
-    def queue_item_moved(selfm,id, pos):
-        #RM.item_move(id, pos)
-        pass
+    def queue_item_move(self, idxs):
+        if self.RM is not None: 
+            print(f"moving row from pos {idxs[0]} to pos {idxs[1]}")
+            # self.RM.item_move(uid="uid-source", before_uid="uid-dest")
+            self.RM.item_move(pos=idxs[0], pos_dest=idxs[1])
+            self.update_queue()
 
     def queue_execute_now(self):
         #executes a chosen plan or set of instructions immediately 
@@ -477,22 +495,40 @@ class BatchScanGui(QMainWindow):
 
     def queue_abort(self):
         if self.RM is not None: 
-            self.RM.re_abort()
+            try: 
+                self.RM.function_execute(BFunc("abort_scan"), run_in_background=True, user_group="root")
+                print("abort request sent")
+            except Exception as e: 
+                print(e)
 
     def queue_resume(self):
         if self.RM is not None: 
-            self.RM.re_resume()
+            try: 
+                self.RM.function_execute(BFunc("resume_scan"), run_in_background=True, user_group="root")
+                print("resume request sent")
+            except Exception as e: 
+                print(e)
 
     def queue_pause(self):
         if self.RM is not None: 
-            #TODO: get scan record wait PV and set it to 1. 
-            # scrit = """def pause_queue():\n\t    import epics; epics.caput("hometst:m1", 1)\n pause_queue()\n"""
-            # self.RM.script_upload(scrit, run_in_background=True)
-            self.RM.function_execute(BFunc("test_function"), run_in_background=True, user_group="root")
-
+            try: 
+                self.RM.function_execute(BFunc("pause_scan"), run_in_background=True, user_group="root")
+                print("pause request sent")
+            except Exception as e: 
+                print(e)
+                
     def queue_start(self):
         if self.RM is not None: #check if queue empty 
             self.RM.queue_start()
+
+    def queue_save(self):
+        #TODO: get queue history, parse to csv or something easily readable
+        pass
+
+    def bs_script_upload(self):
+        # scrit = """def pause_queue():\n\t    import epics; epics.caput("hometst:m1", 1)\n pause_queue()\n"""
+        # self.RM.script_upload(scrit, run_in_background=True)
+        pass
 
     def get_plans(self):
         if self.RM is not None: 
@@ -574,6 +610,9 @@ class BatchScanGui(QMainWindow):
         fname = os.path.join(current_dir, "local_session.json")
         with open(fname, 'w') as f:
             json.dump(session, f)
+
+    def save_log(self): 
+        pass
 
     def open_local_session(self):
         current_dir = os.path.dirname(os.path.realpath(__file__))+"/"

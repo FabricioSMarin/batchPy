@@ -1,11 +1,13 @@
-from PyQt5.QtWidgets import QMenu, QTableWidget, QTableWidgetItem, QAction
-from PyQt5.QtCore import pyqtSignal, Qt, QPoint
+from PyQt5.QtWidgets import QMenu, QTableWidget, QAction, QLineEdit
+from PyQt5.QtCore import pyqtSignal, Qt, QPoint, QEvent
+from customEnter import KeyPressEater
 
 class TableWidgetWithContextMenu(QTableWidget):
     deleteRowSig = pyqtSignal(int)
+    moveRowSig = pyqtSignal(list)
+    editedSig = pyqtSignal(list)
     def __init__(self, *args, **kwargs):
         super(TableWidgetWithContextMenu, self).__init__(*args, **kwargs)
-        
         # Enable drag and drop
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
@@ -19,7 +21,9 @@ class TableWidgetWithContextMenu(QTableWidget):
         self.customContextMenuRequested.connect(self.show_context_menu)
 
         # Connect the itemChanged signal to the custom slot
-        self.itemChanged.connect(self.handle_item_changed)
+        # self.itemChanged.connect(self.handle_item_changed)
+        # keyPressEater = KeyPressEater(self)
+        # self.installEventFilter(keyPressEater)
 
     def show_context_menu(self, pos: QPoint):
         global_pos = self.viewport().mapToGlobal(pos)
@@ -33,9 +37,7 @@ class TableWidgetWithContextMenu(QTableWidget):
             context_menu.exec_(global_pos)
 
     def delete_request(self, row_index):
-        # self.removeRow(row_index)
         self.deleteRowSig.emit(row_index)
-
 
     def dropEvent(self, event):
         # Get the index of the dragged row
@@ -58,16 +60,28 @@ class TableWidgetWithContextMenu(QTableWidget):
 
         # Remove the original dragged row
         self.removeRow(dragged_row + (1 if drop_row < dragged_row else 0))
-
+        self.moveRowSig.emit([dragged_row, drop_row])
         event.accept()
 
-    def handle_item_changed(self, item: QTableWidgetItem):
-        # Get the row and column of the edited cell
-        row = item.row()
-        column = item.column()
-    
-        # Call the custom function with the cell position
-        self.cell_edited(row, column, item.text())
+    def keyPressEvent(self, event):
+        if event.type() == QEvent.KeyPress and event.key() in (Qt.Key_Return, Qt.Key_Enter):
+            current_row = self.currentRow()
+            current_col = self.currentColumn()
+
+            # Get the editor widget (QLineEdit) being used for editing the current item
+            editor = self.indexWidget(self.model().index(current_row, current_col))
+            if isinstance(editor, QLineEdit):
+                current_text = editor.text()
+            else:
+                current_text = self.currentItem().text() if self.currentItem() else "No item selected"
+            
+            column_header = self.horizontalHeaderItem(current_col).text() if self.horizontalHeaderItem(current_col) else "No header"
+            
+            print(f"Return/Enter pressed while editing row {current_row}, column {current_col}")
+            print(f"Cell contents: {current_text}")
+            print(f"Column header: {column_header}")
+            self.editedSig.emit([current_row, column_header, current_text])
+
 
     def get_cell_content(table, row, column_key):
         # Get the column index using the column key (header label)
@@ -83,9 +97,3 @@ class TableWidgetWithContextMenu(QTableWidget):
             if item:
                 return item.text()
         return None
-
-    def cell_edited(self, row, column, new_value):
-        # Custom function to handle cell edits
-        #signal item change request for queue server, if valid, update cell, otherwise revert it.
-
-        print(f"Cell at ({row}, {column}) changed to: {new_value}")
