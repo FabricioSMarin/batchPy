@@ -20,13 +20,12 @@ from Stream import Stream
 #DONE: package parameters for ZMQ communication
 #DONE: parse parameters from get_queue and populate the table
 #DONE: fix line prevalidation
+#DONE: implement Pause
+#DONE: implement Resume
 
 #TODO: figure out how to subscribe to PVA position stream
 #TODO: figure out how to subscribe to PVA spectra stream
-#TODO: implement Pause
-#TODO: implement Resume
 #TODO: implement Abort
-#TODO: implement Start/Begin
 #TODO: implement queue clear
 #TODO: implement queue_item move
 #TODO: implement queue_item Delete 
@@ -158,8 +157,6 @@ class BatchScanGui(QMainWindow):
             self.populate_next_available_row(self.table_widget,params)
         return
             
-
-
     def populate_next_available_row(self, table_widget, data_dict):
         # Find the next available row (first empty row)
         next_row = table_widget.rowCount()
