@@ -71,6 +71,7 @@ class Line(QWidget):
         self.trajectory.setFixedSize(size5, height)
         self.trajectory.check_selected([2])
 
+
         #TODO: get axis options from settings
         axis_options = ["motor 1","motor 2","motor 3", "temperature","energy",'voltage']
         self.loop1 = ComboBoxWithPlaceholder("loop1", exclusive=True)

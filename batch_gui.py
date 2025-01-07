@@ -31,6 +31,8 @@ from Stream import Stream
 #DONE: implement queue_item Delete 
 #DONE: implement queitem update 
 
+#TODO: get list of plans, devices, and positioners to populate the gui with. #hardcoded parameters no longer be used. 
+
 #TODO: figure out how to subscribe to PVA position stream
 #TODO: figure out how to subscribe to PVA spectra stream
 #TODO: add queue history to the table 
@@ -65,6 +67,8 @@ class BatchScanGui(QMainWindow):
         self.show()
 
     def initUI(self):
+        self.settings = ScanSettings(self)
+        self.settings.open_local_settings()
         savelog_action = QAction('save terminal log', self)
         savelog_action.triggered.connect(self.save_log)
         savequeuelog_action = QAction('save queue log', self)
@@ -76,9 +80,9 @@ class BatchScanGui(QMainWindow):
         menubar.setNativeMenuBar(False)
         self.file_menu = menubar.addMenu(' &File')
         self.file_menu.addAction(savelog_action)
-        # self.file_menu.addAction(savequeuelog_action)
         self.settings_menu = menubar.addMenu(' &settings')
-        # self.settings_menu.addAction(openH5Action)
+        self.settings_menu.aboutToShow.connect(self.settings.show)
+        self.settings_menu.aboutToShow.connect(self.settings.openEvent)
         self.queue_menu = menubar.addMenu(' &queue')
         self.queue_menu.addAction(savequeuelog_action)
         self.queue_menu.addAction(clearqueue_action)
@@ -89,9 +93,6 @@ class BatchScanGui(QMainWindow):
         self.batch_widget.setMinimumHeight(80)
 
         self.queue_widget = self.make_queue_widget()
-        # self.settings = ScanSettings(self)
-        # self.settings.open_local_settings()
-
         
         layout = QVBoxLayout()
         layout.addWidget(self.batch_widget)
@@ -103,19 +104,15 @@ class BatchScanGui(QMainWindow):
         self.closeAction = QAction(' &close', self)
         self.closeAction.setShortcut(' Ctrl+Q')
         self.closeAction.triggered.connect(sys.exit)
-        # self.controls.setup_btn.clicked.connect(self.settings.show)
-        # self.controls.setup_btn.clicked.connect(self.settings.openEvent)
         self.controls.abort_btn.clicked.connect(self.queue_abort)
         self.controls.continue_btn.clicked.connect(self.queue_resume)
         self.controls.pause_btn.clicked.connect(self.queue_pause)
         self.controls.begin_btn.clicked.connect(self.queue_start)
         self.controls.visual_box.model().itemChanged.connect(self.view_option_changed)
+        self.settings.setup.qserver.clicked.connect(self.connect2qserver)
+        #TODO: define positioners some other way ex: get positioners list upon connecting to qserver
 
-        # self.settings.setup.load_session.clicked.connect(self.open_local_session)
-        # self.settings.setup.qserver.clicked.connect(self.connect2qserver)
-        #TODO: define positioners some other way ex: from iconfig file
-
-        self.open_local_session()
+        self.open_local_session() #this just restores the plan setup rows from the previous session in case the gui was accidentally closed
         self.connect2qserver()
         return layout
 
@@ -133,7 +130,7 @@ class BatchScanGui(QMainWindow):
 
     def connect2qserver(self):
         # self.RM = REManagerAPI(zmq_control_addr="tcp://isnpc01.xray.aps.anl.gov:60615", zmq_info_addr="tcp://isnpc01.xray.aps.anl.gov:60625")
-        self.RM = REManagerAPI(zmq_control_addr="tcp://localhost:60615", zmq_info_addr="tcp://localhost:60625")
+        self.RM = REManagerAPI(zmq_control_addr="tcp://10.54.113.120:60615", zmq_info_addr="tcp://10.54.113.120:60625")
         try:
             print("connectint to queue server... ")
             print(self.RM.status(), "\n")

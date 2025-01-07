@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import QMenu, QTableWidget, QAction, QLineEdit
 from PyQt5.QtCore import pyqtSignal, Qt, QPoint, QEvent
-from customEnter import KeyPressEater
+# from customEnter import KeyPressEater
 
 class TableWidgetWithContextMenu(QTableWidget):
     deleteRowSig = pyqtSignal(int)

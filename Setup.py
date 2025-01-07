@@ -12,23 +12,21 @@ class Setup(QWidget):
         box.addWidget(self.scroll)
         self.setLayout(box)
 
-        self.scan_generator.setCheckable(True)
+        # self.scan_generator.setCheckable(True)
         self.scan_generator.setStyleSheet("background-color : grey")
-        self.scan_generator.setChecked(False)
+        # self.scan_generator.setChecked(False)
         self.scan_generator.setText("scan record")
+        self.qserver.setText("connect")
+
 
     def scroll_area(self):
         item_dict = {} #[type(button, file, path, dropdown), descriptions[idx], choices[idx],defaults[idx]]
+        item_dict["control_server"] = [["label", "linedit"], "redis control server address", None, "localhost:60615"]
+        item_dict["info_server"] = [["label", "linedit"], "load local session", None, "localhost:60625"]
         item_dict["load_session"] = [["label", "button"], "load local session", None, None]
         item_dict["qserver"] = [["label", "button"], "connect to queue server", None, None]
         item_dict["scan_generator"] = [["label", "button"], "scan record or profile move", None, None]
 
-        item_dict["scan_device_1"] = [["label","linedit"], "scan device 1", None, ""]
-        item_dict["scan_device_2"] = [["label","linedit"], "scan device 2", None, ""]
-        item_dict["scan_device_3"] = [["label","linedit"], "scan device 3", None, ""]
-        item_dict["scan_device_4"] = [["label","linedit"], "scan device 4", None, ""]
-        item_dict["scan_device_5"] = [["label","linedit"], "scan device 5", None, ""]
-        item_dict["scan_device_6"] = [["label","linedit"], "scan device 6", None, ""]
 
         v_box = self.create_widget(item_dict)
         v_box.setSpacing(0)
