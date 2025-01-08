@@ -64,7 +64,6 @@ class ComboBoxWithPlaceholder(QComboBox):
         checked_indices = []
         for i in range(self.count()):
             if self.item_checked(i):
-                # checkedItems.append(self.model().item(i, 0).text())
                 checked_indices.append(i)
         return checked_indices
 
@@ -81,6 +80,10 @@ class ComboBoxWithPlaceholder(QComboBox):
         for i in range(1, self.model().rowCount()):
             items.append(self.model().item(i).text())
         return items
+
+    def clear(self):
+        # Remove all items except the first one
+        self.model().removeRows(1, self.model().rowCount() - 1)
             
 
 class CheckBoxDelegate(QStyledItemDelegate):

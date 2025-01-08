@@ -1,11 +1,11 @@
 from PyQt5.QtWidgets import QMenu, QTableWidget, QAction, QLineEdit
 from PyQt5.QtCore import pyqtSignal, Qt, QPoint, QEvent
-# from customEnter import KeyPressEater
 
 class TableWidgetWithContextMenu(QTableWidget):
     deleteRowSig = pyqtSignal(int)
     moveRowSig = pyqtSignal(list)
     editedSig = pyqtSignal(list)
+    
     def __init__(self, *args, **kwargs):
         super(TableWidgetWithContextMenu, self).__init__(*args, **kwargs)
         # Enable drag and drop
@@ -20,21 +20,43 @@ class TableWidgetWithContextMenu(QTableWidget):
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.show_context_menu)
 
-        # Connect the itemChanged signal to the custom slot
-        # self.itemChanged.connect(self.handle_item_changed)
-        # keyPressEater = KeyPressEater(self)
-        # self.installEventFilter(keyPressEater)
-
     def show_context_menu(self, pos: QPoint):
         global_pos = self.viewport().mapToGlobal(pos)
         row_index = self.rowAt(pos.y())
 
+        context_menu = QMenu(self)
+        
         if row_index >= 0:  # Ensure a valid row is clicked
-            context_menu = QMenu(self)
             delete_action = QAction("Delete Row", self)
             delete_action.triggered.connect(lambda: self.delete_request(row_index))
             context_menu.addAction(delete_action)
-            context_menu.exec_(global_pos)
+        
+        # Add "Hide Empty Columns" action to the context menu
+        hide_empty_columns_action = QAction("Hide Empty Columns", self)
+        hide_empty_columns_action.triggered.connect(self.hide_empty_columns)
+        context_menu.addAction(hide_empty_columns_action)
+        
+        # Add "Show Hidden Columns" action to the context menu
+        show_hidden_columns_action = QAction("Show Hidden Columns", self)
+        show_hidden_columns_action.triggered.connect(self.show_hidden_columns)
+        context_menu.addAction(show_hidden_columns_action)
+        
+        context_menu.exec_(global_pos)
+
+    def hide_empty_columns(self):
+        # Iterate over all columns
+        for col in range(self.columnCount()):
+            is_empty = all(
+                not self.item(row, col) or not self.item(row, col).text().strip()
+                for row in range(self.rowCount())
+            )
+            if is_empty:
+                self.setColumnHidden(col, True)
+
+    def show_hidden_columns(self):
+        # Iterate over all columns and show them
+        for col in range(self.columnCount()):
+            self.setColumnHidden(col, False)
 
     def delete_request(self, row_index):
         self.deleteRowSig.emit(row_index)
@@ -82,18 +104,17 @@ class TableWidgetWithContextMenu(QTableWidget):
             print(f"Column header: {column_header}")
             self.editedSig.emit([current_row, column_header, current_text])
 
-
-    def get_cell_content(table, row, column_key):
+    def get_cell_content(self, row, column_key):
         # Get the column index using the column key (header label)
         column_index = None
-        for col in range(table.columnCount()):
-            if table.horizontalHeaderItem(col).text() == column_key:
+        for col in range(self.columnCount()):
+            if self.horizontalHeaderItem(col).text() == column_key:
                 column_index = col
                 break
 
         if column_index is not None:
             # Get the item in the specified cell
-            item = table.item(row, column_index)
+            item = self.item(row, column_index)
             if item:
                 return item.text()
         return None
