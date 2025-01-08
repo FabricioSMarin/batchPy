@@ -31,8 +31,6 @@ class Controls(QWidget):
         pi_box.addWidget(self.pi_dir)
         pi_box.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
 
-        self.setup_btn = QPushButton("setup")
-        self.setup_btn.setFixedSize(size2, height)
         self.begin_btn = QPushButton("Begin")
         self.begin_btn.setFixedSize(size2, height)
         self.pause_btn = QPushButton("Pause")
@@ -55,7 +53,6 @@ class Controls(QWidget):
         c1.addWidget(self.pause_btn)
         c1.addWidget(self.continue_btn)
         c1.addWidget(self.abort_btn)
-        c1.addWidget(self.setup_btn)
         c1.addWidget(self.visual_box)
 
         self.message_window = QTextEdit("")

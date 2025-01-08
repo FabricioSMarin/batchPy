@@ -1,1 +1,1 @@
-{"scan_device_1": "2idsft:m1", "scan_device_2": "2idsft:m2", "scan_device_3": "2idsft:m3", "scan_device_4": "2idsft:temp", "scan_device_5": "2idsft:volts", "scan_device_6": "2idsft:energy"}
+{"control_server": "localhost:60615", "info_server": "localhost:60625"}

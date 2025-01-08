@@ -25,6 +25,11 @@ class ComboBoxWithPlaceholder(QComboBox):
         for text in texts:
             self.addItem(text)
 
+
+    def wheelEvent(self, event):
+        # Ignore the wheel event to prevent scrolling
+        event.ignore()
+        
     def paintEvent(self, event):
         painter = QStylePainter(self)
         opt = QStyleOptionComboBox()
