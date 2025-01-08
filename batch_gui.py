@@ -114,6 +114,12 @@ class BatchScanGui(QMainWindow):
 
         self.open_local_session() #this just restores the plan setup rows from the previous session in case the gui was accidentally closed
         self.connect2qserver()
+        self.get_positioners()
+        self.get_detectors()
+        self.get_plans()
+        self.update_queue()
+
+
         return layout
 
     def remove_all_but_first(self,combobox):
@@ -134,12 +140,10 @@ class BatchScanGui(QMainWindow):
         try:
             print("connectint to queue server... ")
             print(self.RM.status(), "\n")
-            self.update_queue()
         except: 
             print("could not connect to queue server")
             return
         
-        self.update_queue()
 
     def update_queue(self):
         if self.RM is not None:
@@ -533,6 +537,11 @@ class BatchScanGui(QMainWindow):
             plan_names = [plan for plan in plans["plans_existing"]]
             return plan_names, plans
         
+    def get_positioners(self):
+        if self.RM is not None: 
+            self.RM.function_execute(BFunc("get_positioners"), run_in_background=True, user_group="root")
+            
+
     def get_plan_params(self, plan_name):
         defaults = {}
         
@@ -546,10 +555,10 @@ class BatchScanGui(QMainWindow):
                     defaults[param] = param_defaults[i]
         return defaults, param_names
 
-    def get_devices(self):
+    def get_detectors(self):
         if self.RM is not None: 
-            devices = self.RM.devices_existing()
-            print(devices)
+            dets = self.RM.detectors_existing()
+            print(dets)
 
     def get_history(self):
         if self.RM is not None: 
