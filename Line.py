@@ -57,12 +57,12 @@ class Line(QWidget):
         self.scan_type.setFixedSize(size1, height)
         self.scan_type.clicked.connect(self.scan_type_changed)
 
-        self.devices = ComboBoxWithPlaceholder("devices")
-        self.devices.setToolTip("devices")
-        actions = ["xspress3", "tetramm", "xmap", "eiger", "interferometers"]
-        self.devices.addItems(actions)
-        self.devices.setFixedSize(size4, height)
-        self.devices.check_all()
+        self.detectors = ComboBoxWithPlaceholder("detectors")
+        self.detectors.setToolTip("detectors")
+        detectors = ["xspress3", "tetramm", "xmap", "eiger", "interferometers"]
+        self.detectors.addItems(detectors)
+        self.detectors.setFixedSize(size4, height)
+        self.detectors.check_all()
 
         self.trajectory = ComboBoxWithPlaceholder("trajectory", exclusive=True)
         self.trajectory.setToolTip("trajectory")
@@ -319,7 +319,7 @@ class Line(QWidget):
             if isinstance(item, QLineEdit) or isinstance(item, QPushButton) or isinstance(item, QLabel):
                 params[key] = item.text()
         #TODO: for detectors, get the ones that are checked only or add second list with "is_enabled" mask
-        params["devices"] = self.devices.checked_names()
+        params["detectors"] = self.detectors.checked_names()
         params["trajectory"] = self.trajectory.checked_names()[0]
         return params
     

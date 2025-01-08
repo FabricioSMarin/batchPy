@@ -14,6 +14,7 @@ from Controls import Controls
 from ScanSettings import ScanSettings
 from Line import Line
 from Stream import Stream 
+import threading
 
 #DONE: revise scan_record_plan 
 #DONE: figure out the param structure for scan_record plan
@@ -31,6 +32,7 @@ from Stream import Stream
 #DONE: implement queue_item Delete 
 #DONE: implement queitem update 
 
+#TODO: Add coonect, disconnect, Open Env, close Env
 #TODO: figure out how to subscribe to PVA position stream
 #TODO: figure out how to subscribe to PVA spectra stream
 #TODO: add queue history to the table 
@@ -92,7 +94,6 @@ class BatchScanGui(QMainWindow):
         # self.settings = ScanSettings(self)
         # self.settings.open_local_settings()
 
-        
         layout = QVBoxLayout()
         layout.addWidget(self.batch_widget)
         layout.addWidget(self.queue_widget)
@@ -116,8 +117,16 @@ class BatchScanGui(QMainWindow):
         #TODO: define positioners some other way ex: from iconfig file
 
         self.open_local_session()
-        self.connect2qserver()
+        try: 
+            self.connect2qserver()
+            self.get_detectors()
+            self.get_positioners()
+        except Exception as e: 
+            print(e)
+            
         return layout
+
+
 
     def remove_all_but_first(self,combobox):
         # Get the total number of items in the combo box
@@ -126,23 +135,73 @@ class BatchScanGui(QMainWindow):
         for i in range(count - 1, 0, -1):
             combobox.removeItem(i)
 
-    def view_option_changed(): 
+    def view_option_changed(self): 
         #get current option 
         #if option 1: 
         pass
 
+    def get_next_message(self):
+        while True:
+            if self.RM is not None:
+                try:
+                    message = self.RM.console_monitor.next_msg()
+
+                    if "REQUEST_DETECTORS" in message["msg"]: 
+                        str_dict = message["msg"].split("[[[")[1].strip("]]]")
+                        detectors = eval(str_dict)
+                        detector_names = [detectors[detector]["name"] for detector in detectors.keys()]
+                        self.update_detectors(detector_names)
+                    if "REQUEST_POSITIONERS" in message["msg"]: 
+                        str_dict = message["msg"].split("[[[")[1].strip("]]]")
+                        positioners = eval(str_dict)
+                        positioner_names = [positioners[positioner]["name"] for positioner in positioners.keys()]
+                        self.update_positioners(positioner_names)                        
+
+                except Exception as e:
+                    pass
+            time.sleep(2)
+            pass
+
     def connect2qserver(self):
         # self.RM = REManagerAPI(zmq_control_addr="tcp://isnpc01.xray.aps.anl.gov:60615", zmq_info_addr="tcp://isnpc01.xray.aps.anl.gov:60625")
-        self.RM = REManagerAPI(zmq_control_addr="tcp://localhost:60615", zmq_info_addr="tcp://localhost:60625")
+        self.RM = REManagerAPI(zmq_control_addr="tcp://10.54.113.120:60615", zmq_info_addr="tcp://10.54.113.120:60625")
         try:
             print("connectint to queue server... ")
             print(self.RM.status(), "\n")
             self.update_queue()
+            self.RM.console_monitor.enable()
+            daemon_thread = threading.Thread(target=self.get_next_message, daemon=True)
+            daemon_thread.start()
         except: 
             print("could not connect to queue server")
             return
-        
         self.update_queue()
+
+    def update_detectors(self, detectors):
+        try:
+            print("updating detector list")
+            lines = self.get_lines()
+            for line in lines:
+                line["detectors"].clear()
+                line["detectors"].addItems(detectors)
+        except Exception as e: 
+            print(e)
+
+    def update_positioners(self, positioners):
+        try:
+            print("updating positioners list")
+            lines = self.get_lines()
+            for line in lines:
+                line["loop1"].clear()
+                line["loop2"].clear()
+                line["loop3"].clear()
+                line["loop4"].clear()
+                line["loop1"].addItems(positioners)
+                line["loop2"].addItems(positioners)
+                line["loop3"].addItems(positioners)
+                line["loop4"].addItems(positioners)
+        except Exception as e: 
+            print(e)
 
     def update_queue(self):
         if self.RM is not None:
@@ -327,8 +386,8 @@ class BatchScanGui(QMainWindow):
         #TODO: replace this ^
         scan_generator = "scan record"
         params["scan_type"] = params["scan_type"][0]
-        params["devices"] = [params["devices"][0][i-1] for i in params["devices"][1]] #-1 because placeholder text item does not count
-        params["trajectory"] = params["trajectory"][0][params["trajectory"][1][0]]
+        params["detectors"] = [params["detectors"][0][i-1] for i in params["detectors"][1]] #-1 because placeholder text item does not count
+        params["trajectory"] = params["trajectory"][0][params["trajectory"][1][0]-1]
         params["loop1"] = params["loop1"][0][params["loop1"][1][0]-1] if len(params["loop1"][1])==1 else ""
         params["loop2"] = params["loop2"][0][params["loop2"][1][0]-1] if len(params["loop2"][1])==1 else ""
         params["loop3"] = params["loop3"][0][params["loop3"][1][0]-1] if len(params["loop3"][1])==1 else ""
@@ -549,10 +608,14 @@ class BatchScanGui(QMainWindow):
                     defaults[param] = param_defaults[i]
         return defaults, param_names
 
-    def get_devices(self):
+    def get_detectors(self):
         if self.RM is not None: 
-            devices = self.RM.devices_existing()
-            print(devices)
+            self.RM.function_execute(BFunc("get_detectors"), run_in_background=True, user_group="root")
+
+    def get_positioners(self):
+        if self.RM is not None: 
+            self.RM.function_execute(BFunc("get_positioners"), run_in_background=True, user_group="root")
+
 
     def get_history(self):
         if self.RM is not None: 
