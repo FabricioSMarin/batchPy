@@ -15,45 +15,11 @@ from Line import Line
 from Stream import Stream 
 import threading
 
-#DONE: revise scan_record_plan 
-#DONE: figure out the param structure for scan_record plan
-#DONE: package parameters for ZMQ communication
-#DONE: parse parameters from get_queue and populate the table
-#DONE: fix line prevalidation
-#DONE: implement Pause
-#DONE: implement Resume
-#DONE: implement Abort
-#DONE: implement Start/Begin
-#DONE: implement queue clear
-#DONE: implement queue_item move
-#TOOD: implement get devices
-#TOOD: implement get positioners
-#DONE: implement queue_item Delete 
-#DONE: implement queitem update 
-
-#TODO: get list of plans, devices, and positioners to populate the gui with. #hardcoded parameters no longer be used. 
-
-#TODO: Add coonect, disconnect, Open Env, close Env
-#TODO: figure out how to subscribe to PVA position stream
-#TODO: figure out how to subscribe to PVA spectra stream
-#TODO: add queue history to the table 
-#TODO: Hide inactive header items
-#TODO: add pre-configured scan options; specify positioners, step/fly, 
-#TODO: set rules for valid trajectories for fly/step scans 
-#TODO: locally cache scanned items up to some number for quick visualization 
-#TODO  alternatively click-to-open scanned lines to pop up a processed image map of a scan or just the roi sum. 
-#TODO: implement console_monitor callback function for when queitem changed and call update quueu list
-#TODO: implenent save--> history and current queue as csv 
-#TODO: impleemnt save--> log
-#TODO: implement pi_directory autosave and autoload 
-#TODO: get motor limits
-#TODO: get deteector limits
 
 class BatchScanGui(QMainWindow):
     def __init__(self, app):
         super(QMainWindow, self).__init__()
-        self.RM = None
-        self.bluesky_installed = False
+
         self.queue = None
         self.app = app
         self.frame = QFrame()
@@ -69,15 +35,6 @@ class BatchScanGui(QMainWindow):
         self.show()
 
     def initUI(self):
-        try: 
-            from bluesky_queueserver_api.zmq import REManagerAPI
-            from bluesky_queueserver_api import BPlan, BItem, BInst, BFunc
-            self.bluesky_installed = True
-        except: 
-            print("bluesky_queueserver_api not found, please install it with 'pip install bluesky-queueserver-api'")
-            print("running locally without bluesky_queueserver_api")
-        if self.bluesky_installed:
-            self.connect2qserver()
         self.controls = Controls()
         self.settings = ScanSettings(self)
         self.settings.open_local_settings()
@@ -92,9 +49,6 @@ class BatchScanGui(QMainWindow):
         menubar.setNativeMenuBar(False)
         self.file_menu = menubar.addMenu(' &File')
         self.file_menu.addAction(savelog_action)
-        self.settings_menu = menubar.addMenu(' &settings')
-        self.settings_menu.aboutToShow.connect(self.settings.show)
-        self.settings_menu.aboutToShow.connect(self.settings.openEvent)
         self.queue_menu = menubar.addMenu(' &queue')
         self.queue_menu.addAction(savequeuelog_action)
         self.queue_menu.addAction(clearqueue_action)
@@ -104,8 +58,6 @@ class BatchScanGui(QMainWindow):
         self.batch_widget.setMinimumHeight(80)
 
         self.queue_widget = self.make_queue_widget()
-        self.plan_widget = self.make_plan_widget()
-        self.plan_widget.setMinimumWidth(230)
 
         layout = QVBoxLayout()
         layout.addWidget(self.batch_widget)
@@ -114,7 +66,6 @@ class BatchScanGui(QMainWindow):
         layout.setSpacing(0)
 
         layout2 = QHBoxLayout()
-        layout2.addWidget(self.plan_widget)
         layout2.addLayout(layout)
         layout2.setSpacing(0)
 
@@ -127,7 +78,6 @@ class BatchScanGui(QMainWindow):
         self.controls.pause_btn.clicked.connect(self.queue_pause)
         self.controls.begin_btn.clicked.connect(self.queue_start)
         self.controls.visual_box.model().itemChanged.connect(self.view_option_changed)
-        self.settings.setup.qserver.clicked.connect(self.connect2qserver)
         #TODO: define positioners some other way ex: get positioners list upon connecting to qserver
 
         self.open_local_session() #this just restores the plan setup rows from the previous session in case the gui was accidentally closed
@@ -150,45 +100,6 @@ class BatchScanGui(QMainWindow):
         #get current option 
         #if option 1: 
         pass
-
-    def get_next_message(self):
-        while True:
-            if self.RM is not None:
-                try:
-                    message = self.RM.console_monitor.next_msg()
-
-                    if "REQUEST_DETECTORS" in message["msg"]: 
-                        str_dict = message["msg"].split("[[[")[1].strip("]]]")
-                        detectors = eval(str_dict)
-                        detector_names = [detectors[detector]["name"] for detector in detectors.keys()]
-                        self.update_detectors(detector_names)
-                    if "REQUEST_POSITIONERS" in message["msg"]: 
-                        str_dict = message["msg"].split("[[[")[1].strip("]]]")
-                        positioners = eval(str_dict)
-                        positioner_names = [positioners[positioner]["name"] for positioner in positioners.keys()]
-                        self.update_positioners(positioner_names)      
-                    if "REQUEST_PLANS" in message["msg"]:
-                        str_dict = message["msg"].split("[[[")[1].strip("]]]")
-                        plans = eval(str_dict)
-                        self.update_plans(plans)                                            
-
-                except Exception as e:
-                    pass
-            time.sleep(2)
-            pass
-
-    def connect2qserver(self):
-        # self.RM = REManagerAPI(zmq_control_addr="tcp://isnpc01.xray.aps.anl.gov:60615", zmq_info_addr="tcp://isnpc01.xray.aps.anl.gov:60625")
-        self.RM = REManagerAPI(zmq_control_addr="tcp://10.54.113.120:60615", zmq_info_addr="tcp://10.54.113.120:60625")
-        try:
-            print("connectint to queue server... ")
-            print(self.RM.status(), "\n")
-            self.RM.console_monitor.enable()
-            daemon_thread = threading.Thread(target=self.get_next_message, daemon=True)
-            daemon_thread.start()
-        except: 
-            print("could not connect to queue server")
-            return
 
     def update_detectors(self, detectors):
         try:
@@ -217,48 +128,17 @@ class BatchScanGui(QMainWindow):
             print(e)
 
     def plan_selected(self, plan):
-
         pass
 
     def send_to_queue(self):
-
         pass
 
     def get_queue(self):
-        if self.bluesky_installed:
-            return self.RM.queue_get()
-        else: 
-            return None
+        pass
 
-    def update_queue(self):
-        if self.bluesky_installed:
-            if self.RM is not None:
-                self.queue = self.RM.queue_get()
-        else: 
-            pass
-            #TODO: self.queue = self.get_queue()
+    def update_queue(self): 
+        pass
 
-        try:
-            if not self.queue["success"]:
-                print("could not retreive queue")
-                return
-        except: 
-            print("could not retreive queue")
-            return
-        
-        queue_items = self.queue["items"]
-        running_item = self.queue["running_item"]
-        self.table_widget.clearContents()
-        self.table_widget.setRowCount(0)
-        for item in queue_items:
-            #maybe display these additional items for each plan 
-            user = item["user"]
-            item_uid = item["item_uid"]
-            params = item["kwargs"]
-            params["user"] = user
-            params["item_uid"] = item_uid
-            self.populate_next_available_row(self.table_widget,params)
-            
     def populate_next_available_row(self, table_widget, data_dict):
         # Find the next available row (first empty row)
         next_row = table_widget.rowCount()
@@ -390,48 +270,8 @@ class BatchScanGui(QMainWindow):
         return
 
     def enqueue_line(self, line_id):
-        line=self.get_line(line_id)
-        if line["line_action"].text() == "ready" and self.RM is not None:
-            try:
-                params = self.get_params()
-                params["pi_directory"] = self.controls.pi_dir.text()
-                packed = self.pack_params(params)
-                #if 3D scan or greater, use item_add_batch,  else use item_add
-                self.RM.item_add(packed)
-                print("added to queue")
-            except: 
-                print("could not add to queue")
-                return
-        self.update_queue()
-        
-    def pack_params(self, params):
-        #NOTE: need to make sure param in params have the same name as params from "get_plan_params"
-        # scan_generator = self.settings.setup.scan_generator.text()
-        #TODO: replace this ^
-        scan_generator = "scan record"
-        params["scan_type"] = params["scan_type"][0]
-        params["detectors"] = [params["detectors"][0][i-1] for i in params["detectors"][1]] #-1 because placeholder text item does not count
-        params["trajectory"] = params["trajectory"][0][params["trajectory"][1][0]-1]
-        params["loop1"] = params["loop1"][0][params["loop1"][1][0]-1] if len(params["loop1"][1])==1 else ""
-        params["loop2"] = params["loop2"][0][params["loop2"][1][0]-1] if len(params["loop2"][1])==1 else ""
-        params["loop3"] = params["loop3"][0][params["loop3"][1][0]-1] if len(params["loop3"][1])==1 else ""
-        params["loop4"] = params["loop4"][0][params["loop4"][1][0]-1] if len(params["loop4"][1])==1 else ""
-        if scan_generator == "profile move": 
-            package = {"item_type":"plan", "name": "profile_move_isn",  "kwargs":None}
-            packed_params, param_names = self.get_plan_params("profile_move_isn")
 
-        elif scan_generator == "scan record": 
-            package = {"item_type":"plan", "name": "scan_record_isn",  "kwargs":None}
-            # package = {"item_type":"plan", "name": "test_plan",  "kwargs":{"timer":20, "is_paused":False}}
-            packed_params, param_names = self.get_plan_params("scan_record_isn")
-            # return package
-        for param in param_names:
-            if param in params: 
-                packed_params[param] = params[param]
-            else: 
-                print(f"{param} not in plan defaults, skipping...")
-        package["kwargs"] = packed_params
-        return package
+        pass
 
     def clear_line(self, line_id):
         line = self.get_line(line_id)
@@ -453,48 +293,6 @@ class BatchScanGui(QMainWindow):
         batch_widget.setWidget(scroll_widget)
         batch_widget.setWidgetResizable(True)
         return batch_widget
-
-    def make_plan_widget(self):
-        plans = self.get_plans()
-        if plans is None: 
-            plans = {"placeholder_plan": {'parameters': {'param1': {'value': '0', 'default': '0'}}}}
-        if not self.bluesky_installed:
-            pass
-        else: 
-            plans = self.get_plans()
-        plan_widget = QScrollArea()
-        scroll_widget = QWidget()
-        self.plans_layout = QVBoxLayout()
-        self.send_to_q = QPushButton("Send to Queue")
-        self.plan_options = ComboBoxWithPlaceholder("plans", exclusive=True)
-        self.plan_options.addItems(list(plans.keys()))
-        self.plans_layout.addWidget(self.plan_options)
-        for plan in plans:
-            params = self.get_plan_params(plans[plan])
-            setattr(self, f"plan_{plan}_box", QVBoxLayout())
-            plan_box = self.__dict__[f"plan_{plan}_box".format(plan)]
-
-            for param in params:
-                lbl = QLabel(param)
-                lbl.setFixedWidth(100)
-                linedit = QLineEdit(params[param])
-                linedit.setFixedWidth(90)
-                line = QHBoxLayout()
-                line.addWidget(lbl)
-                line.addWidget(linedit)
-                plan_box.addLayout(line)
-
-            self.plans_layout.addLayout(plan_box)
-        self.plans_layout.addWidget(self.send_to_q)
-        scroll_widget.setLayout(self.plans_layout)
-        scroll_widget.setStyleSheet("QFrame {background-color: rgb(255, 255, 255);border-width: 1;border-radius: 3;border-style: solid;border-color: rgb(10, 10, 10)}")
-        # scroll_widget.setMaximumWidth(2500)
-        plan_widget.setWidget(scroll_widget)
-        plan_widget.setWidgetResizable(True)
-
-        self.plan_options.currentIndexChanged.connect(self.plan_selected)
-        self.send_to_q.clicked.connect(self.send_to_queue)
-        return plan_widget
 
     def add_line(self):
         self.id_counter = self.id_counter + 1
@@ -601,122 +399,49 @@ class BatchScanGui(QMainWindow):
             return
 
     def queue_delete_item(self, row_index):
-        if self.RM is not None: 
-            try: 
-                uid = self.table_widget.get_cell_content(row_index, "item_uid")
-                self.RM.item_remove(uid=uid)
-                self.table_widget.removeRow(row_index)
-            except Exception as e: 
-                print(e)
+        pass
 
     def queue_edited(self, packed):
-        if self.RM is not None: 
-            try: 
-                row, key, new_value = packed[0], packed[1], packed[2]
-                uid = self.table_widget.get_cell_content(row, "item_uid")
-                response = self.RM.item_get(uid=uid)
-                item = BItem(response["item"])
-                item.kwargs[key] = new_value
-                self.RM.item_update(item)      
-                self.update_queue()
-  
-            except Exception as e: 
-                print(e)
+
+        pass
 
     def queue_clear(self):
-        if self.RM is not None: 
-            self.RM.clear()
+        pass
     
     def queue_item_move(self, idxs):
-        if self.RM is not None: 
-            print(f"moving row from pos {idxs[0]} to pos {idxs[1]}")
-            # self.RM.item_move(uid="uid-source", before_uid="uid-dest")
-            self.RM.item_move(pos=idxs[0], pos_dest=idxs[1])
-            self.update_queue()
 
+        pass
     def queue_execute_now(self):
         #executes a chosen plan or set of instructions immediately 
         pass
 
     def queue_abort(self):
-        if self.RM is not None: 
-            try: 
-                self.RM.function_execute(BFunc("abort_scan"), run_in_background=True, user_group="root")
-                print("abort request sent")
-            except Exception as e: 
-                print(e)
+
+        pass
 
     def queue_resume(self):
-        if self.RM is not None: 
-            try: 
-                self.RM.function_execute(BFunc("resume_scan"), run_in_background=True, user_group="root")
-                print("resume request sent")
-            except Exception as e: 
-                print(e)
+
+        pass
 
     def queue_pause(self):
-        if self.RM is not None: 
-            try: 
-                self.RM.function_execute(BFunc("pause_scan"), run_in_background=True, user_group="root")
-                print("pause request sent")
-            except Exception as e: 
-                print(e)
-                
+        pass
+    
     def queue_start(self):
-        if self.RM is not None: #check if queue empty 
-            self.RM.queue_start()
+        pass
 
     def queue_save(self):
         #TODO: get queue history, parse to csv or something easily readable
         pass
-
-    def bs_script_upload(self):
-        # scrit = """def pause_queue():\n\t    import epics; epics.caput("hometst:m1", 1)\n pause_queue()\n"""
-        # self.RM.script_upload(scrit, run_in_background=True)
-        pass
-
-    def get_plans(self):
-        plans = None
-        if self.RM is not None: 
-            plans = self.RM.plans_existing()
-            plans = plans["plans_existing"]
-        return plans
         
-    def get_plan_params(self, plan):
-        plan_params = {}
-        params = plan["parameters"]
-        for param in params.keys(): 
-            plan_params[param] = params[param]["default"]
-        return plan_params
-
     def get_positioners(self):
-        if self.RM is not None: 
-            self.RM.function_execute(BFunc("get_positioners"), run_in_background=True, user_group="root")
-        else: 
-            return None
+        pass
             
     def get_detectors(self):
-        if self.RM is not None: 
-            self.RM.function_execute(BFunc("get_detectors"), run_in_background=True, user_group="root")
-        else: 
-            return None
-
-    def get_positioners(self):
-        if self.RM is not None: 
-            self.RM.function_execute(BFunc("get_positioners"), run_in_background=True, user_group="root")
-        else: 
-            return None
-
-
-
+        pass
 
     def get_history(self):
-        if self.RM is not None: 
-            history = self.RM.history_get()
-            print(history)
-        else: 
-            return None
-
+        pass
+    
     def line_color(self, line_idx, color="white"):
         if color == "red" or color == "white":
             line = [vars(self)[i] for i in self.line_names][line_idx]
@@ -755,11 +480,7 @@ class BatchScanGui(QMainWindow):
 
     def closeEvent(self, event):
         print("closing main window")
-        if self.RM is not None: 
-            try: 
-                self.RM.close()
-            except: 
-                pass
+
         self.save_local_session()
 
     def save_local_session(self):
