@@ -12,9 +12,10 @@ class Line(QWidget):
     deletelinesig = pyqtSignal(int)
     duplicatelinesig = pyqtSignal(int)
 
-    def __init__(self, line_id):
+    def __init__(self, line_id, settings_dialog=None):
         super(Line, self).__init__()
         self.id = line_id
+        self.settings_dialog = settings_dialog
         self.setupUi()
         self.make_pretty()
 
@@ -62,18 +63,19 @@ class Line(QWidget):
         detectors = ["xspress3", "tetramm", "xmap", "eiger", "interferometers"]
         self.detectors.addItems(detectors)
         self.detectors.setFixedSize(size4, height)
-        self.detectors.check_all()
+        self.detectors.check_selected([3])
 
         self.trajectory = ComboBoxWithPlaceholder("trajectory", exclusive=True)
         self.trajectory.setToolTip("trajectory")
         trajectories = ["raster","snake","spiral","lissajous","custom"]
         self.trajectory.addItems(trajectories)
         self.trajectory.setFixedSize(size5, height)
-        self.trajectory.check_selected([2])
+        self.trajectory.check_selected([1])
 
 
-        #TODO: get axis options from settings
-        axis_options = ["motor 1","motor 2","motor 3", "temperature","energy",'voltage']
+        # Get positioner options from settings
+        positioner_options = self.get_positioner_options()
+        
         self.loop1 = ComboBoxWithPlaceholder("loop1", exclusive=True)
         self.loop1.setToolTip("loop1")
         self.loop2 = ComboBoxWithPlaceholder("loop2", exclusive=True)
@@ -82,23 +84,39 @@ class Line(QWidget):
         self.loop3.setToolTip("loop3")
         self.loop4 = ComboBoxWithPlaceholder("loop4", exclusive=True)
         self.loop4.setToolTip("loop4")
-        self.loop1.addItems(axis_options[:3])
+        
+        # Add positioner options to all loops
+        self.loop1.addItems(positioner_options)
         self.loop1.setFixedSize(size5, height)
-        self.loop1.check_selected([1])
+        try:
+            if len(positioner_options) > 0:
+                self.loop1.check_selected([1])
+        except (IndexError, ValueError):
+            self.loop1.check_selected([])
         self.loop1.model().itemChanged.connect(self.loop_changed)
-        self.loop2.addItems(axis_options)
+        
+        self.loop2.addItems(positioner_options)
         self.loop2.setFixedSize(size5, height)
-        self.loop2.check_selected([2])
+        try:
+            if len(positioner_options) > 1:
+                self.loop2.check_selected([2])
+        except (IndexError, ValueError):
+            self.loop2.check_selected([])
         self.loop2.model().itemChanged.connect(self.loop_changed)
-        self.loop3.addItems(axis_options)
+        
+        self.loop3.addItems(positioner_options)
         self.loop3.setFixedSize(size5, height)
         self.loop3.model().itemChanged.connect(self.loop_changed)
-        self.loop4.addItems(axis_options)
+        
+        self.loop4.addItems(positioner_options)
         self.loop4.setFixedSize(size5, height)
         self.loop4.model().itemChanged.connect(self.loop_changed)
         self.line_action = QLabel("not ready")
         self.line_action.setFixedSize(size5, height)
         self.line_action.setToolTip("line_action")
+        self.eta = QLabel("--:--:--")
+        self.eta.setFixedSize(size5, height)
+        self.eta.setToolTip("eta")
         self.sample_name = QLineEdit()
         self.sample_name.setToolTip("sample_name")
         self.sample_name.setPlaceholderText("sample name")
@@ -251,7 +269,10 @@ class Line(QWidget):
 
 
     def trajectory_changed(self):
-        current_trajectory = self.trajectory.checked_names()[0]
+        try:
+            current_trajectory = self.trajectory.checked_names()[0]
+        except Exception as e:
+            return
         if current_trajectory == "raster" or current_trajectory == "snake":
             self.dwell_time.setVisible(True)
             self.step_size.setVisible(False)
@@ -326,6 +347,131 @@ class Line(QWidget):
     
     def set_params(self, params):
         pass
+
+    def to_dict(self):
+        """Convert Line object to a dictionary for JSON serialization"""
+        data = {
+            'id': self.id,
+            'scan_type': {
+                'text': self.scan_type.text(),
+                'checked': self.scan_type.isChecked()
+            },
+            'detectors': {
+                'checked_names': self.detectors.checked_names(),
+                'checked_indices': self.detectors.checked_indices()
+            },
+            'trajectory': {
+                'checked_names': self.trajectory.checked_names(),
+                'checked_indices': self.trajectory.checked_indices()
+            },
+            'loop1': {
+                'checked_names': self.loop1.checked_names(),
+                'checked_indices': self.loop1.checked_indices()
+            },
+            'loop2': {
+                'checked_names': self.loop2.checked_names(),
+                'checked_indices': self.loop2.checked_indices()
+            },
+            'loop3': {
+                'checked_names': self.loop3.checked_names(),
+                'checked_indices': self.loop3.checked_indices()
+            },
+            'loop4': {
+                'checked_names': self.loop4.checked_names(),
+                'checked_indices': self.loop4.checked_indices()
+            },
+            'line_action': self.line_action.text(),
+            'eta': self.eta.text(),
+            'sample_name': self.sample_name.text(),
+            'dwell_time': self.dwell_time.text(),
+            'l1_center': self.l1_center.text(),
+            'l1_size': self.l1_size.text(),
+            'l1_width': self.l1_width.text(),
+            'l2_center': self.l2_center.text(),
+            'l2_size': self.l2_size.text(),
+            'l2_width': self.l2_width.text(),
+            'l3_center': self.l3_center.text(),
+            'l3_size': self.l3_size.text(),
+            'l3_width': self.l3_width.text(),
+            'l4_center': self.l4_center.text(),
+            'l4_size': self.l4_size.text(),
+            'l4_width': self.l4_width.text(),
+            'step_size': self.step_size.text(),
+            'radial_step': self.radial_step.text(),
+            'diameter': self.diameter.text(),
+            'cycles': self.cycles.text(),
+            'x_freq': self.x_freq.text(),
+            'y_freq': self.y_freq.text(),
+            'comments': self.comments.text()
+        }
+        return data
+
+    def from_dict(self, data):
+        """Restore Line object from a dictionary"""
+        if 'id' in data:
+            self.id = data['id']
+        
+        # Restore scan_type
+        if 'scan_type' in data:
+            self.scan_type.setText(data['scan_type']['text'])
+            self.scan_type.setChecked(data['scan_type']['checked'])
+        
+        # Restore detectors
+        if 'detectors' in data:
+            self.detectors.check_selected(data['detectors']['checked_indices'])
+        
+        # Restore trajectory
+        if 'trajectory' in data:
+            self.trajectory.check_selected(data['trajectory']['checked_indices'])
+        
+        # Restore loops
+        for loop_name in ['loop1', 'loop2', 'loop3', 'loop4']:
+            if loop_name in data:
+                loop_widget = getattr(self, loop_name)
+                loop_widget.check_selected(data[loop_name]['checked_indices'])
+        
+        # Restore text fields
+        text_fields = [
+            'line_action', 'eta', 'sample_name', 'dwell_time', 'l1_center', 'l1_size', 'l1_width',
+            'l2_center', 'l2_size', 'l2_width', 'l3_center', 'l3_size', 'l3_width',
+            'l4_center', 'l4_size', 'l4_width', 'step_size', 'radial_step', 'diameter',
+            'cycles', 'x_freq', 'y_freq', 'comments'
+        ]
+        
+        for field in text_fields:
+            if field in data:
+                widget = getattr(self, field)
+                if hasattr(widget, 'setText'):
+                    widget.setText(data[field])
+        
+        # Trigger UI updates
+        self.trajectory_changed()
+        self.loop_changed()
+
+    def get_positioner_options(self):
+        """Get positioner options from settings"""
+        try:
+            if self.settings_dialog and hasattr(self.settings_dialog, 'get_setting'):
+                positioners = []
+                for i in range(1, 5):  # Positioner 1-4
+                    pv_key = f"Positioner {i} PV"
+                    pv_value = self.settings_dialog.get_setting(pv_key)
+                    
+                    if pv_value and pv_value.strip():
+                        positioners.append(pv_value)  # Use the actual PV value, not the label
+                
+                # Add some default options if no positioners are configured
+                if not positioners:
+                    positioners = ["Positioner 1 PV", "Positioner 2 PV", "Positioner 3 PV", "Positioner 4 PV"]
+                
+                return positioners
+            else:
+                # Fallback to default options if no settings available
+                return ["Positioner 1 PV", "Positioner 2 PV", "Positioner 3 PV", "Positioner 4 PV"]
+        except Exception as e:
+            print(f"Error getting positioner options: {e}")
+            # Fallback to default options on any error
+            return ["Positioner 1 PV", "Positioner 2 PV", "Positioner 3 PV", "Positioner 4 PV"]
 
     def scan_type_changed(self):
         if self.scan_type.isChecked():

@@ -1,6 +1,6 @@
 
 from PyQt5 import QtCore, QtGui
-from PyQt5.QtWidgets import QWidget, QFrame, QVBoxLayout, QLabel, QLineEdit, QPushButton, QHBoxLayout, QTextEdit, QCheckBox, QComboBox
+from PyQt5.QtWidgets import QWidget, QFrame, QVBoxLayout, QLabel, QLineEdit, QPushButton, QHBoxLayout, QTextEdit, QCheckBox, QComboBox, QFileDialog
 from ComboBoxWithPlaceholder import ComboBoxWithPlaceholder
 from ImageView import ImageView
 
@@ -24,11 +24,15 @@ class Controls(QWidget):
         pi_dir_lbl = QLabel("PI directory")
         pi_dir_lbl.setFixedSize(size1,height)
         self.pi_dir= QLineEdit("/")
-        self.pi_dir.setFixedSize(650,height)
+        self.pi_dir.setFixedSize(600,height)
+        self.pi_browse_btn = QPushButton("Browse")
+        self.pi_browse_btn.setFixedSize(50, height)
+        self.pi_browse_btn.clicked.connect(self.browse_pi_directory)
         pi_box = QHBoxLayout()
         # pi_box.setContentsMargins(0,10,0,0)
         pi_box.addWidget(pi_dir_lbl)
         pi_box.addWidget(self.pi_dir)
+        pi_box.addWidget(self.pi_browse_btn)
         pi_box.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
 
         self.begin_btn = QPushButton("Begin")
@@ -80,6 +84,19 @@ class Controls(QWidget):
 
         self.make_pretty()
         self.setLayout(combined2)
+
+    def browse_pi_directory(self):
+        """Open folder selection dialog for PI directory"""
+        folder_path = QFileDialog.getExistingDirectory(
+            self,
+            "Select PI Directory",
+            self.pi_dir.text() if self.pi_dir.text() != "/" else "",
+            QFileDialog.ShowDirsOnly | QFileDialog.DontResolveSymlinks
+        )
+        
+        if folder_path:
+            self.pi_dir.setText(folder_path)
+            print(f"Selected PI directory: {folder_path}")
 
     def make_pretty(self):
         myFont = QtGui.QFont()
