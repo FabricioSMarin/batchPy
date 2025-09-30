@@ -7,9 +7,11 @@
     },
     "detectors": {
       "checked_names": [
+        "xspress3",
         "xmap"
       ],
       "checked_indices": [
+        1,
         3
       ]
     },
@@ -23,7 +25,7 @@
     },
     "loop1": {
       "checked_names": [
-        "motor 1"
+        "2xfm:m57.VAL"
       ],
       "checked_indices": [
         1
@@ -31,7 +33,7 @@
     },
     "loop2": {
       "checked_names": [
-        "motor 2"
+        "2xfm:m13.VAL"
       ],
       "checked_indices": [
         2
@@ -93,7 +95,7 @@
     },
     "loop1": {
       "checked_names": [
-        "motor 1"
+        "2xfm:m57.VAL"
       ],
       "checked_indices": [
         1
@@ -101,7 +103,7 @@
     },
     "loop2": {
       "checked_names": [
-        "motor 2"
+        "2xfm:m13.VAL"
       ],
       "checked_indices": [
         2
@@ -163,7 +165,7 @@
     },
     "loop1": {
       "checked_names": [
-        "motor 1"
+        "2xfm:m57.VAL"
       ],
       "checked_indices": [
         1
@@ -171,7 +173,7 @@
     },
     "loop2": {
       "checked_names": [
-        "motor 2"
+        "2xfm:m13.VAL"
       ],
       "checked_indices": [
         2
@@ -233,7 +235,7 @@
     },
     "loop1": {
       "checked_names": [
-        "motor 1"
+        "2xfm:m57.VAL"
       ],
       "checked_indices": [
         1
@@ -241,7 +243,7 @@
     },
     "loop2": {
       "checked_names": [
-        "motor 2"
+        "2xfm:m13.VAL"
       ],
       "checked_indices": [
         2
@@ -303,7 +305,7 @@
     },
     "loop1": {
       "checked_names": [
-        "motor 1"
+        "2xfm:m57.VAL"
       ],
       "checked_indices": [
         1
@@ -311,7 +313,7 @@
     },
     "loop2": {
       "checked_names": [
-        "motor 2"
+        "2xfm:m13.VAL"
       ],
       "checked_indices": [
         2

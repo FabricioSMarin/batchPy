@@ -1,5 +1,6 @@
 {
   "headers": [
+    "settings_dialog",
     "scan_type",
     "detectors",
     "trajectory",
@@ -38,6 +39,7 @@
   ],
   "rows": [
     {
+      "settings_dialog": "",
       "scan_type": "fly",
       "detectors": "['xmap']",
       "trajectory": "['raster']",
@@ -74,6 +76,7 @@
       "finish message": ""
     },
     {
+      "settings_dialog": "",
       "scan_type": "step",
       "detectors": "['xmap']",
       "trajectory": "['raster']",

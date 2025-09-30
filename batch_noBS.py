@@ -15,142 +15,8 @@ from Line import Line
 from Stream import Stream 
 import threading
 import epics
+from Settings import SettingsDialog, SettingsManager
 
-
-class SettingsManager:
-    """Settings manager that provides settings data without UI"""
-    def __init__(self, parent=None):
-        self.parent = parent
-        self.settings_data = {}
-        self.load_settings()
-    
-    def load_settings(self):
-        """Load settings from JSON file"""
-        try:
-            current_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
-            fname = os.path.join(current_dir, "settings.json")
-            
-            if os.path.exists(fname):
-                with open(fname, 'r') as f:
-                    self.settings_data = json.load(f)
-        except Exception as e:
-            print(f"Error loading settings: {e}")
-            self.settings_data = {}
-    
-    def get_setting(self, key):
-        """Get a setting value by key"""
-        return self.settings_data.get(key, "")
-
-
-class SettingsDialog(QDialog):
-    def __init__(self, parent=None):
-        super(SettingsDialog, self).__init__(parent)
-        self.setWindowTitle("Settings")
-        self.setModal(True)
-        self.resize(500, 400)
-        
-        # Ensure it's a proper standalone window
-        self.setWindowFlags(QtCore.Qt.Dialog | QtCore.Qt.WindowTitleHint | 
-                           QtCore.Qt.WindowCloseButtonHint | QtCore.Qt.WindowStaysOnTopHint)
-        
-        # Create the main layout
-        layout = QVBoxLayout()
-        
-        # Create grid layout for settings rows
-        grid_layout = QGridLayout()
-        
-        # Create ten rows of QLabel and QLineEdit widgets
-        self.settings_widgets = {}
-        settings_labels = [
-            "Fly Loop 1 PV", "Fly Loop 2 PV", "Fly Loop 3 PV", "Fly Loop 4 PV",
-            "Step Loop 1 PV", "Step Loop 2 PV", "Step Loop 3 PV", "Step Loop 4 PV",
-            "Positioner 1 PV", "Positioner 1 RBV", "Positioner 2 PV", "Positioner 2 RBV",
-            "Positioner 3 PV", "Positioner 3 RBV", "Positioner 4 PV", "Positioner 4 RBV",
-            "saveData mount point", "host mount point", "Det 1 mount point", "Det 1 filePath PV", 
-            "Det 2 mount point", "Det 2 filePath PV", "Det 3 mount point", "Det 3 filePath PV",
-            "Det 4 mount point", "Det 4 filePath PV", "Det 5 mount point", "Det 5 filePath PV",
-            "Det 6 mount point", "Det 6 filePath PV", "PI Directory"
-        ]
-        
-        for i, label_text in enumerate(settings_labels):
-            # Create label
-            label = QLabel(f"{label_text}:")
-            label.setMinimumWidth(150)
-            
-            # Create line edit
-            line_edit = QLineEdit()
-            line_edit.setPlaceholderText(f"Enter {label_text.lower()}")
-            line_edit.setMinimumWidth(200)
-            
-            # Store reference for later access
-            self.settings_widgets[label_text] = line_edit
-            
-            # Add to grid
-            grid_layout.addWidget(label, i, 0)
-            grid_layout.addWidget(line_edit, i, 1)
-        
-        # Add some spacing
-        grid_layout.setSpacing(10)
-        grid_layout.setColumnMinimumWidth(0, 150)
-        grid_layout.setColumnMinimumWidth(1, 200)
-        
-        # Add grid to main layout
-        layout.addLayout(grid_layout)
-        
-        # Add button box with OK and Cancel buttons
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        button_box.accepted.connect(self.accept)
-        button_box.rejected.connect(self.reject)
-        layout.addWidget(button_box)
-        
-        self.setLayout(layout)
-        
-        # Load saved settings
-        self.load_settings()
-    
-    def load_settings(self):
-        """Load settings from JSON file"""
-        try:
-            current_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
-            fname = os.path.join(current_dir, "settings.json")
-            
-            if os.path.exists(fname):
-                with open(fname, 'r') as f:
-                    settings_data = json.load(f)
-                
-                # Apply loaded settings to widgets
-                for key, value in settings_data.items():
-                    if key in self.settings_widgets:
-                        self.settings_widgets[key].setText(str(value))
-        except Exception as e:
-            print(f"Error loading settings: {e}")
-    
-    def save_settings(self):
-        """Save settings to JSON file"""
-        try:
-            settings_data = {}
-            for key, widget in self.settings_widgets.items():
-                settings_data[key] = widget.text()
-            
-            current_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
-            fname = os.path.join(current_dir, "settings.json")
-            
-            with open(fname, 'w') as f:
-                json.dump(settings_data, f, indent=2)
-            print(f"Settings saved to {fname}")
-        except Exception as e:
-            print(f"Error saving settings: {e}")
-    
-    def accept(self):
-        """Override accept to save settings before closing"""
-        self.save_settings()
-        super(SettingsDialog, self).accept()
-    
-    def get_setting(self, key):
-        """Get a setting value by key"""
-        if key in self.settings_widgets:
-            return self.settings_widgets[key].text()
-        return ""
 
 
 class BatchScanGui(QMainWindow):
@@ -773,8 +639,8 @@ class BatchScanGui(QMainWindow):
         except Exception as e: 
             print(e)
         
-    def queue_execute_now(self):
-        pass
+    # def queue_execute_now(self):
+    #     pass
 
     def queue_abort(self):
         pass
@@ -786,6 +652,28 @@ class BatchScanGui(QMainWindow):
         pass
     
     def queue_start(self):
+        #TODO: get queue, get first "ready" line, 
+        #TODO: get Settings
+
+        
+        """ minimal setup for fly scans:
+            #TODO: for detector in detectors, setup_detector(dwell, npts, save_path, scan_num), set external
+            #TODO: setup triggers if sis380 or hydra
+            #TODO: setup scan record npts, center, width.
+            #TODO: change line to "running" 
+            #disable running line to prevent editing
+            #run monitor function to check for done signal, periodically update plot. 
+            #TODO: if done, change line to "done"
+            #TODO: camonitor the scan line change to get more accurate ETA. 
+            #TODO: if scan paused, change line to "paused"
+            #TODO: if scan aborted, change line to "aborted"
+            #TODO: if scan done, change line to "done"
+
+        """
+
+
+
+
         pass
 
     def queue_save(self):
@@ -853,6 +741,7 @@ class BatchScanGui(QMainWindow):
         self.save_queue_to_json()
         self.save_pi_dir()
         self.save_local_session()
+        self.save_log()
 
     def save_local_session(self):
         session = self.get_session()
@@ -861,19 +750,119 @@ class BatchScanGui(QMainWindow):
         with open(fname, 'w') as f:
             json.dump(session, f)
 
-    def save_log(self): 
-        pass
+    def save_log(self):
+        """Save message window content to log file based on PI directory"""
+        try:
+            # Get current PI directory
+            current_pi_dir = self.controls.pi_dir.text()
+            if not current_pi_dir:
+                print("No PI directory set, cannot save log")
+                return
+            
+            # Get message window content
+            message_content = self.controls.message_window.toPlainText()
+            if not message_content.strip():
+                print("No content in message window to save")
+                return
+            
+            # Create log filename based on PI directory and timestamp
+            timestamp = time.strftime("%Y%m%d_%H%M%S")
+            log_filename = f"batch_log_{timestamp}.txt"
+            log_path = os.path.join(current_pi_dir, log_filename)
+            
+            # Check if we should append to existing log or create new one
+            # Look for existing log files in the PI directory
+            existing_logs = []
+            if os.path.exists(current_pi_dir):
+                for file in os.listdir(current_pi_dir):
+                    if file.startswith("batch_log_") and file.endswith(".txt"):
+                        existing_logs.append(file)
+            
+            # If there are existing logs, check if we should append to the most recent one
+            # (if it was created today and PI directory hasn't changed)
+            should_append = False
+            target_log_path = log_path
+            
+            if existing_logs:
+                # Sort by modification time, most recent first
+                existing_logs.sort(key=lambda x: os.path.getmtime(os.path.join(current_pi_dir, x)), reverse=True)
+                most_recent_log = existing_logs[0]
+                most_recent_path = os.path.join(current_pi_dir, most_recent_log)
+                
+                # Check if the most recent log was created today
+                log_mtime = os.path.getmtime(most_recent_path)
+                log_date = time.strftime("%Y%m%d", time.localtime(log_mtime))
+                today = time.strftime("%Y%m%d")
+                
+                if log_date == today:
+                    # Check if PI directory hasn't changed since last log save
+                    # We'll track this by checking if there's a pi_dir_backup.json file
+                    current_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
+                    backup_file = os.path.join(current_dir, "pi_dir_backup.json")
+                    
+                    if os.path.exists(backup_file):
+                        try:
+                            with open(backup_file, 'r') as f:
+                                backup_data = json.load(f)
+                            if backup_data.get('pi_directory') == current_pi_dir:
+                                should_append = True
+                                target_log_path = most_recent_path
+                        except:
+                            pass
+            
+            # Prepare log content with timestamp
+            log_header = f"\n{'='*80}\n"
+            log_header += f"Log Entry - {time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+            log_header += f"PI Directory: {current_pi_dir}\n"
+            log_header += f"{'='*80}\n\n"
+            
+            # Write to log file
+            if should_append:
+                # Append to existing log
+                with open(target_log_path, 'a', encoding='utf-8') as f:
+                    f.write(log_header)
+                    f.write(message_content)
+                    f.write("\n")
+                print(f"Appended message window content to existing log: {target_log_path}")
+            else:
+                # Create new log file
+                with open(target_log_path, 'w', encoding='utf-8') as f:
+                    f.write(log_header)
+                    f.write(message_content)
+                    f.write("\n")
+                print(f"Created new log file: {target_log_path}")
+                
+        except Exception as e:
+            print(f"Error saving log: {e}")
 
     def open_local_session(self):
         current_dir = os.path.dirname(os.path.realpath(__file__))+"/"
         fname = os.path.join(current_dir, "local_session.json")
+        session = None
+        
         if os.path.exists(fname) and os.path.getsize(fname):
-            with open(fname, 'r') as f:
-                session = json.load(f)
-        else:
+            try:
+                with open(fname, 'r') as f:
+                    session = json.load(f)
+            except (json.JSONDecodeError, ValueError) as e:
+                print(f"Error loading local session file: {e}")
+                print("Creating new session file...")
+                # Backup the corrupted file
+                backup_fname = fname + ".backup"
+                try:
+                    os.rename(fname, backup_fname)
+                    print(f"Corrupted file backed up as: {backup_fname}")
+                except:
+                    pass
+                session = None
+        
+        if session is None:
             session = self.get_session()
-            with open(fname, 'w') as f:
-                json.dump(session, f)
+            try:
+                with open(fname, 'w') as f:
+                    json.dump(session, f)
+            except Exception as e:
+                print(f"Error saving new session file: {e}")
 
         lines = self.get_lines()
         keys = list(lines[0].keys())
