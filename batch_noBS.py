@@ -3,7 +3,7 @@ import sys, os, json, time, re
 os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = "/Users/marinf/anaconda3/envs/py310/plugins" #everytime pyqt updates, something breaks.. need to point to plugins now. 
 sys.path.insert(0,"/".join(os.path.realpath(__file__).split("/")[:-2])) #adds parent directory to path so importing from other directories work. 
 from PyQt5 import QtCore
-from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QAction, QFrame, QHBoxLayout, QVBoxLayout, QLabel, QLineEdit, QScrollArea, QPushButton, QTableWidgetItem, QDialog, QGridLayout, QDialogButtonBox
+from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QAction, QFrame, QHBoxLayout, QVBoxLayout, QLabel, QLineEdit, QScrollArea, QPushButton, QTableWidgetItem, QDialog, QGridLayout, QDialogButtonBox, QComboBox
 
 
 from trajectories import *
@@ -12,6 +12,7 @@ from ComboBoxWithPlaceholder import ComboBoxWithPlaceholder
 from Controls import Controls
 from ScanSettings import ScanSettings
 from Line import Line
+from VerticalLine import VerticalLine
 from Stream import Stream 
 import threading
 import epics
@@ -75,19 +76,25 @@ class BatchScanGui(QMainWindow):
         settings_action.triggered.connect(self.open_settings)
         self.settings_menu.addAction(settings_action)
 
-        self.batch_widget = self.make_batch_widget(1)
-        self.batch_widget.setMaximumHeight(120)
-        self.batch_widget.setMinimumHeight(80)
+        # self.batch_widget = self.make_batch_widget(1)
+        # self.batch_widget.setMaximumHeight(120)
+        # self.batch_widget.setMinimumHeight(80)
+
+        # Create vertical column widget
+        self.vertical_column_widget = self.make_vertical_column_widget(1)
+        self.vertical_column_widget.setMaximumWidth(300)
+        self.vertical_column_widget.setMinimumWidth(250)
 
         self.queue_widget = self.make_queue_widget()
 
         layout = QVBoxLayout()
-        layout.addWidget(self.batch_widget)
+        # layout.addWidget(self.batch_widget)
         layout.addWidget(self.queue_widget)
         layout.addWidget(self.controls)
         layout.setSpacing(0)
 
         layout2 = QHBoxLayout()
+        layout2.addWidget(self.vertical_column_widget)  # Add vertical column to the left
         layout2.addLayout(layout)
         layout2.setSpacing(0)
 
@@ -206,28 +213,28 @@ class BatchScanGui(QMainWindow):
     def __del__(self):
         sys.stdout = sys.__stdout__
 
-    def add_line(self):
-        self.id_counter = self.id_counter + 1
-        self.line_ids.append(self.id_counter)
-        line_id = self.line_ids[-1]
-        # Use settings manager (no UI) for Line initialization
-        setattr(self, f"line_{line_id}", Line(line_id, self.settings_manager))
-        line = self.__dict__["line_{}".format(line_id)]
+    # def add_line(self):
+    #     self.id_counter = self.id_counter + 1
+    #     self.line_ids.append(self.id_counter)
+    #     line_id = self.line_ids[-1]
+    #     # Use settings manager (no UI) for Line initialization
+    #     setattr(self, f"line_{line_id}", Line(line_id, self.settings_manager))
+    #     line = self.__dict__["line_{}".format(line_id)]
 
-        line.setAutoFillBackground(True)
-        line.addlinesig.connect(self.add_line)
-        line.deletelinesig.connect(self.delete_line)
-        line.duplicatelinesig.connect(self.duplicate_line)
-        line.duplicatelinesig.connect(self.clear_line)
-        line.sendToQueueSig.connect(self.enqueue_line)
-        line.trajectoryChangedSig.connect(self.validate_params)
-        line.lineditEnterdSig.connect(self.validate_params)
-        line.trajectory_changed()
-        line.loop_changed()
-        self.lines_layout.addWidget(line, alignment=QtCore.Qt.AlignLeft)
+    #     line.setAutoFillBackground(True)
+    #     line.addlinesig.connect(self.add_line)
+    #     line.deletelinesig.connect(self.delete_line)
+    #     line.duplicatelinesig.connect(self.duplicate_line)
+    #     line.duplicatelinesig.connect(self.clear_line)
+    #     line.sendToQueueSig.connect(self.enqueue_line)
+    #     line.trajectoryChangedSig.connect(self.validate_params)
+    #     line.lineditEnterdSig.connect(self.validate_params)
+    #     line.trajectory_changed()
+    #     line.loop_changed()
+    #     self.lines_layout.addWidget(line, alignment=QtCore.Qt.AlignLeft)
 
     def validate_params(self):
-        line = self.get_line(self.sender().id)
+        line = self.sender().__dict__
         preval = self.pre_validate(line)
         if preval is None: 
             print("validation step failed")
@@ -271,8 +278,7 @@ class BatchScanGui(QMainWindow):
         #prevalidate parameters before sending to server
         # get all linedits from line        
         linedits = {}
-        keys = list(line.keys())
-        for key in keys:
+        for key in line.keys():
             if isinstance(line[key], QLineEdit):
                 linedits[key] = line[key]
         #check if anylinedit is empty (except for comments)
@@ -291,13 +297,16 @@ class BatchScanGui(QMainWindow):
             #check if any specific keys are less than or equal to 0:
             if key == ("dwell_time" or "l1_size" or "l1_width"  or "l2_size" or "l2_width"  or \
                             "l3_size" or "l3_width" or "l4_size" or "l4_width"  or "step_size" or \
-                            "radial_step" or "diameter" or "x_freq" or "y_freq") and eval(item.text()) <=0:
+                            "radial_step" or "diameter" or "x_freq" or "y_freq") and item.isVisible() and item.text() != "" and eval(item.text()) <=0:
                 print(f"invalid value for {key}")
                 return
-            if key == ("l1_center" or "l2_center" or "l3_center" or "l4_center"):
-                #not sure if there are any invalid numeric values for center parameters
-                pass
-            if key == "sample_name" and bool(re.search(r'[^\w\s]', item.text())):
+            if key == ("l1_center" or "l2_center" or "l3_center" or "l4_center") and item.isVisible() and item.text() != "":
+                try: 
+                    eval(item.text())
+                except:
+                    print("not numeric value")
+                    return
+            if key == "sample_name" and item.isVisible() and item.text() != "" and bool(re.search(r'[^\w\s]', item.text())):
                 print("sample name must not contain special characters other than _")
                 return
                  
@@ -306,17 +315,17 @@ class BatchScanGui(QMainWindow):
         return params
 
     def check_limits(self, params):
-        if self.settings_dialog.get_setting("Positioner 1 PV") != "":
-            if self.settings_dialog.get_setting("Positioner 1 PV").split(":")[1].split(".")[0][0]=="m":
+        if self.settings_manager.get_setting("Positioner 1 PV") != "":
+            if self.settings_manager.get_setting("Positioner 1 PV").split(":")[1].split(".")[0][0]=="m":
                 try:
-                    mvel = epics.caget(self.settings_dialog.get_setting("Positioner 1 PV")[:-3] + "VMAX", connection_timeout=self.timeout)
-                    print(self.settings_dialog.get_setting("Positioner 1 PV")[:-3] + "VMAX:", mvel)
+                    mvel = epics.caget(self.settings_manager.get_setting("Positioner 1 PV")[:-3] + "VMAX", connection_timeout=self.timeout)
+                    print(self.settings_manager.get_setting("Positioner 1 PV")[:-3] + "VMAX:", mvel)
                 except:
                     mvel = None
                     return False
                 try:
-                    p1egu = epics.caget(self.settings_dialog.get_setting("Positioner 1 PV")[:-3] + "EGU", connection_timeout=self.timeout)
-                    print(self.settings_dialog.get_setting("Positioner 1 PV")[:-3] + "EGU:", p1egu)
+                    p1egu = epics.caget(self.settings_manager.get_setting("Positioner 1 PV")[:-3] + "EGU", connection_timeout=self.timeout)
+                    print(self.settings_manager.get_setting("Positioner 1 PV")[:-3] + "EGU:", p1egu)
                     S = 0.001 if (p1egu=="um" or p1egu=="micron") else 1
                     T = 0.001 if params["type"]=="fly" else 1
                     scan_vel = params["l1_size"]/params["dwell_time"]*S*T
@@ -327,8 +336,8 @@ class BatchScanGui(QMainWindow):
                     p1egu = None
                     return False
                 try:
-                    p1llm = epics.caget(self.settings_dialog.get_setting("Positioner 1 PV")[:-3] + "LLM", connection_timeout=self.timeout)
-                    print(self.settings_dialog.get_setting("Positioner 1 PV")[:-3] + "LLM:", p1llm)
+                    p1llm = epics.caget(self.settings_manager.get_setting("Positioner 1 PV")[:-3] + "LLM", connection_timeout=self.timeout)
+                    print(self.settings_manager.get_setting("Positioner 1 PV")[:-3] + "LLM:", p1llm)
                     if params["l1_center"]-params["l1_size"]/2 < p1llm:
                         print("l1_center - l1_size/2 < p1llm")
                         return False
@@ -336,8 +345,8 @@ class BatchScanGui(QMainWindow):
                     p1llm = None
                     return False
                 try:
-                    p1hlm = epics.caget(self.settings_dialog.get_setting("Positioner 1 PV")[:-3] + "HLM", connection_timeout=self.timeout)
-                    print(self.settings_dialog.get_setting("Positioner 1 PV")[:-3] + "HLM:", p1hlm)
+                    p1hlm = epics.caget(self.settings_manager.get_setting("Positioner 1 PV")[:-3] + "HLM", connection_timeout=self.timeout)
+                    print(self.settings_manager.get_setting("Positioner 1 PV")[:-3] + "HLM:", p1hlm)
                     if params["l1_center"]+params["l1_size"]/2 > p1hlm:
                         print("l1_center + l1_size/2 > p1hlm")
                         return False
@@ -350,23 +359,23 @@ class BatchScanGui(QMainWindow):
                 p1hlm = None
                 print(" Positioner 1 not a standard motor")
             
-        if self.settings_dialog.get_setting("Positioner 2 PV") != "":
-            if self.settings_dialog.get_setting("Positioner 2 PV").split(":")[1].split(".")[0][0]=="m":
+        if self.settings_manager.get_setting("Positioner 2 PV") != "":
+            if self.settings_manager.get_setting("Positioner 2 PV").split(":")[1].split(".")[0][0]=="m":
                 try:
-                    p2egu = epics.caget(self.settings_dialog.get_setting("Positioner 2 PV")[:-3] + "EGU", connection_timeout=self.timeout)
-                    print(self.settings_dialog.get_setting("Positioner 2 PV")[:-3] + "EGU:", p2egu)
+                    p2egu = epics.caget(self.settings_manager.get_setting("Positioner 2 PV")[:-3] + "EGU", connection_timeout=self.timeout)
+                    print(self.settings_manager.get_setting("Positioner 2 PV")[:-3] + "EGU:", p2egu)
                 except:
                     p2egu = None
                     return False
                 try:
-                    p2llm = epics.caget(self.settings_dialog.get_setting("Positioner 2 PV")[:-3] + "LLM", connection_timeout=self.timeout)
-                    print(self.settings_dialog.get_setting("Positioner 2 PV")[:-3] + "LLM:", p2llm)
+                    p2llm = epics.caget(self.settings_manager.get_setting("Positioner 2 PV")[:-3] + "LLM", connection_timeout=self.timeout)
+                    print(self.settings_manager.get_setting("Positioner 2 PV")[:-3] + "LLM:", p2llm)
                 except:
                     p2llm = None
                     return False
                 try:
-                    p2hlm = epics.caget(self.settings_dialog.get_setting("Positioner 2 PV")[:-3] + "HLM", connection_timeout=self.timeout)
-                    print(self.settings_dialog.get_setting("Positioner 2 PV")[:-3] + "HLM:", p2hlm)
+                    p2hlm = epics.caget(self.settings_manager.get_setting("Positioner 2 PV")[:-3] + "HLM", connection_timeout=self.timeout)
+                    print(self.settings_manager.get_setting("Positioner 2 PV")[:-3] + "HLM:", p2hlm)
                     if params["l2_center"]+params["l2_size"]/2 > p2hlm:
                         print("l2_center + l2_size/2 > p2hlm")
                         return False
@@ -379,17 +388,17 @@ class BatchScanGui(QMainWindow):
                 print(" Positioner 2 not a standard motor")
 
 
-        if self.settings_dialog.get_setting("Positioner 2 PV") != "":
-            if self.settings_dialog.get_setting("Positioner 2 PV").split(":")[1].split(".")[0][0]=="m":
+        if self.settings_manager.get_setting("Positioner 2 PV") != "":
+            if self.settings_manager.get_setting("Positioner 2 PV").split(":")[1].split(".")[0][0]=="m":
                 try:
-                    p2egu = epics.caget(self.settings_dialog.get_setting("Positioner 2 PV")[:-3] + "EGU", connection_timeout=self.timeout)
-                    print(self.settings_dialog.get_setting("Positioner 2 PV")[:-3] + "EGU:", p2egu)
+                    p2egu = epics.caget(self.settings_manager.get_setting("Positioner 2 PV")[:-3] + "EGU", connection_timeout=self.timeout)
+                    print(self.settings_manager.get_setting("Positioner 2 PV")[:-3] + "EGU:", p2egu)
                 except:
                     p2egu = None
                     print(" cannot connect to Positioner 2 EGU")
                 try:
-                    p2llm = epics.caget(self.settings_dialog.get_setting("Positioner 2 PV")[:-3] + "LLM", connection_timeout=self.timeout)
-                    print(self.settings_dialog.get_setting("Positioner 2 PV")[:-3] + "LLM:", p2llm)
+                    p2llm = epics.caget(self.settings_manager.get_setting("Positioner 2 PV")[:-3] + "LLM", connection_timeout=self.timeout)
+                    print(self.settings_manager.get_setting("Positioner 2 PV")[:-3] + "LLM:", p2llm)
                     if params["l2_center"]-params["l2_size"]/2 < p2llm:
                         print("l2_center - l2_size/2 < p2llm")
                         return False
@@ -397,8 +406,8 @@ class BatchScanGui(QMainWindow):
                     p2llm = None
                     print(" cannot connect to Positioner 2 LLM")
                 try:
-                    p2hlm = epics.caget(self.settings_dialog.get_setting("Positioner 2 PV")[:-3] + "HLM", connection_timeout=self.timeout)
-                    print(self.settings_dialog.get_setting("Positioner 2 PV")[:-3] + "HLM:", p2hlm)
+                    p2hlm = epics.caget(self.settings_manager.get_setting("Positioner 2 PV")[:-3] + "HLM", connection_timeout=self.timeout)
+                    print(self.settings_manager.get_setting("Positioner 2 PV")[:-3] + "HLM:", p2hlm)
                 except:
                     p2hlm = None
                     print(" cannot connect to Positioner 2 HLM")
@@ -408,17 +417,17 @@ class BatchScanGui(QMainWindow):
                 print(" Positioner 3 not a standard motor")
 
 
-        if self.settings_dialog.get_setting("Positioner 3 PV") != "":
-            if self.settings_dialog.get_setting("Positioner 3 PV").split(":")[1].split(".")[0][0]=="m":
+        if self.settings_manager.get_setting("Positioner 3 PV") != "":
+            if self.settings_manager.get_setting("Positioner 3 PV").split(":")[1].split(".")[0][0]=="m":
                 try:
-                    p3egu = epics.caget(self.settings_dialog.get_setting("Positioner 3 PV")[:-3] + "EGU", connection_timeout=self.timeout)
-                    print(self.settings_dialog.get_setting("Positioner 3 PV")[:-3] + "EGU:", p3egu)
+                    p3egu = epics.caget(self.settings_manager.get_setting("Positioner 3 PV")[:-3] + "EGU", connection_timeout=self.timeout)
+                    print(self.settings_manager.get_setting("Positioner 3 PV")[:-3] + "EGU:", p3egu)
                 except:
                     p3egu = None
                     return False
                 try:
-                    p3llm = epics.caget(self.settings_dialog.get_setting("Positioner 3 PV")[:-3] + "LLM", connection_timeout=self.timeout)
-                    print(self.settings_dialog.get_setting("Positioner 3 PV")[:-3] + "LLM:", p3llm)
+                    p3llm = epics.caget(self.settings_manager.get_setting("Positioner 3 PV")[:-3] + "LLM", connection_timeout=self.timeout)
+                    print(self.settings_manager.get_setting("Positioner 3 PV")[:-3] + "LLM:", p3llm)
                     if params["l3_center"]-params["l3_size"]/2 < p3llm:
                         print("l3_center - l3_size/2 < p3llm")
                         return False
@@ -426,8 +435,8 @@ class BatchScanGui(QMainWindow):
                     p3llm = None
                     return False
                 try:
-                    p3hlm = epics.caget(self.settings_dialog.get_setting("Positioner 3 PV")[:-3] + "HLM", connection_timeout=self.timeout)
-                    print(self.settings_dialog.get_setting("Positioner 3 PV")[:-3] + "HLM:", p3hlm)
+                    p3hlm = epics.caget(self.settings_manager.get_setting("Positioner 3 PV")[:-3] + "HLM", connection_timeout=self.timeout)
+                    print(self.settings_manager.get_setting("Positioner 3 PV")[:-3] + "HLM:", p3hlm)
                     if params["l3_center"]+params["l3_size"]/2 > p3hlm:
                         print("l3_center + l3_size/2 > p3hlm")
                         return False
@@ -439,11 +448,11 @@ class BatchScanGui(QMainWindow):
                 p3hlm = None
                 print(" Positioner 3 not a standard motor")
 
-        if self.settings_dialog.get_setting("Positioner 4 PV") != "":
-            if self.settings_dialog.get_setting("Positioner 4 PV").split(":")[1].split(".")[0][0]=="m":
+        if self.settings_manager.get_setting("Positioner 4 PV") != "":
+            if self.settings_manager.get_setting("Positioner 4 PV").split(":")[1].split(".")[0][0]=="m":
                 try:
-                    p4llm = epics.caget(self.settings_dialog.get_setting("Positioner 4 PV")[:-3] + "LLM", connection_timeout=self.timeout)
-                    print(self.settings_dialog.get_setting("Positioner 4 PV")[:-3] + "LLM:", p4llm)
+                    p4llm = epics.caget(self.settings_manager.get_setting("Positioner 4 PV")[:-3] + "LLM", connection_timeout=self.timeout)
+                    print(self.settings_manager.get_setting("Positioner 4 PV")[:-3] + "LLM:", p4llm)
                     if params["l4_center"]-params["l4_size"]/2 < p4llm:
                         print("l4_center - l4_size/2 < p4llm")
                         return False
@@ -451,8 +460,8 @@ class BatchScanGui(QMainWindow):
                     p4llm = None
                     return False
                 try:
-                    p4hlm = epics.caget(self.settings_dialog.get_setting("Positioner 4 PV")[:-3] + "HLM", connection_timeout=self.timeout)
-                    print(self.settings_dialog.get_setting("Positioner 4 PV")[:-3] + "HLM:", p4hlm)
+                    p4hlm = epics.caget(self.settings_manager.get_setting("Positioner 4 PV")[:-3] + "HLM", connection_timeout=self.timeout)
+                    print(self.settings_manager.get_setting("Positioner 4 PV")[:-3] + "HLM:", p4hlm)
                     if params["l4_center"]+params["l4_size"]/2 > p4hlm:
                         print("l4_center + l4_size/2 > p4hlm")
                         return False
@@ -466,19 +475,19 @@ class BatchScanGui(QMainWindow):
         return True
 
 
-    def delete_line(self, line_id):
-        line = self.__dict__["line_{}".format(line_id)]
-        line.deleteLater()
-        self.lines_layout.removeWidget(line)
-        delattr(self, "line_{}".format(line_id))
-        self.line_ids.remove(line_id)
+    # def delete_line(self, line_id):
+    #     line = self.__dict__["line_{}".format(line_id)]
+    #     line.deleteLater()
+    #     self.lines_layout.removeWidget(line)
+    #     delattr(self, "line_{}".format(line_id))
+    #     self.line_ids.remove(line_id)
 
-    def duplicate_line(self, line_id):
-        self.add_line()
-        line = self.get_line(line_id)
-        params = self.get_params(line)
-        self.update_scan_line(params,self.line_ids[-1])
-        return
+    # def duplicate_line(self, line_id):
+    #     self.add_line()
+    #     line = self.get_line(line_id)
+    #     params = self.get_params(line)
+    #     self.update_scan_line(params,self.line_ids[-1])
+    #     return
 
     def enqueue_line(self, line_id):
         line=self.get_line(line_id)
@@ -491,7 +500,9 @@ class BatchScanGui(QMainWindow):
             except: 
                 print("could not add to queue")
                 return
-        pass
+        else:
+            print("line not ready")
+            return
 
     def clear_line(self, line_id):
         line = self.get_line(line_id)
@@ -500,33 +511,201 @@ class BatchScanGui(QMainWindow):
             if isinstance(line[key], QLineEdit):
                 line[key].setText("")
 
-    def make_batch_widget(self, num_lines):
-        batch_widget = QScrollArea()
+    def delete_vertical_line(self, line_id):
+        """Delete a vertical line widget"""
+        line = self.__dict__["vertical_line_{}".format(line_id)]
+        line.deleteLater()
+        self.vertical_lines_layout.removeWidget(line)
+        delattr(self, "vertical_line_{}".format(line_id))
+        self.line_ids.remove(line_id)
+
+    def duplicate_vertical_line(self, line_id):
+        """Duplicate a vertical line widget"""
+        self.add_vertical_line()
+        line = self.get_vertical_line(line_id)
+        params = self.get_vertical_params(line)
+        self.update_vertical_scan_line(params, self.line_ids[-1])
+        return
+
+    def clear_vertical_line(self, line_id):
+        """Clear a vertical line widget"""
+        line = self.get_vertical_line(line_id)
+        keys = list(line.keys())
+        for key in keys:
+            if isinstance(line[key], QLineEdit):
+                line[key].setText("")
+
+    def get_vertical_line(self, line_id):
+        """Get vertical line widget by ID"""
+        return self.__dict__["vertical_line_{}".format(line_id)]
+
+    def get_vertical_params(self, line):
+        """Get parameters from vertical line widget"""
+        # This would need to be implemented based on the VerticalLine class structure
+        # For now, return a basic structure
+        params = {}
+        for key, widget in line.__dict__.items():
+            if hasattr(widget, 'text'):
+                params[key] = widget.text()
+            elif hasattr(widget, 'currentText'):
+                params[key] = widget.currentText()
+        return params
+
+    def update_vertical_scan_line(self, params, line_id):
+        """Update vertical scan line with parameters"""
+        line = self.get_vertical_line(line_id)
+        for key, value in params.items():
+            if hasattr(line, key):
+                widget = getattr(line, key)
+                if hasattr(widget, 'setText'):
+                    widget.setText(str(value))
+                elif hasattr(widget, 'setCurrentText'):
+                    widget.setCurrentText(str(value))
+
+    # def make_batch_widget(self, num_lines):
+    #     batch_widget = QScrollArea()
+    #     scroll_widget = QWidget()
+    #     self.vertical_lines_layout = QVBoxLayout()
+
+    #     for i in range(num_lines):
+    #         self.add_vertical_line()
+    #     scroll_widget.setLayout(self.vertical_lines_layout)
+    #     scroll_widget.setStyleSheet("QFrame {background-color: rgb(255, 255, 255);border-width: 1;border-radius: 3;border-style: solid;border-color: rgb(10, 10, 10)}")
+    #     scroll_widget.setMaximumWidth(2500)
+    #     batch_widget.setWidget(scroll_widget)
+    #     batch_widget.setWidgetResizable(True)
+    #     return batch_widget
+
+    def make_vertical_column_widget(self, num_lines):
+        """Create a vertical column widget similar to make_batch_widget but with vertical layout"""
+        column_widget = QScrollArea()
         scroll_widget = QWidget()
-        self.lines_layout = QVBoxLayout()
+        self.vertical_lines_layout = QVBoxLayout()
+
+        # Add scan type combobox at the top
+        self.vertical_scan_type_combo = QComboBox()
+        self.vertical_scan_type_combo.addItems(["step 2D", "fly 2D", "fly 3D", "custom"])
+        self.vertical_scan_type_combo.setCurrentText("step 2D")
+        self.vertical_scan_type_combo.currentTextChanged.connect(self.on_vertical_scan_type_changed)
+        self.vertical_scan_type_combo.setStyleSheet("background: lightyellow; color: black; border-radius: 4; padding: 2px;")
+        self.vertical_lines_layout.addWidget(self.vertical_scan_type_combo)
 
         for i in range(num_lines):
-            self.add_line()
-        scroll_widget.setLayout(self.lines_layout)
-        scroll_widget.setStyleSheet("QFrame {background-color: rgb(255, 255, 255);border-width: 1;border-radius: 3;border-style: solid;border-color: rgb(10, 10, 10)}")
-        scroll_widget.setMaximumWidth(2500)
-        batch_widget.setWidget(scroll_widget)
-        batch_widget.setWidgetResizable(True)
-        return batch_widget
+            self.add_vertical_line()
+        
+        scroll_widget.setLayout(self.vertical_lines_layout)
+        scroll_widget.setStyleSheet("QFrame {background-color: rgb(240, 240, 240);border-width: 1;border-radius: 3;border-style: solid;border-color: rgb(10, 10, 10)}")
+        scroll_widget.setMaximumWidth(300)
+        column_widget.setWidget(scroll_widget)
+        column_widget.setWidgetResizable(True)
+        return column_widget
 
-    def add_line(self):
+    def on_vertical_scan_type_changed(self, scan_type):
+        """Handle vertical scan type selection and apply predefined settings"""
+        print(f"Vertical scan type changed to: {scan_type}")
+        
+        if scan_type == "custom":
+            # For custom, don't apply any predefined settings
+            return
+        
+        # Get the first vertical line to apply settings to
+        if hasattr(self, 'line_ids') and len(self.line_ids) > 0:
+            line_id = self.line_ids[0]
+            line = self.get_vertical_line(line_id)
+            if line:
+                self.apply_predefined_scan_settings(line, scan_type)
+
+    def apply_predefined_scan_settings(self, line, scan_type):
+        """Apply predefined scan settings based on scan type"""
+        if scan_type == "step 2D":
+            # Step 2D scan settings
+            line.sample_name.setText("step_2D_scan")
+            line.dwell_time.setText("100")  # 100ms dwell time
+            line.trajectory.check_selected([0])  # Select "raster"
+            line.loop1.check_selected([0])  # Select first positioner
+            line.loop2.check_selected([1])  # Select second positioner
+            line.l1_center.setText("0")
+            line.l1_size.setText("0.1")
+            line.l1_width.setText("10")
+            line.l2_center.setText("0")
+            line.l2_size.setText("0.1")
+            line.l2_width.setText("10")
+            line.comments.setText("Predefined step 2D scan")
+            
+        elif scan_type == "fly 2D":
+            # Fly 2D scan settings
+            line.sample_name.setText("fly_2D_scan")
+            line.dwell_time.setText("1")  # 1ms dwell time for fly scan
+            line.trajectory.check_selected([0])  # Select "raster"
+            line.loop1.check_selected([0])  # Select first positioner
+            line.loop2.check_selected([1])  # Select second positioner
+            line.l1_center.setText("0")
+            line.l1_size.setText("0.01")
+            line.l1_width.setText("5")
+            line.l2_center.setText("0")
+            line.l2_size.setText("0.01")
+            line.l2_width.setText("5")
+            line.comments.setText("Predefined fly 2D scan")
+            
+        elif scan_type == "fly 3D":
+            # Fly 3D scan settings
+            line.sample_name.setText("fly_3D_scan")
+            line.dwell_time.setText("0.5")  # 0.5ms dwell time for 3D fly scan
+            line.trajectory.check_selected([2])  # Select "spiral"
+            line.loop1.check_selected([0])  # Select first positioner
+            line.loop2.check_selected([1])  # Select second positioner
+            line.loop3.check_selected([2])  # Select third positioner
+            line.l1_center.setText("0")
+            line.l1_size.setText("0.005")
+            line.l1_width.setText("2")
+            line.l2_center.setText("0")
+            line.l2_size.setText("0.005")
+            line.l2_width.setText("2")
+            line.step_size.setText("0.01")
+            line.radial_step.setText("0.02")
+            line.diameter.setText("1")
+            line.comments.setText("Predefined fly 3D spiral scan")
+        
+        # Trigger trajectory change to update parameter visibility
+        line.trajectory_changed()
+
+    # def add_line(self):
+    #     self.id_counter += 1
+    #     self.line_ids.append(self.id_counter)
+    #     line_id = self.line_ids[-1]
+    #     print("lineID", line_id)
+    #     setattr(self, f"line_{line_id}", Line(line_id))
+    #     line = self.__dict__["line_{}".format(line_id)]
+
+    #     line.setAutoFillBackground(True)
+    #     line.addlinesig.connect(self.add_line)
+    #     line.deletelinesig.connect(self.delete_line)
+    #     line.duplicatelinesig.connect(self.duplicate_line)
+    #     line.duplicatelinesig.connect(self.clear_line)
+    #     line.sendToQueueSig.connect(self.enqueue_line)
+    #     line.trajectoryChangedSig.connect(self.validate_params)
+    #     line.lineditEnterdSig.connect(self.validate_params)
+    #     line.sendToQueueSig.connect(self.validate_params)
+
+    #     line.trajectory_changed()
+    #     line.loop_changed()
+    #     self.lines_layout.addWidget(line, alignment=QtCore.Qt.AlignLeft)
+
+
+    def add_vertical_line(self):
+        """Add a vertical line widget similar to add_line but with vertical organization"""
         self.id_counter += 1
         self.line_ids.append(self.id_counter)
         line_id = self.line_ids[-1]
-        print("lineID", line_id)
-        setattr(self, f"line_{line_id}", Line(line_id))
-        line = self.__dict__["line_{}".format(line_id)]
+        print("vertical lineID", line_id)
+        setattr(self, f"vertical_line_{line_id}", VerticalLine(line_id, self.settings_manager))
+        line = self.__dict__["vertical_line_{}".format(line_id)]
 
         line.setAutoFillBackground(True)
-        line.addlinesig.connect(self.add_line)
-        line.deletelinesig.connect(self.delete_line)
-        line.duplicatelinesig.connect(self.duplicate_line)
-        line.duplicatelinesig.connect(self.clear_line)
+        line.addlinesig.connect(self.add_vertical_line)
+        line.deletelinesig.connect(self.delete_vertical_line)
+        line.duplicatelinesig.connect(self.duplicate_vertical_line)
+        line.duplicatelinesig.connect(self.clear_vertical_line)
         line.sendToQueueSig.connect(self.enqueue_line)
         line.trajectoryChangedSig.connect(self.validate_params)
         line.lineditEnterdSig.connect(self.validate_params)
@@ -534,11 +713,17 @@ class BatchScanGui(QMainWindow):
 
         line.trajectory_changed()
         line.loop_changed()
-        self.lines_layout.addWidget(line, alignment=QtCore.Qt.AlignLeft)
+        self.vertical_lines_layout.addWidget(line, alignment=QtCore.Qt.AlignTop)
+
 
 
     def make_queue_widget(self):
-        line_attributes = list(self.get_lines()[0].keys())[1:]
+        lines = self.get_lines()
+        if len(lines) == 0:
+            # Use default headers if no lines available
+            line_attributes = ["id", "scan_type", "detectors", "trajectory", "sample_name", "dwell_time", "comments"]
+        else:
+            line_attributes = list(lines[0].keys())[1:]
         header = line_attributes +["item_uid",  "user", "start message",  "finish message", "eta"]
         num_rows = 0
         queue_widget = QWidget()
@@ -702,12 +887,20 @@ class BatchScanGui(QMainWindow):
         pass
 
     def get_lines(self):
-        lines = [self.lines_layout.itemAt(i).widget().__dict__ for i in range(self.lines_layout.count())]
+        lines = []
+        for i in range(self.vertical_lines_layout.count()):
+            widget = self.vertical_lines_layout.itemAt(i).widget()
+            if isinstance(widget, VerticalLine):
+                lines.append(widget.__dict__)
         return lines
 
     def get_params(self, line=None):
         if line is None:
-            line = self.lines_layout.itemAt(0).widget().__dict__
+            # Check if there are any items in the vertical lines layout
+            if self.vertical_lines_layout.count() == 0:
+                print("No vertical lines available for parameter extraction")
+                return {}
+            line = self.vertical_lines_layout.itemAt(0).widget().__dict__
         keys = list(line.keys())
         params = {}
         for key in keys: 
@@ -865,15 +1058,18 @@ class BatchScanGui(QMainWindow):
                 print(f"Error saving new session file: {e}")
 
         lines = self.get_lines()
+        if len(lines) == 0:
+            print("No vertical lines available for session restoration")
+            return
         keys = list(lines[0].keys())
         if len(session)>len(lines): 
             new_lines = len(session)-len(lines)
             for line in range(new_lines):
-                self.add_line()
+                self.add_vertical_line()
         elif len(session)<len(lines): 
             delete_lines = len(lines) - len(session)
             for line in range(delete_lines):
-                self.delete_line(self.line_ids[0])
+                self.delete_vertical_line(self.line_ids[0])
 
         for i in range(len(lines)):
             line = lines[i]
@@ -900,6 +1096,9 @@ class BatchScanGui(QMainWindow):
     def get_session(self):
         ''' session is a list of dictionaries, each list item corresponds to a scan line and each '''
         lines = self.get_lines()
+        if len(lines) == 0:
+            print("No vertical lines available for session creation")
+            return []
         keys = list(lines[0].keys())
         session = []
         for line in lines: 
@@ -911,8 +1110,8 @@ class BatchScanGui(QMainWindow):
         """Save all Line objects to JSON file"""
         try:
             lines_data = []
-            for i in range(self.lines_layout.count()):
-                line_widget = self.lines_layout.itemAt(i).widget()
+            for i in range(self.vertical_lines_layout.count()):
+                line_widget = self.vertical_lines_layout.itemAt(i).widget()
                 if hasattr(line_widget, 'to_dict'):
                     lines_data.append(line_widget.to_dict())
             
@@ -943,8 +1142,8 @@ class BatchScanGui(QMainWindow):
                 return
             
             # Clear existing lines
-            while self.lines_layout.count():
-                child = self.lines_layout.takeAt(0)
+            while self.vertical_lines_layout.count():
+                child = self.vertical_lines_layout.takeAt(0)
                 if child.widget():
                     child.widget().deleteLater()
             
@@ -957,16 +1156,16 @@ class BatchScanGui(QMainWindow):
                 line_id = self.id_counter
                 self.line_ids.append(line_id)
                 
-                # Create new line with settings manager (no UI)
-                setattr(self, f"line_{line_id}", Line(line_id, self.settings_manager))
-                line = self.__dict__["line_{}".format(line_id)]
+                # Create new vertical line with settings manager
+                setattr(self, f"vertical_line_{line_id}", VerticalLine(line_id, self.settings_manager))
+                line = self.__dict__["vertical_line_{}".format(line_id)]
                 
                 # Connect signals
                 line.setAutoFillBackground(True)
-                line.addlinesig.connect(self.add_line)
-                line.deletelinesig.connect(self.delete_line)
-                line.duplicatelinesig.connect(self.duplicate_line)
-                line.duplicatelinesig.connect(self.clear_line)
+                line.addlinesig.connect(self.add_vertical_line)
+                line.deletelinesig.connect(self.delete_vertical_line)
+                line.duplicatelinesig.connect(self.duplicate_vertical_line)
+                line.duplicatelinesig.connect(self.clear_vertical_line)
                 line.sendToQueueSig.connect(self.enqueue_line)
                 line.trajectoryChangedSig.connect(self.validate_params)
                 line.lineditEnterdSig.connect(self.validate_params)
@@ -976,14 +1175,14 @@ class BatchScanGui(QMainWindow):
                 line.from_dict(line_data)
                 
                 # Add to layout
-                self.lines_layout.addWidget(line, alignment=QtCore.Qt.AlignLeft)
+                self.vertical_lines_layout.addWidget(line, alignment=QtCore.Qt.AlignTop)
             
             print(f"Loaded {len(lines_data)} lines from {fname}")
         except Exception as e:
             print(f"Error loading lines from JSON: {e}")
             # If loading fails, create at least one default line
-            if self.lines_layout.count() == 0:
-                self.add_line()
+            if self.vertical_lines_layout.count() == 0:
+                self.add_vertical_line()
 
     def save_queue_to_json(self):
         """Save queue table data to JSON file"""

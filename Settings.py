@@ -3,7 +3,7 @@ import json
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QGridLayout, QLabel, QLineEdit, QDialogButtonBox
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import QtCore
+from PyQt5 import QtCore
 
 
 class SettingsDialog(QDialog):
