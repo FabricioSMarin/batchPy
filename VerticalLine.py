@@ -186,12 +186,48 @@ class VerticalLine(QWidget):
         self.l2_width.setFixedSize(size2, height)
         parent_layout.addWidget(self.l2_width)
         
+        self.l3_center = QLineEdit()
+        self.l3_center.setToolTip("l3_center")
+        self.l3_center.setPlaceholderText("center 3")
+        self.l3_center.setFixedSize(size2, height)
+        parent_layout.addWidget(self.l3_center)
+        
+        self.l3_size = QLineEdit()
+        self.l3_size.setToolTip("l3_size")
+        self.l3_size.setPlaceholderText("step size 3")
+        self.l3_size.setFixedSize(size2, height)
+        parent_layout.addWidget(self.l3_size)
+        
+        self.l3_width = QLineEdit()
+        self.l3_width.setToolTip("l3_width")
+        self.l3_width.setPlaceholderText("width 3")
+        self.l3_width.setFixedSize(size2, height)
+        parent_layout.addWidget(self.l3_width)
+        
+        self.l4_center = QLineEdit()
+        self.l4_center.setToolTip("l4_center")
+        self.l4_center.setPlaceholderText("center 4")
+        self.l4_center.setFixedSize(size2, height)
+        parent_layout.addWidget(self.l4_center)
+        
+        self.l4_size = QLineEdit()
+        self.l4_size.setToolTip("l4_size")
+        self.l4_size.setPlaceholderText("step size 4")
+        self.l4_size.setFixedSize(size2, height)
+        parent_layout.addWidget(self.l4_size)
+        
+        self.l4_width = QLineEdit()
+        self.l4_width.setToolTip("l4_width")
+        self.l4_width.setPlaceholderText("width 4")
+        self.l4_width.setFixedSize(size2, height)
+        parent_layout.addWidget(self.l4_width)
+        
         # Additional trajectory-specific parameters
-        self.step_size = QLineEdit()
-        self.step_size.setToolTip("step_size")
-        self.step_size.setPlaceholderText("step size")
-        self.step_size.setFixedSize(size2, height)
-        parent_layout.addWidget(self.step_size)
+        self.tangential_step = QLineEdit()
+        self.tangential_step.setToolTip("tangential_step")
+        self.tangential_step.setPlaceholderText("tangential step")
+        self.tangential_step.setFixedSize(size2, height)
+        parent_layout.addWidget(self.tangential_step)
         
         self.radial_step = QLineEdit()
         self.radial_step.setToolTip("radial_step")
@@ -268,8 +304,10 @@ class VerticalLine(QWidget):
 
     def scan_type_changed(self):
         """Handle scan type change"""
-        # Implement scan type change logic
-        pass
+        if self.scan_type.isChecked():
+            self.scan_type.setText("fly")
+        else:
+            self.scan_type.setText("step")
 
     def trajectory_changed(self):
         """Handle trajectory change - show/hide parameters based on trajectory type"""
@@ -277,42 +315,54 @@ class VerticalLine(QWidget):
             current_trajectory = self.trajectory.checked_names()[0]
             print(f"Trajectory changed to: {current_trajectory}")
             
-            # Show/hide parameters based on trajectory type (matching original Line widget)
+            # Hide all parameters by default
+            self.dwell_time.setVisible(False)
+            self.l1_center.setVisible(False)
+            self.l1_size.setVisible(False)
+            self.l1_width.setVisible(False)
+            self.l2_center.setVisible(False)
+            self.l2_size.setVisible(False)
+            self.l2_width.setVisible(False)
+            self.l3_center.setVisible(False)
+            self.l3_size.setVisible(False)
+            self.l3_width.setVisible(False)
+            self.l4_center.setVisible(False)
+            self.l4_size.setVisible(False)
+            self.l4_width.setVisible(False)
+            self.tangential_step.setVisible(False)
+            self.radial_step.setVisible(False)
+            self.diameter.setVisible(False)
+            self.x_freq.setVisible(False)
+            self.y_freq.setVisible(False)
+            self.cycles.setVisible(False)
+
+            self.loop_changed()
+
+            # Show relevant parameters
             if current_trajectory == "raster" or current_trajectory == "snake":
                 self.dwell_time.setVisible(True)
-                self.step_size.setVisible(False)
-                self.radial_step.setVisible(False)
-                self.diameter.setVisible(False)
-                self.x_freq.setVisible(False)
-                self.y_freq.setVisible(False)
-                self.cycles.setVisible(False)
+                self.l1_center.setVisible(True)
+                self.l1_size.setVisible(True)
+                self.l1_width.setVisible(True)
+                self.l2_center.setVisible(True)
+                self.l2_size.setVisible(True)
+                self.l2_width.setVisible(True)
 
             elif current_trajectory == "spiral":
                 self.dwell_time.setVisible(True)
-                self.step_size.setVisible(True)
+                self.tangential_step.setVisible(True)
                 self.radial_step.setVisible(True)
                 self.diameter.setVisible(True)
-                self.x_freq.setVisible(False)
-                self.y_freq.setVisible(False)
-                self.cycles.setVisible(False)
 
             elif current_trajectory == "lissajous":
                 self.dwell_time.setVisible(True)
-                self.step_size.setVisible(True)
-                self.radial_step.setVisible(False)
-                self.diameter.setVisible(False)
+                self.tangential_step.setVisible(True)
                 self.x_freq.setVisible(True)
                 self.y_freq.setVisible(True)
                 self.cycles.setVisible(True)
 
             elif current_trajectory == "custom":
-                self.dwell_time.setVisible(False)
-                self.step_size.setVisible(False)
-                self.radial_step.setVisible(False)
-                self.diameter.setVisible(False)
-                self.x_freq.setVisible(False)
-                self.y_freq.setVisible(False)
-                self.cycles.setVisible(False)
+                pass
 
             # Apply styling to all QLineEdit widgets
             for key in self.__dict__:
@@ -338,7 +388,7 @@ class VerticalLine(QWidget):
             loop4 = self.loop4.checked_names()
 
             # Show/hide loop 1 parameters
-            if len(loop1) == 0:
+            if len(loop1) != 0:
                 self.l1_center.setVisible(False)
                 self.l1_size.setVisible(False)
                 self.l1_width.setVisible(False)
@@ -357,6 +407,23 @@ class VerticalLine(QWidget):
                 self.l2_size.setVisible(True)
                 self.l2_width.setVisible(True)
                 
+            if len(loop3) == 0:
+                self.l3_center.setVisible(False)
+                self.l3_size.setVisible(False)
+                self.l3_width.setVisible(False)
+            else: 
+                self.l3_center.setVisible(True)
+                self.l3_size.setVisible(True)
+                self.l3_width.setVisible(True)
+
+            if len(loop4) == 0:
+                self.l4_center.setVisible(False)
+                self.l4_size.setVisible(False)
+                self.l4_width.setVisible(False)
+            else: 
+                self.l4_center.setVisible(True)
+                self.l4_size.setVisible(True)
+                self.l4_width.setVisible(True)
         except Exception as e:
             print(f"Error in loop_changed: {e}")
             pass
@@ -430,7 +497,13 @@ class VerticalLine(QWidget):
             'l2_center': self.l2_center.text(),
             'l2_size': self.l2_size.text(),
             'l2_width': self.l2_width.text(),
-            'step_size': self.step_size.text(),
+            'l3_center': self.l3_center.text(),
+            'l3_size': self.l3_size.text(),
+            'l3_width': self.l3_width.text(),
+            'l4_center': self.l4_center.text(),
+            'l4_size': self.l4_size.text(),
+            'l4_width': self.l4_width.text(),
+            'tangential_step': self.tangential_step.text(),
             'radial_step': self.radial_step.text(),
             'diameter': self.diameter.text(),
             'cycles': self.cycles.text(),
@@ -467,8 +540,8 @@ class VerticalLine(QWidget):
         # Restore text fields
         text_fields = [
             'line_action', 'eta', 'sample_name', 'dwell_time', 'l1_center', 'l1_size', 'l1_width',
-            'l2_center', 'l2_size', 'l2_width', 'step_size', 'radial_step', 'diameter',
-            'cycles', 'x_freq', 'y_freq', 'comments'
+            'l2_center', 'l2_size', 'l2_width', 'l3_center', 'l3_size', 'l3_width', 'l4_center', 'l4_size', 'l4_width', 
+            'tangential_step', 'radial_step', 'diameter', 'cycles', 'x_freq', 'y_freq', 'comments'
         ]
         
         for field in text_fields:
@@ -479,4 +552,3 @@ class VerticalLine(QWidget):
         
         # Trigger UI updates
         self.trajectory_changed()
-        self.loop_changed()

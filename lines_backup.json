@@ -1,68 +1,82 @@
-[
-  {
-    "id": 1,
-    "scan_type": {
-      "text": "fly",
-      "checked": true
-    },
-    "detectors": {
-      "checked_names": [
-        "xspress3",
-        "xmap"
-      ],
-      "checked_indices": [
-        1,
-        3
-      ]
-    },
-    "trajectory": {
-      "checked_names": [
-        "raster"
-      ],
-      "checked_indices": [
-        1
-      ]
-    },
-    "loop1": {
-      "checked_names": [
-        "2xfm:m57.VAL"
-      ],
-      "checked_indices": [
-        1
-      ]
-    },
-    "loop2": {
-      "checked_names": [
-        "2xfm:m13.VAL"
-      ],
-      "checked_indices": [
-        2
-      ]
-    },
-    "loop3": {
-      "checked_names": [],
-      "checked_indices": []
-    },
-    "loop4": {
-      "checked_names": [],
-      "checked_indices": []
-    },
-    "line_action": "not ready",
-    "eta": "--:--:--",
-    "sample_name": "sam1",
-    "dwell_time": "10",
-    "l1_center": "0",
-    "l1_size": "0.1",
-    "l1_width": "1",
-    "l2_center": "0",
-    "l2_size": "0.1",
-    "l2_width": "1",
-    "step_size": "0.01",
-    "radial_step": "0.05",
-    "diameter": "1",
-    "cycles": "",
-    "x_freq": "",
-    "y_freq": "",
-    "comments": "dev"
-  }
-]
+{
+  "vertical_scan_type_combo": {
+    "current_text": "fly 3D",
+    "current_index": 2
+  },
+  "lines": [
+    {
+      "id": 1,
+      "scan_type": {
+        "text": "fly",
+        "checked": true
+      },
+      "detectors": {
+        "checked_names": [
+          "xmap"
+        ],
+        "checked_indices": [
+          3
+        ]
+      },
+      "trajectory": {
+        "checked_names": [
+          "raster"
+        ],
+        "checked_indices": [
+          1
+        ]
+      },
+      "loop1": {
+        "checked_names": [
+          "2xfm:m57.VAL"
+        ],
+        "checked_indices": [
+          1
+        ]
+      },
+      "loop2": {
+        "checked_names": [
+          "2xfm:m13.VAL"
+        ],
+        "checked_indices": [
+          2
+        ]
+      },
+      "loop3": {
+        "checked_names": [
+          "2xfm:m60.VAL"
+        ],
+        "checked_indices": [
+          3
+        ]
+      },
+      "loop4": {
+        "checked_names": [],
+        "checked_indices": []
+      },
+      "line_action": "not ready",
+      "eta": "--:--:--",
+      "sample_name": "step_2D_scan",
+      "dwell_time": "100",
+      "l1_center": "0",
+      "l1_size": "0.1",
+      "l1_width": "10",
+      "l2_center": "0",
+      "l2_size": "0.1",
+      "l2_width": "10",
+      "l3_center": "",
+      "l3_size": "",
+      "l3_width": "",
+      "l4_center": "",
+      "l4_size": "",
+      "l4_width": "",
+      "tangential_step": "0.01",
+      "radial_step": "0.02",
+      "diameter": "1",
+      "cycles": "",
+      "x_freq": "",
+      "y_freq": "",
+      "comments": "Predefined step 2D scan"
+    }
+  ]
+}

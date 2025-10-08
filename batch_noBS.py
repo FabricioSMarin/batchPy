@@ -10,8 +10,6 @@ from trajectories import *
 from TableWidgetWithContextMenu import TableWidgetWithContextMenu
 from ComboBoxWithPlaceholder import ComboBoxWithPlaceholder
 from Controls import Controls
-from ScanSettings import ScanSettings
-from Line import Line
 from VerticalLine import VerticalLine
 from Stream import Stream 
 import threading
@@ -52,8 +50,6 @@ class BatchScanGui(QMainWindow):
 
     def initUI(self):
         self.controls = Controls()
-        self.settings = ScanSettings(self)
-        self.settings.open_local_settings()
         # Settings dialog will be created after UI is fully initialized
         savelog_action = QAction('save terminal log', self)
         savelog_action.triggered.connect(self.save_log)
@@ -76,10 +72,6 @@ class BatchScanGui(QMainWindow):
         settings_action.triggered.connect(self.open_settings)
         self.settings_menu.addAction(settings_action)
 
-        # self.batch_widget = self.make_batch_widget(1)
-        # self.batch_widget.setMaximumHeight(120)
-        # self.batch_widget.setMinimumHeight(80)
-
         # Create vertical column widget
         self.vertical_column_widget = self.make_vertical_column_widget(1)
         self.vertical_column_widget.setMaximumWidth(300)
@@ -88,7 +80,6 @@ class BatchScanGui(QMainWindow):
         self.queue_widget = self.make_queue_widget()
 
         layout = QVBoxLayout()
-        # layout.addWidget(self.batch_widget)
         layout.addWidget(self.queue_widget)
         layout.addWidget(self.controls)
         layout.setSpacing(0)
@@ -109,7 +100,7 @@ class BatchScanGui(QMainWindow):
         self.controls.visual_box.model().itemChanged.connect(self.view_option_changed)
         #TODO: define positioners some other way ex: get positioners list upon connecting to qserver
 
-        self.open_local_session() #this just restores the plan setup rows from the previous session in case the gui was accidentally closed
+        # self.open_local_session() #this just restores the plan setup rows from the previous session in case the gui was accidentally closed
         self.get_positioners()
         self.get_detectors()
         return layout2
@@ -213,26 +204,6 @@ class BatchScanGui(QMainWindow):
     def __del__(self):
         sys.stdout = sys.__stdout__
 
-    # def add_line(self):
-    #     self.id_counter = self.id_counter + 1
-    #     self.line_ids.append(self.id_counter)
-    #     line_id = self.line_ids[-1]
-    #     # Use settings manager (no UI) for Line initialization
-    #     setattr(self, f"line_{line_id}", Line(line_id, self.settings_manager))
-    #     line = self.__dict__["line_{}".format(line_id)]
-
-    #     line.setAutoFillBackground(True)
-    #     line.addlinesig.connect(self.add_line)
-    #     line.deletelinesig.connect(self.delete_line)
-    #     line.duplicatelinesig.connect(self.duplicate_line)
-    #     line.duplicatelinesig.connect(self.clear_line)
-    #     line.sendToQueueSig.connect(self.enqueue_line)
-    #     line.trajectoryChangedSig.connect(self.validate_params)
-    #     line.lineditEnterdSig.connect(self.validate_params)
-    #     line.trajectory_changed()
-    #     line.loop_changed()
-    #     self.lines_layout.addWidget(line, alignment=QtCore.Qt.AlignLeft)
-
     def validate_params(self):
         line = self.sender().__dict__
         preval = self.pre_validate(line)
@@ -264,11 +235,11 @@ class BatchScanGui(QMainWindow):
             self.set_preview(x,y)
 
         if trajectory=="spiral":
-            x, y, t = spiral(eval(params["dwell_time"]), eval(params["radial_step"]), eval(params["step_size"]), eval(params["l2_center"]), eval(params["l2_center"]), eval(params["diameter"]))
+            x, y, t = spiral(eval(params["dwell_time"]), eval(params["radial_step"]), eval(params["tangential_step"]), eval(params["l2_center"]), eval(params["l2_center"]), eval(params["diameter"]))
             self.set_preview(x,y)
 
         if trajectory=="lissajous":
-            x, y = lissajous(eval(params["dwell_time"]), eval(params["step_size"]), eval(params["l1_center"]), eval(params["l2_center"]), eval(params["l1_width"]), eval(params["l2_width"]), eval(params["cycles"]), eval(params["x_freq"]), eval(params["y_freq"]))
+            x, y = lissajous(eval(params["dwell_time"]), eval(params["tangential_step"]), eval(params["l1_center"]), eval(params["l2_center"]), eval(params["l1_width"]), eval(params["l2_width"]), eval(params["cycles"]), eval(params["x_freq"]), eval(params["y_freq"]))
             self.set_preview(x,y)
 
         if trajectory=="custom":
@@ -296,7 +267,7 @@ class BatchScanGui(QMainWindow):
                     return
             #check if any specific keys are less than or equal to 0:
             if key == ("dwell_time" or "l1_size" or "l1_width"  or "l2_size" or "l2_width"  or \
-                            "l3_size" or "l3_width" or "l4_size" or "l4_width"  or "step_size" or \
+                            "l3_size" or "l3_width" or "l4_size" or "l4_width"  or "tangential_step" or \
                             "radial_step" or "diameter" or "x_freq" or "y_freq") and item.isVisible() and item.text() != "" and eval(item.text()) <=0:
                 print(f"invalid value for {key}")
                 return
@@ -475,22 +446,8 @@ class BatchScanGui(QMainWindow):
         return True
 
 
-    # def delete_line(self, line_id):
-    #     line = self.__dict__["line_{}".format(line_id)]
-    #     line.deleteLater()
-    #     self.lines_layout.removeWidget(line)
-    #     delattr(self, "line_{}".format(line_id))
-    #     self.line_ids.remove(line_id)
-
-    # def duplicate_line(self, line_id):
-    #     self.add_line()
-    #     line = self.get_line(line_id)
-    #     params = self.get_params(line)
-    #     self.update_scan_line(params,self.line_ids[-1])
-    #     return
-
     def enqueue_line(self, line_id):
-        line=self.get_line(line_id)
+        line=self.get_vertical_line(line_id)
         if line["line_action"].text() == "ready":
             try:
                 params = self.get_params(line=line)
@@ -503,13 +460,6 @@ class BatchScanGui(QMainWindow):
         else:
             print("line not ready")
             return
-
-    def clear_line(self, line_id):
-        line = self.get_line(line_id)
-        keys = list(line.keys())
-        for key in keys:
-            if isinstance(line[key], QLineEdit):
-                line[key].setText("")
 
     def delete_vertical_line(self, line_id):
         """Delete a vertical line widget"""
@@ -562,19 +512,6 @@ class BatchScanGui(QMainWindow):
                 elif hasattr(widget, 'setCurrentText'):
                     widget.setCurrentText(str(value))
 
-    # def make_batch_widget(self, num_lines):
-    #     batch_widget = QScrollArea()
-    #     scroll_widget = QWidget()
-    #     self.vertical_lines_layout = QVBoxLayout()
-
-    #     for i in range(num_lines):
-    #         self.add_vertical_line()
-    #     scroll_widget.setLayout(self.vertical_lines_layout)
-    #     scroll_widget.setStyleSheet("QFrame {background-color: rgb(255, 255, 255);border-width: 1;border-radius: 3;border-style: solid;border-color: rgb(10, 10, 10)}")
-    #     scroll_widget.setMaximumWidth(2500)
-    #     batch_widget.setWidget(scroll_widget)
-    #     batch_widget.setWidgetResizable(True)
-    #     return batch_widget
 
     def make_vertical_column_widget(self, num_lines):
         """Create a vertical column widget similar to make_batch_widget but with vertical layout"""
@@ -619,78 +556,28 @@ class BatchScanGui(QMainWindow):
         """Apply predefined scan settings based on scan type"""
         if scan_type == "step 2D":
             # Step 2D scan settings
-            line.sample_name.setText("step_2D_scan")
-            line.dwell_time.setText("100")  # 100ms dwell time
-            line.trajectory.check_selected([0])  # Select "raster"
-            line.loop1.check_selected([0])  # Select first positioner
-            line.loop2.check_selected([1])  # Select second positioner
-            line.l1_center.setText("0")
-            line.l1_size.setText("0.1")
-            line.l1_width.setText("10")
-            line.l2_center.setText("0")
-            line.l2_size.setText("0.1")
-            line.l2_width.setText("10")
-            line.comments.setText("Predefined step 2D scan")
-            
+            line.loop1.check_selected([1])  # Select first positioner
+            line.loop2.check_selected([2])  # Select second positioner
+            line.loop3.check_selected([])  # Select third positioner
+            line.scan_type.setChecked(False)
+            line.trajectory.check_selected([1])  # Select "raster"
         elif scan_type == "fly 2D":
             # Fly 2D scan settings
-            line.sample_name.setText("fly_2D_scan")
-            line.dwell_time.setText("1")  # 1ms dwell time for fly scan
-            line.trajectory.check_selected([0])  # Select "raster"
-            line.loop1.check_selected([0])  # Select first positioner
-            line.loop2.check_selected([1])  # Select second positioner
-            line.l1_center.setText("0")
-            line.l1_size.setText("0.01")
-            line.l1_width.setText("5")
-            line.l2_center.setText("0")
-            line.l2_size.setText("0.01")
-            line.l2_width.setText("5")
-            line.comments.setText("Predefined fly 2D scan")
-            
+            line.loop1.check_selected([1])  # Select first positioner
+            line.loop2.check_selected([2])  # Select second positioner
+            line.loop3.check_selected([])  # Select third positioner
+            line.scan_type.setChecked(True)
+
+            line.trajectory.check_selected([1])  # Select "raster"
         elif scan_type == "fly 3D":
             # Fly 3D scan settings
-            line.sample_name.setText("fly_3D_scan")
-            line.dwell_time.setText("0.5")  # 0.5ms dwell time for 3D fly scan
-            line.trajectory.check_selected([2])  # Select "spiral"
-            line.loop1.check_selected([0])  # Select first positioner
-            line.loop2.check_selected([1])  # Select second positioner
-            line.loop3.check_selected([2])  # Select third positioner
-            line.l1_center.setText("0")
-            line.l1_size.setText("0.005")
-            line.l1_width.setText("2")
-            line.l2_center.setText("0")
-            line.l2_size.setText("0.005")
-            line.l2_width.setText("2")
-            line.step_size.setText("0.01")
-            line.radial_step.setText("0.02")
-            line.diameter.setText("1")
-            line.comments.setText("Predefined fly 3D spiral scan")
+            line.loop1.check_selected([1])  # Select first positioner
+            line.loop2.check_selected([2])  # Select second positioner
+            line.loop3.check_selected([3])  # Select third positioner
+            line.scan_type.setChecked(True)
+            line.trajectory.check_selected([1])  # Select "raster"
         
-        # Trigger trajectory change to update parameter visibility
-        line.trajectory_changed()
-
-    # def add_line(self):
-    #     self.id_counter += 1
-    #     self.line_ids.append(self.id_counter)
-    #     line_id = self.line_ids[-1]
-    #     print("lineID", line_id)
-    #     setattr(self, f"line_{line_id}", Line(line_id))
-    #     line = self.__dict__["line_{}".format(line_id)]
-
-    #     line.setAutoFillBackground(True)
-    #     line.addlinesig.connect(self.add_line)
-    #     line.deletelinesig.connect(self.delete_line)
-    #     line.duplicatelinesig.connect(self.duplicate_line)
-    #     line.duplicatelinesig.connect(self.clear_line)
-    #     line.sendToQueueSig.connect(self.enqueue_line)
-    #     line.trajectoryChangedSig.connect(self.validate_params)
-    #     line.lineditEnterdSig.connect(self.validate_params)
-    #     line.sendToQueueSig.connect(self.validate_params)
-
-    #     line.trajectory_changed()
-    #     line.loop_changed()
-    #     self.lines_layout.addWidget(line, alignment=QtCore.Qt.AlignLeft)
-
+        line.scan_type_changed()
 
     def add_vertical_line(self):
         """Add a vertical line widget similar to add_line but with vertical organization"""
@@ -712,10 +599,7 @@ class BatchScanGui(QMainWindow):
         line.sendToQueueSig.connect(self.validate_params)
 
         line.trajectory_changed()
-        line.loop_changed()
         self.vertical_lines_layout.addWidget(line, alignment=QtCore.Qt.AlignTop)
-
-
 
     def make_queue_widget(self):
         lines = self.get_lines()
@@ -745,35 +629,6 @@ class BatchScanGui(QMainWindow):
         
         queue_widget.setLayout(layout)
         return queue_widget
-
-    def get_line(self, line_id):
-        lines = self.get_lines()
-        for line in lines:
-            if line["id"] == line_id:
-                return line
-        return None
-
-    def update_scan_line(self,params,line_id):
-        line = self.get_line(line_id)
-        keys = list(line.keys())
-        for key in keys:
-            try: 
-                if isinstance(line[key], QPushButton):
-                    line[key].setText(params[key][0])
-                    line[key].setChecked(params[key][1])
-                elif isinstance(line[key], ComboBoxWithPlaceholder):
-                    for j in range(line[key].count()-1):
-                        line[key].removeItem(1)
-                    line[key].addItems(params[key][0])
-                    line[key].check_selected(params[key][1])
-                elif isinstance(line[key], QLabel):
-                    line[key].setText(params[key])
-                elif isinstance(line[key], QLineEdit):
-                    line[key].setText(params[key])
-                else: 
-                    pass
-            except Exception as e: 
-                print(e)
 
     def update_plot(self):
         while self.scanning:
@@ -855,10 +710,6 @@ class BatchScanGui(QMainWindow):
             #TODO: if scan done, change line to "done"
 
         """
-
-
-
-
         pass
 
     def queue_save(self):
@@ -933,15 +784,7 @@ class BatchScanGui(QMainWindow):
         self.save_lines_to_json()
         self.save_queue_to_json()
         self.save_pi_dir()
-        self.save_local_session()
         self.save_log()
-
-    def save_local_session(self):
-        session = self.get_session()
-        current_dir = os.path.dirname(os.path.realpath(__file__))+"/"
-        fname = os.path.join(current_dir, "local_session.json")
-        with open(fname, 'w') as f:
-            json.dump(session, f)
 
     def save_log(self):
         """Save message window content to log file based on PI directory"""
@@ -1028,71 +871,6 @@ class BatchScanGui(QMainWindow):
         except Exception as e:
             print(f"Error saving log: {e}")
 
-    def open_local_session(self):
-        current_dir = os.path.dirname(os.path.realpath(__file__))+"/"
-        fname = os.path.join(current_dir, "local_session.json")
-        session = None
-        
-        if os.path.exists(fname) and os.path.getsize(fname):
-            try:
-                with open(fname, 'r') as f:
-                    session = json.load(f)
-            except (json.JSONDecodeError, ValueError) as e:
-                print(f"Error loading local session file: {e}")
-                print("Creating new session file...")
-                # Backup the corrupted file
-                backup_fname = fname + ".backup"
-                try:
-                    os.rename(fname, backup_fname)
-                    print(f"Corrupted file backed up as: {backup_fname}")
-                except:
-                    pass
-                session = None
-        
-        if session is None:
-            session = self.get_session()
-            try:
-                with open(fname, 'w') as f:
-                    json.dump(session, f)
-            except Exception as e:
-                print(f"Error saving new session file: {e}")
-
-        lines = self.get_lines()
-        if len(lines) == 0:
-            print("No vertical lines available for session restoration")
-            return
-        keys = list(lines[0].keys())
-        if len(session)>len(lines): 
-            new_lines = len(session)-len(lines)
-            for line in range(new_lines):
-                self.add_vertical_line()
-        elif len(session)<len(lines): 
-            delete_lines = len(lines) - len(session)
-            for line in range(delete_lines):
-                self.delete_vertical_line(self.line_ids[0])
-
-        for i in range(len(lines)):
-            line = lines[i]
-            for key in keys:
-                try: 
-                    if isinstance(line[key], QPushButton):
-                        line[key].setText(session[i][key][0])
-                        line[key].setChecked(session[i][key][1])
-                    elif isinstance(line[key], ComboBoxWithPlaceholder):
-                        for j in range(line[key].count()-1):
-                            line[key].removeItem(1)
-                        line[key].addItems(session[i][key][0])
-                        line[key].check_selected(session[i][key][1])
-                    elif isinstance(line[key], QLabel):
-                        line[key].setText(session[i][key])
-                    elif isinstance(line[key], QLineEdit):
-                        line[key].setText(session[i][key])
-                    else: 
-                        line[key] = session[i][key]
-
-                except Exception as e: 
-                    print(e)
-
     def get_session(self):
         ''' session is a list of dictionaries, each list item corresponds to a scan line and each '''
         lines = self.get_lines()
@@ -1110,17 +888,31 @@ class BatchScanGui(QMainWindow):
         """Save all Line objects to JSON file"""
         try:
             lines_data = []
+            combo_box_data = None
+            
             for i in range(self.vertical_lines_layout.count()):
                 line_widget = self.vertical_lines_layout.itemAt(i).widget()
                 if hasattr(line_widget, 'to_dict'):
                     lines_data.append(line_widget.to_dict())
+                elif line_widget == self.vertical_scan_type_combo:
+                    # Save combo box state
+                    combo_box_data = {
+                        'current_text': line_widget.currentText(),
+                        'current_index': line_widget.currentIndex()
+                    }
+            
+            # Create complete data structure
+            complete_data = {
+                'vertical_scan_type_combo': combo_box_data,
+                'lines': lines_data
+            }
             
             current_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
             fname = os.path.join(current_dir, "lines_backup.json")
             
             with open(fname, 'w') as f:
-                json.dump(lines_data, f, indent=2)
-            print(f"Saved {len(lines_data)} lines to {fname}")
+                json.dump(complete_data, f, indent=2)
+            print(f"Saved {len(lines_data)} lines and combo box state to {fname}")
         except Exception as e:
             print(f"Error saving lines to JSON: {e}")
 
@@ -1135,7 +927,17 @@ class BatchScanGui(QMainWindow):
                 return
             
             with open(fname, 'r') as f:
-                lines_data = json.load(f)
+                data = json.load(f)
+            
+            # Handle both old format (list) and new format (dict with combo box)
+            if isinstance(data, list):
+                # Old format - just lines data
+                lines_data = data
+                combo_box_data = None
+            else:
+                # New format - with combo box data
+                lines_data = data.get('lines', [])
+                combo_box_data = data.get('vertical_scan_type_combo', None)
             
             if not lines_data:
                 print("Empty lines backup file, starting with default lines")
@@ -1146,6 +948,21 @@ class BatchScanGui(QMainWindow):
                 child = self.vertical_lines_layout.takeAt(0)
                 if child.widget():
                     child.widget().deleteLater()
+            
+            # Recreate the combo box
+            self.vertical_scan_type_combo = QComboBox()
+            self.vertical_scan_type_combo.addItems(["step 2D", "fly 2D", "fly 3D", "custom"])
+            self.vertical_scan_type_combo.setCurrentText("step 2D")
+            self.vertical_scan_type_combo.currentTextChanged.connect(self.on_vertical_scan_type_changed)
+            self.vertical_scan_type_combo.setStyleSheet("background: lightyellow; color: black; border-radius: 4; padding: 2px;")
+            self.vertical_lines_layout.addWidget(self.vertical_scan_type_combo)
+            
+            # Restore combo box state if available
+            if combo_box_data:
+                try:
+                    self.vertical_scan_type_combo.setCurrentText(combo_box_data['current_text'])
+                except:
+                    print("Could not restore combo box state, using default")
             
             self.line_ids = []
             self.id_counter = 0
