@@ -286,6 +286,7 @@ class BatchScanGui(QMainWindow):
         return params
 
     def check_limits(self, params):
+        #TODO: check PV limits for all positioners at startup and save to json file. If caget fails, use last saved values.
         if self.settings_manager.get_setting("Positioner 1 PV") != "":
             if self.settings_manager.get_setting("Positioner 1 PV").split(":")[1].split(".")[0][0]=="m":
                 try:
