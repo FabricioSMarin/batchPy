@@ -24,7 +24,7 @@ class BatchScanGui(QMainWindow):
 
         self.queue = None
         self.app = app
-        self.timeout = 1
+        self.timeout = 0.25
         self.active_line = -1
         self.update_interval = 10
         self.line_ids = []
@@ -103,8 +103,152 @@ class BatchScanGui(QMainWindow):
         # self.open_local_session() #this just restores the plan setup rows from the previous session in case the gui was accidentally closed
         self.get_positioners()
         self.get_detectors()
+        self.get_positioner_limits()
         return layout2
 
+    def get_positioner_limits(self):
+        """Get positioner limits by retrieving actual values from EPICS PVs with fallback to saved values"""
+        positioner_limits = {}
+        fallback_values = self.load_fallback_values()
+        updated_values = {}  # Track which values were successfully updated from EPICS
+        
+        # Get all positioner limit settings from the settings manager
+        settings_limits = self.settings_manager.get_positioner_limits()
+        
+        print("Retrieving positioner limits from EPICS...")
+        
+        for key, pv_name in settings_limits.items():
+            if pv_name and pv_name.strip():  # Only process non-empty PV names
+                try:
+                    # Use epics.caget to get the actual value from the EPICS PV
+                    actual_value = epics.caget(pv_name, connection_timeout=self.timeout)
+                    if actual_value is not None:
+                        positioner_limits[key] = actual_value
+                        updated_values[key] = actual_value
+                        print(f"{key}: {pv_name} = {actual_value}")
+                    else:
+                        # EPICS returned None, try fallback
+                        if key in fallback_values:
+                            positioner_limits[key] = fallback_values[key]
+                            print(f"{key}: {pv_name} = {fallback_values[key]} (fallback - EPICS returned None)")
+                        else:
+                            positioner_limits[key] = None
+                            print(f"Warning: Could not retrieve value for {key} ({pv_name}) and no fallback available")
+                except Exception as e:
+                    # EPICS connection failed, try fallback
+                    if key in fallback_values:
+                        positioner_limits[key] = fallback_values[key]
+                        print(f"{key}: {pv_name} = {fallback_values[key]} (fallback - EPICS error: {e})")
+                    else:
+                        positioner_limits[key] = None
+                        print(f"Error retrieving {key} ({pv_name}): {e} - no fallback available")
+            else:
+                print(f"Skipping empty PV for {key}")
+                positioner_limits[key] = None
+        
+        # Save successfully retrieved values as fallback for future use
+        if updated_values:
+            self.save_fallback_values(updated_values)
+            print(f"Saved {len(updated_values)} values as fallback")
+        
+        print("Positioner limits retrieved:", positioner_limits)
+        return positioner_limits
+
+    def save_fallback_values(self, values):
+        """Save PV values as fallback for when EPICS connection fails"""
+        try:
+            current_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
+            fname = os.path.join(current_dir, "pv_fallback_values.json")
+            
+            # Load existing fallback values
+            fallback_data = self.load_fallback_values()
+            
+            # Update with new values
+            fallback_data.update(values)
+            
+            # Add metadata
+            fallback_data['_last_updated'] = time.strftime("%Y-%m-%d %H:%M:%S")
+            fallback_data['_version'] = "1.0"
+            
+            with open(fname, 'w') as f:
+                json.dump(fallback_data, f, indent=2)
+            print(f"Saved fallback values to {fname}")
+        except Exception as e:
+            print(f"Error saving fallback values: {e}")
+
+    def load_fallback_values(self):
+        """Load fallback PV values from JSON file"""
+        try:
+            current_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
+            fname = os.path.join(current_dir, "pv_fallback_values.json")
+            
+            if os.path.exists(fname):
+                with open(fname, 'r') as f:
+                    fallback_data = json.load(f)
+                # Remove metadata from returned data
+                fallback_data.pop('_last_updated', None)
+                fallback_data.pop('_version', None)
+                return fallback_data
+            else:
+                print("No fallback values file found")
+                return {}
+        except Exception as e:
+            print(f"Error loading fallback values: {e}")
+            return {}
+
+    def clear_fallback_values(self):
+        """Clear all fallback values"""
+        try:
+            current_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
+            fname = os.path.join(current_dir, "pv_fallback_values.json")
+            
+            if os.path.exists(fname):
+                os.remove(fname)
+                print("Fallback values cleared")
+            else:
+                print("No fallback values file to clear")
+        except Exception as e:
+            print(f"Error clearing fallback values: {e}")
+
+    def get_fallback_info(self):
+        """Get information about fallback values"""
+        try:
+            current_dir = os.path.dirname(os.path.realpath(__file__)) + "/"
+            fname = os.path.join(current_dir, "pv_fallback_values.json")
+            
+            if os.path.exists(fname):
+                with open(fname, 'r') as f:
+                    fallback_data = json.load(f)
+                
+                last_updated = fallback_data.get('_last_updated', 'Unknown')
+                version = fallback_data.get('_version', '1.0')
+                value_count = len([k for k in fallback_data.keys() if not k.startswith('_')])
+                
+                return {
+                    'file_exists': True,
+                    'last_updated': last_updated,
+                    'version': version,
+                    'value_count': value_count,
+                    'file_path': fname
+                }
+            else:
+                return {
+                    'file_exists': False,
+                    'last_updated': None,
+                    'version': None,
+                    'value_count': 0,
+                    'file_path': fname
+                }
+        except Exception as e:
+            print(f"Error getting fallback info: {e}")
+            return {
+                'file_exists': False,
+                'last_updated': None,
+                'version': None,
+                'value_count': 0,
+                'file_path': None,
+                'error': str(e)
+            }
 
     def remove_all_but_first(self,combobox):
         # Get the total number of items in the combo box
@@ -158,6 +302,36 @@ class BatchScanGui(QMainWindow):
         
         # Pre-populate PI Directory from current value
         settings_dialog.settings_widgets["PI Directory"].setText(self.controls.pi_dir.text())
+        
+        # Retrieve and display current EPICS values for positioner limits
+        try:
+            print("Retrieving current EPICS values for settings dialog...")
+            positioner_limits = self.get_positioner_limits()
+            
+            # Check if any values are from fallback by comparing with fresh EPICS attempt
+            fallback_values = self.load_fallback_values()
+            is_using_fallback = False
+            
+            # Try to get fresh values to determine if we're using fallback
+            settings_limits = self.settings_manager.get_positioner_limits()
+            fresh_values = {}
+            for key, pv_name in settings_limits.items():
+                if pv_name and pv_name.strip():
+                    try:
+                        fresh_value = epics.caget(pv_name, connection_timeout=self.timeout)
+                        if fresh_value is not None:
+                            fresh_values[key] = fresh_value
+                    except:
+                        pass
+            
+            # If we have fewer fresh values than fallback values, we're likely using fallback
+            if len(fresh_values) < len([v for v in positioner_limits.values() if v is not None]):
+                is_using_fallback = True
+            
+            settings_dialog.update_positioner_values(positioner_limits, is_fallback=is_using_fallback)
+        except Exception as e:
+            print(f"Error retrieving EPICS values for settings dialog: {e}")
+            settings_dialog.clear_positioner_values()
         
         # Ensure it's a proper popup window
         settings_dialog.setWindowFlags(settings_dialog.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
@@ -225,25 +399,74 @@ class BatchScanGui(QMainWindow):
 
         line["line_action"].setText("ready")
         params = self.get_params(line)
-        trajectory  = params["trajectory"][0]
-        if trajectory=="raster":
-            x, y, t = raster(eval(params["dwell_time"]), eval(params["l1_size"]), eval(params["l1_center"]), eval(params["l2_center"]), eval(params["l1_width"]), eval(params["l2_width"]), 2)
-            self.set_preview(x,y)
+        
+        # Safely get trajectory
+        trajectory_data = params.get("trajectory", [])
+        if isinstance(trajectory_data, list) and len(trajectory_data) > 0:
+            trajectory = trajectory_data[0]
+        elif isinstance(trajectory_data, str) and trajectory_data.strip():
+            trajectory = trajectory_data.strip()
+        else:
+            print("Warning: No valid trajectory found, using default 'raster'")
+            trajectory = "raster"
+        
+        try:
+            if trajectory=="raster":
+                x, y, t = raster(
+                    self.safe_get_param(params, "dwell_time", 1),
+                    self.safe_get_param(params, "l1_size", 0),
+                    self.safe_get_param(params, "l1_center", 0),
+                    self.safe_get_param(params, "l2_center", 0),
+                    self.safe_get_param(params, "l1_width", 0),
+                    self.safe_get_param(params, "l2_width", 0),
+                    2
+                )
+                self.set_preview(x,y)
 
-        if trajectory=="snake":
-            x, y, t = snake(eval(params["dwell_time"]), eval(params["l1_size"]), eval(params["l1_center"]), eval(params["l2_center"]), eval(params["l1_width"]), eval(params["l2_width"]))
-            self.set_preview(x,y)
+            elif trajectory=="snake":
+                x, y, t = snake(
+                    self.safe_get_param(params, "dwell_time", 1),
+                    self.safe_get_param(params, "l1_size", 0),
+                    self.safe_get_param(params, "l1_center", 0),
+                    self.safe_get_param(params, "l2_center", 0),
+                    self.safe_get_param(params, "l1_width", 0),
+                    self.safe_get_param(params, "l2_width", 0)
+                )
+                self.set_preview(x,y)
 
-        if trajectory=="spiral":
-            x, y, t = spiral(eval(params["dwell_time"]), eval(params["radial_step"]), eval(params["tangential_step"]), eval(params["l2_center"]), eval(params["l2_center"]), eval(params["diameter"]))
-            self.set_preview(x,y)
+            elif trajectory=="spiral":
+                x, y, t = spiral(
+                    self.safe_get_param(params, "dwell_time", 1),
+                    self.safe_get_param(params, "radial_step", 0),
+                    self.safe_get_param(params, "tangential_step", 0),
+                    self.safe_get_param(params, "l2_center", 0),
+                    self.safe_get_param(params, "l2_center", 0),
+                    self.safe_get_param(params, "diameter", 0)
+                )
+                self.set_preview(x,y)
 
-        if trajectory=="lissajous":
-            x, y = lissajous(eval(params["dwell_time"]), eval(params["tangential_step"]), eval(params["l1_center"]), eval(params["l2_center"]), eval(params["l1_width"]), eval(params["l2_width"]), eval(params["cycles"]), eval(params["x_freq"]), eval(params["y_freq"]))
-            self.set_preview(x,y)
+            elif trajectory=="lissajous":
+                x, y = lissajous(
+                    self.safe_get_param(params, "dwell_time", 1),
+                    self.safe_get_param(params, "tangential_step", 0),
+                    self.safe_get_param(params, "l1_center", 0),
+                    self.safe_get_param(params, "l2_center", 0),
+                    self.safe_get_param(params, "l1_width", 0),
+                    self.safe_get_param(params, "l2_width", 0),
+                    self.safe_get_param(params, "cycles", 0),
+                    self.safe_get_param(params, "x_freq", 0),
+                    self.safe_get_param(params, "y_freq", 0)
+                )
+                self.set_preview(x,y)
 
-        if trajectory=="custom":
-            pass
+            elif trajectory=="custom":
+                pass
+            else:
+                print(f"Warning: Unknown trajectory '{trajectory}', skipping preview")
+                
+        except Exception as e:
+            print(f"Error generating trajectory preview: {e}")
+            self.set_preview([0,1], [0,0])
 
     def pre_validate(self, line):
         #prevalidate parameters before sending to server
@@ -258,23 +481,21 @@ class BatchScanGui(QMainWindow):
             if item.isVisible() and item.text() == "" and key !="comments":
                 return
             
-            #check if any are non-numeric value with eval(param.text())
+            #check if any are non-numeric value
             if item.isVisible() and item.text() != "" and key !="comments" and key !="sample_name":
-                try: 
-                    eval(item.text())
-                except:
+                if self.safe_eval_numeric(item.text()) is None:
                     print("not numeric value")
                     return
             #check if any specific keys are less than or equal to 0:
-            if key == ("dwell_time" or "l1_size" or "l1_width"  or "l2_size" or "l2_width"  or \
-                            "l3_size" or "l3_width" or "l4_size" or "l4_width"  or "tangential_step" or \
-                            "radial_step" or "diameter" or "x_freq" or "y_freq") and item.isVisible() and item.text() != "" and eval(item.text()) <=0:
-                print(f"invalid value for {key}")
-                return
-            if key == ("l1_center" or "l2_center" or "l3_center" or "l4_center") and item.isVisible() and item.text() != "":
-                try: 
-                    eval(item.text())
-                except:
+            if key in ("dwell_time", "l1_size", "l1_width", "l2_size", "l2_width", 
+                      "l3_size", "l3_width", "l4_size", "l4_width", "tangential_step", 
+                      "radial_step", "diameter", "x_freq", "y_freq") and item.isVisible() and item.text() != "":
+                value = self.safe_eval_numeric(item.text())
+                if value is not None and value <= 0:
+                    print(f"invalid value for {key}")
+                    return
+            if key in ("l1_center", "l2_center", "l3_center", "l4_center") and item.isVisible() and item.text() != "":
+                if self.safe_eval_numeric(item.text()) is None:
                     print("not numeric value")
                     return
             if key == "sample_name" and item.isVisible() and item.text() != "" and bool(re.search(r'[^\w\s]', item.text())):
@@ -285,45 +506,138 @@ class BatchScanGui(QMainWindow):
         params = self.get_params()
         return params
 
+    def get_epics_value_with_fallback(self, pv_name, fallback_key=None):
+        """Get EPICS value with fallback to saved values"""
+        try:
+            value = epics.caget(pv_name, connection_timeout=self.timeout)
+            if value is not None:
+                return value, False  # Return value and False for "not fallback"
+            else:
+                # EPICS returned None, try fallback
+                if fallback_key:
+                    fallback_values = self.load_fallback_values()
+                    if fallback_key in fallback_values:
+                        return fallback_values[fallback_key], True  # Return fallback value and True for "is fallback"
+                return None, False
+        except Exception as e:
+            # EPICS connection failed, try fallback
+            if fallback_key:
+                fallback_values = self.load_fallback_values()
+                if fallback_key in fallback_values:
+                    print(f"Using fallback value for {pv_name}: {fallback_values[fallback_key]} (EPICS error: {e})")
+                    return fallback_values[fallback_key], True  # Return fallback value and True for "is fallback"
+            print(f"Error retrieving {pv_name}: {e} - no fallback available")
+            return None, False
+
+    def safe_get_param(self, params, key, default=0):
+        """Safely get a parameter value with type conversion and default"""
+        try:
+            value = params.get(key, default)
+            if isinstance(value, str) and value.strip():
+                return float(value)
+            elif isinstance(value, (int, float)):
+                return float(value)
+            else:
+                return default
+        except (ValueError, TypeError):
+            print(f"Warning: Could not convert {key} to float, using default {default}")
+            return default
+
+    def safe_eval_numeric(self, text):
+        """Safely evaluate a string as a numeric value"""
+        try:
+            if not text or not text.strip():
+                return None
+            return float(text.strip())
+        except (ValueError, TypeError, SyntaxError):
+            return None
+
     def check_limits(self, params):
-        #TODO: check PV limits for all positioners at startup and save to json file. If caget fails, use last saved values.
+        # Check PV limits for all positioners with fallback to saved values
+        updated_values = {}  # Track values that were successfully retrieved from EPICS
+        
+        # Check if required parameters exist
+        required_params = ['l1_size', 'dwell_time', 'l1_center', 'l2_center', 'l2_size', 'l3_center', 'l3_size', 'l4_center', 'l4_size']
+        missing_params = [p for p in required_params if p not in params or not params[p]]
+        if missing_params:
+            print(f"Warning: Missing required parameters: {missing_params}")
+            # Return True to allow validation to continue with defaults
+            return True
         if self.settings_manager.get_setting("Positioner 1 PV") != "":
             if self.settings_manager.get_setting("Positioner 1 PV").split(":")[1].split(".")[0][0]=="m":
-                try:
-                    mvel = epics.caget(self.settings_manager.get_setting("Positioner 1 PV")[:-3] + "VMAX", connection_timeout=self.timeout)
-                    print(self.settings_manager.get_setting("Positioner 1 PV")[:-3] + "VMAX:", mvel)
-                except:
-                    mvel = None
+                # Get VMAX with fallback
+                mvel, is_fallback = self.get_epics_value_with_fallback(
+                    self.settings_manager.get_setting("Positioner 1 PV")[:-3] + "VMAX",
+                    "Positioner 1 VMAX"
+                )
+                if mvel is None:
+                    print("Could not retrieve Positioner 1 VMAX from EPICS or fallback")
                     return False
-                try:
-                    p1egu = epics.caget(self.settings_manager.get_setting("Positioner 1 PV")[:-3] + "EGU", connection_timeout=self.timeout)
-                    print(self.settings_manager.get_setting("Positioner 1 PV")[:-3] + "EGU:", p1egu)
-                    S = 0.001 if (p1egu=="um" or p1egu=="micron") else 1
-                    T = 0.001 if params["type"]=="fly" else 1
-                    scan_vel = params["l1_size"]/params["dwell_time"]*S*T
-                    if scan_vel > mvel:
-                        print("scan velocity too high")
-                        return False
-                except:
-                    p1egu = None
+                print(f"Positioner 1 VMAX: {mvel}" + (" (fallback)" if is_fallback else ""))
+                if not is_fallback:
+                    updated_values["Positioner 1 VMAX"] = mvel
+                
+                # Get EGU with fallback
+                egu_pv = self.settings_manager.get_setting("Positioner 1 EGU")
+                if egu_pv and egu_pv.strip():
+                    p1egu, is_fallback_egu = self.get_epics_value_with_fallback(egu_pv, "Positioner 1 EGU")
+                else:
+                    # Fallback to constructed PV name if dedicated EGU PV not configured
+                    p1egu, is_fallback_egu = self.get_epics_value_with_fallback(
+                        self.settings_manager.get_setting("Positioner 1 PV")[:-3] + "EGU",
+                        "Positioner 1 EGU"
+                    )
+                if p1egu is None:
+                    print("Could not retrieve Positioner 1 EGU from EPICS or fallback")
                     return False
-                try:
-                    p1llm = epics.caget(self.settings_manager.get_setting("Positioner 1 PV")[:-3] + "LLM", connection_timeout=self.timeout)
-                    print(self.settings_manager.get_setting("Positioner 1 PV")[:-3] + "LLM:", p1llm)
-                    if params["l1_center"]-params["l1_size"]/2 < p1llm:
-                        print("l1_center - l1_size/2 < p1llm")
-                        return False
-                except:
-                    p1llm = None
+                print(f"Positioner 1 EGU: {p1egu}" + (" (fallback)" if is_fallback_egu else ""))
+                if not is_fallback_egu:
+                    updated_values["Positioner 1 EGU"] = p1egu
+                
+                S = 0.001 if (p1egu=="um" or p1egu=="micron") else 1
+                # Get scan type from params, default to "step" if not available
+                scan_type_data = params.get("scan_type", {})
+                scan_type_text = scan_type_data.get("text", "step") if isinstance(scan_type_data, dict) else "step"
+                T = 0.001 if scan_type_text=="fly" else 1
+                l1_size = self.safe_get_param(params, "l1_size", 0)
+                dwell_time = self.safe_get_param(params, "dwell_time", 1)
+                if dwell_time == 0:
+                    print("Warning: dwell_time is 0, cannot calculate scan velocity")
                     return False
-                try:
-                    p1hlm = epics.caget(self.settings_manager.get_setting("Positioner 1 PV")[:-3] + "HLM", connection_timeout=self.timeout)
-                    print(self.settings_manager.get_setting("Positioner 1 PV")[:-3] + "HLM:", p1hlm)
-                    if params["l1_center"]+params["l1_size"]/2 > p1hlm:
-                        print("l1_center + l1_size/2 > p1hlm")
-                        return False
-                except:
-                    p1hlm = None
+                scan_vel = l1_size/dwell_time*S*T
+                if scan_vel > mvel:
+                    print("scan velocity too high")
+                    return False
+                
+                # Get LLM with fallback
+                p1llm, is_fallback_llm = self.get_epics_value_with_fallback(
+                    self.settings_manager.get_setting("Positioner 1 PV")[:-3] + "LLM",
+                    "Positioner 1 LLM"
+                )
+                if p1llm is None:
+                    print("Could not retrieve Positioner 1 LLM from EPICS or fallback")
+                    return False
+                print(f"Positioner 1 LLM: {p1llm}" + (" (fallback)" if is_fallback_llm else ""))
+                if not is_fallback_llm:
+                    updated_values["Positioner 1 LLM"] = p1llm
+                l1_center = self.safe_get_param(params, "l1_center", 0)
+                if l1_center - l1_size/2 < p1llm:
+                    print("l1_center - l1_size/2 < p1llm")
+                    return False
+                
+                # Get HLM with fallback
+                p1hlm, is_fallback_hlm = self.get_epics_value_with_fallback(
+                    self.settings_manager.get_setting("Positioner 1 PV")[:-3] + "HLM",
+                    "Positioner 1 HLM"
+                )
+                if p1hlm is None:
+                    print("Could not retrieve Positioner 1 HLM from EPICS or fallback")
+                    return False
+                print(f"Positioner 1 HLM: {p1hlm}" + (" (fallback)" if is_fallback_hlm else ""))
+                if not is_fallback_hlm:
+                    updated_values["Positioner 1 HLM"] = p1hlm
+                if l1_center + l1_size/2 > p1hlm:
+                    print("l1_center + l1_size/2 > p1hlm")
                     return False
             else:
                 mvel = None
@@ -333,87 +647,105 @@ class BatchScanGui(QMainWindow):
             
         if self.settings_manager.get_setting("Positioner 2 PV") != "":
             if self.settings_manager.get_setting("Positioner 2 PV").split(":")[1].split(".")[0][0]=="m":
-                try:
-                    p2egu = epics.caget(self.settings_manager.get_setting("Positioner 2 PV")[:-3] + "EGU", connection_timeout=self.timeout)
-                    print(self.settings_manager.get_setting("Positioner 2 PV")[:-3] + "EGU:", p2egu)
-                except:
-                    p2egu = None
+                # Get EGU with fallback
+                egu_pv = self.settings_manager.get_setting("Positioner 2 EGU")
+                if egu_pv and egu_pv.strip():
+                    p2egu, is_fallback_egu = self.get_epics_value_with_fallback(egu_pv, "Positioner 2 EGU")
+                else:
+                    # Fallback to constructed PV name if dedicated EGU PV not configured
+                    p2egu, is_fallback_egu = self.get_epics_value_with_fallback(
+                        self.settings_manager.get_setting("Positioner 2 PV")[:-3] + "EGU",
+                        "Positioner 2 EGU"
+                    )
+                if p2egu is None:
+                    print("Could not retrieve Positioner 2 EGU from EPICS or fallback")
                     return False
-                try:
-                    p2llm = epics.caget(self.settings_manager.get_setting("Positioner 2 PV")[:-3] + "LLM", connection_timeout=self.timeout)
-                    print(self.settings_manager.get_setting("Positioner 2 PV")[:-3] + "LLM:", p2llm)
-                except:
-                    p2llm = None
+                print(f"Positioner 2 EGU: {p2egu}" + (" (fallback)" if is_fallback_egu else ""))
+                if not is_fallback_egu:
+                    updated_values["Positioner 2 EGU"] = p2egu
+                
+                # Get LLM with fallback
+                p2llm, is_fallback_llm = self.get_epics_value_with_fallback(
+                    self.settings_manager.get_setting("Positioner 2 PV")[:-3] + "LLM",
+                    "Positioner 2 LLM"
+                )
+                if p2llm is None:
+                    print("Could not retrieve Positioner 2 LLM from EPICS or fallback")
                     return False
-                try:
-                    p2hlm = epics.caget(self.settings_manager.get_setting("Positioner 2 PV")[:-3] + "HLM", connection_timeout=self.timeout)
-                    print(self.settings_manager.get_setting("Positioner 2 PV")[:-3] + "HLM:", p2hlm)
-                    if params["l2_center"]+params["l2_size"]/2 > p2hlm:
-                        print("l2_center + l2_size/2 > p2hlm")
-                        return False
-                except:
-                    p2hlm = None
+                print(f"Positioner 2 LLM: {p2llm}" + (" (fallback)" if is_fallback_llm else ""))
+                if not is_fallback_llm:
+                    updated_values["Positioner 2 LLM"] = p2llm
+                
+                # Get HLM with fallback
+                p2hlm, is_fallback_hlm = self.get_epics_value_with_fallback(
+                    self.settings_manager.get_setting("Positioner 2 PV")[:-3] + "HLM",
+                    "Positioner 2 HLM"
+                )
+                if p2hlm is None:
+                    print("Could not retrieve Positioner 2 HLM from EPICS or fallback")
+                    return False
+                print(f"Positioner 2 HLM: {p2hlm}" + (" (fallback)" if is_fallback_hlm else ""))
+                if not is_fallback_hlm:
+                    updated_values["Positioner 2 HLM"] = p2hlm
+                l2_center = self.safe_get_param(params, "l2_center", 0)
+                l2_size = self.safe_get_param(params, "l2_size", 0)
+                if l2_center + l2_size/2 > p2hlm:
+                    print("l2_center + l2_size/2 > p2hlm")
                     return False
             else:
                 p2llm = None
                 p2hlm = None
                 print(" Positioner 2 not a standard motor")
 
-
-        if self.settings_manager.get_setting("Positioner 2 PV") != "":
-            if self.settings_manager.get_setting("Positioner 2 PV").split(":")[1].split(".")[0][0]=="m":
-                try:
-                    p2egu = epics.caget(self.settings_manager.get_setting("Positioner 2 PV")[:-3] + "EGU", connection_timeout=self.timeout)
-                    print(self.settings_manager.get_setting("Positioner 2 PV")[:-3] + "EGU:", p2egu)
-                except:
-                    p2egu = None
-                    print(" cannot connect to Positioner 2 EGU")
-                try:
-                    p2llm = epics.caget(self.settings_manager.get_setting("Positioner 2 PV")[:-3] + "LLM", connection_timeout=self.timeout)
-                    print(self.settings_manager.get_setting("Positioner 2 PV")[:-3] + "LLM:", p2llm)
-                    if params["l2_center"]-params["l2_size"]/2 < p2llm:
-                        print("l2_center - l2_size/2 < p2llm")
-                        return False
-                except:
-                    p2llm = None
-                    print(" cannot connect to Positioner 2 LLM")
-                try:
-                    p2hlm = epics.caget(self.settings_manager.get_setting("Positioner 2 PV")[:-3] + "HLM", connection_timeout=self.timeout)
-                    print(self.settings_manager.get_setting("Positioner 2 PV")[:-3] + "HLM:", p2hlm)
-                except:
-                    p2hlm = None
-                    print(" cannot connect to Positioner 2 HLM")
-            else:
-                p3llm = None
-                p3hlm = None
-                print(" Positioner 3 not a standard motor")
-
-
         if self.settings_manager.get_setting("Positioner 3 PV") != "":
             if self.settings_manager.get_setting("Positioner 3 PV").split(":")[1].split(".")[0][0]=="m":
-                try:
-                    p3egu = epics.caget(self.settings_manager.get_setting("Positioner 3 PV")[:-3] + "EGU", connection_timeout=self.timeout)
-                    print(self.settings_manager.get_setting("Positioner 3 PV")[:-3] + "EGU:", p3egu)
-                except:
-                    p3egu = None
+                # Get EGU with fallback
+                egu_pv = self.settings_manager.get_setting("Positioner 3 EGU")
+                if egu_pv and egu_pv.strip():
+                    p3egu, is_fallback_egu = self.get_epics_value_with_fallback(egu_pv, "Positioner 3 EGU")
+                else:
+                    # Fallback to constructed PV name if dedicated EGU PV not configured
+                    p3egu, is_fallback_egu = self.get_epics_value_with_fallback(
+                        self.settings_manager.get_setting("Positioner 3 PV")[:-3] + "EGU",
+                        "Positioner 3 EGU"
+                    )
+                if p3egu is None:
+                    print("Could not retrieve Positioner 3 EGU from EPICS or fallback")
                     return False
-                try:
-                    p3llm = epics.caget(self.settings_manager.get_setting("Positioner 3 PV")[:-3] + "LLM", connection_timeout=self.timeout)
-                    print(self.settings_manager.get_setting("Positioner 3 PV")[:-3] + "LLM:", p3llm)
-                    if params["l3_center"]-params["l3_size"]/2 < p3llm:
-                        print("l3_center - l3_size/2 < p3llm")
-                        return False
-                except:
-                    p3llm = None
+                print(f"Positioner 3 EGU: {p3egu}" + (" (fallback)" if is_fallback_egu else ""))
+                if not is_fallback_egu:
+                    updated_values["Positioner 3 EGU"] = p3egu
+                
+                # Get LLM with fallback
+                p3llm, is_fallback_llm = self.get_epics_value_with_fallback(
+                    self.settings_manager.get_setting("Positioner 3 PV")[:-3] + "LLM",
+                    "Positioner 3 LLM"
+                )
+                if p3llm is None:
+                    print("Could not retrieve Positioner 3 LLM from EPICS or fallback")
                     return False
-                try:
-                    p3hlm = epics.caget(self.settings_manager.get_setting("Positioner 3 PV")[:-3] + "HLM", connection_timeout=self.timeout)
-                    print(self.settings_manager.get_setting("Positioner 3 PV")[:-3] + "HLM:", p3hlm)
-                    if params["l3_center"]+params["l3_size"]/2 > p3hlm:
-                        print("l3_center + l3_size/2 > p3hlm")
-                        return False
-                except:
-                    p3hlm = None
+                print(f"Positioner 3 LLM: {p3llm}" + (" (fallback)" if is_fallback_llm else ""))
+                if not is_fallback_llm:
+                    updated_values["Positioner 3 LLM"] = p3llm
+                l3_center = self.safe_get_param(params, "l3_center", 0)
+                l3_size = self.safe_get_param(params, "l3_size", 0)
+                if l3_center - l3_size/2 < p3llm:
+                    print("l3_center - l3_size/2 < p3llm")
+                    return False
+                
+                # Get HLM with fallback
+                p3hlm, is_fallback_hlm = self.get_epics_value_with_fallback(
+                    self.settings_manager.get_setting("Positioner 3 PV")[:-3] + "HLM",
+                    "Positioner 3 HLM"
+                )
+                if p3hlm is None:
+                    print("Could not retrieve Positioner 3 HLM from EPICS or fallback")
+                    return False
+                print(f"Positioner 3 HLM: {p3hlm}" + (" (fallback)" if is_fallback_hlm else ""))
+                if not is_fallback_hlm:
+                    updated_values["Positioner 3 HLM"] = p3hlm
+                if l3_center + l3_size/2 > p3hlm:
+                    print("l3_center + l3_size/2 > p3hlm")
                     return False
             else:
                 p3llm = None
@@ -422,36 +754,72 @@ class BatchScanGui(QMainWindow):
 
         if self.settings_manager.get_setting("Positioner 4 PV") != "":
             if self.settings_manager.get_setting("Positioner 4 PV").split(":")[1].split(".")[0][0]=="m":
-                try:
-                    p4llm = epics.caget(self.settings_manager.get_setting("Positioner 4 PV")[:-3] + "LLM", connection_timeout=self.timeout)
-                    print(self.settings_manager.get_setting("Positioner 4 PV")[:-3] + "LLM:", p4llm)
-                    if params["l4_center"]-params["l4_size"]/2 < p4llm:
-                        print("l4_center - l4_size/2 < p4llm")
-                        return False
-                except:
-                    p4llm = None
+                # Get EGU with fallback
+                egu_pv = self.settings_manager.get_setting("Positioner 4 EGU")
+                if egu_pv and egu_pv.strip():
+                    p4egu, is_fallback_egu = self.get_epics_value_with_fallback(egu_pv, "Positioner 4 EGU")
+                else:
+                    # Fallback to constructed PV name if dedicated EGU PV not configured
+                    p4egu, is_fallback_egu = self.get_epics_value_with_fallback(
+                        self.settings_manager.get_setting("Positioner 4 PV")[:-3] + "EGU",
+                        "Positioner 4 EGU"
+                    )
+                if p4egu is None:
+                    print("Could not retrieve Positioner 4 EGU from EPICS or fallback")
                     return False
-                try:
-                    p4hlm = epics.caget(self.settings_manager.get_setting("Positioner 4 PV")[:-3] + "HLM", connection_timeout=self.timeout)
-                    print(self.settings_manager.get_setting("Positioner 4 PV")[:-3] + "HLM:", p4hlm)
-                    if params["l4_center"]+params["l4_size"]/2 > p4hlm:
-                        print("l4_center + l4_size/2 > p4hlm")
-                        return False
-                except:
-                    p4hlm = None
+                print(f"Positioner 4 EGU: {p4egu}" + (" (fallback)" if is_fallback_egu else ""))
+                if not is_fallback_egu:
+                    updated_values["Positioner 4 EGU"] = p4egu
+                
+                # Get LLM with fallback
+                p4llm, is_fallback_llm = self.get_epics_value_with_fallback(
+                    self.settings_manager.get_setting("Positioner 4 PV")[:-3] + "LLM",
+                    "Positioner 4 LLM"
+                )
+                if p4llm is None:
+                    print("Could not retrieve Positioner 4 LLM from EPICS or fallback")
+                    return False
+                print(f"Positioner 4 LLM: {p4llm}" + (" (fallback)" if is_fallback_llm else ""))
+                if not is_fallback_llm:
+                    updated_values["Positioner 4 LLM"] = p4llm
+                l4_center = self.safe_get_param(params, "l4_center", 0)
+                l4_size = self.safe_get_param(params, "l4_size", 0)
+                if l4_center - l4_size/2 < p4llm:
+                    print("l4_center - l4_size/2 < p4llm")
+                    return False
+                
+                # Get HLM with fallback
+                p4hlm, is_fallback_hlm = self.get_epics_value_with_fallback(
+                    self.settings_manager.get_setting("Positioner 4 PV")[:-3] + "HLM",
+                    "Positioner 4 HLM"
+                )
+                if p4hlm is None:
+                    print("Could not retrieve Positioner 4 HLM from EPICS or fallback")
+                    return False
+                print(f"Positioner 4 HLM: {p4hlm}" + (" (fallback)" if is_fallback_hlm else ""))
+                if not is_fallback_hlm:
+                    updated_values["Positioner 4 HLM"] = p4hlm
+                if l4_center + l4_size/2 > p4hlm:
+                    print("l4_center + l4_size/2 > p4hlm")
                     return False
             else:
                 p4llm = None
                 p4hlm = None
                 print(" Positioner 4 not a standard motor")
+        
+        # Save successfully retrieved values as fallback for future use
+        if updated_values:
+            self.save_fallback_values(updated_values)
+            print(f"Saved {len(updated_values)} limit values as fallback")
+        
         return True
 
 
     def enqueue_line(self, line_id):
-        line=self.get_vertical_line(line_id)
-        if line["line_action"].text() == "ready":
+        line = self.get_vertical_line(line_id)
+        if line.line_action.text() == "ready":
             try:
-                params = self.get_params(line=line)
+                params = self.get_params(line=line.__dict__)
                 params["pi_directory"] = self.controls.pi_dir.text()
                 print("added to queue")
                 self.send_to_queue(params)
@@ -481,10 +849,10 @@ class BatchScanGui(QMainWindow):
     def clear_vertical_line(self, line_id):
         """Clear a vertical line widget"""
         line = self.get_vertical_line(line_id)
-        keys = list(line.keys())
+        keys = list(line.__dict__.keys())
         for key in keys:
-            if isinstance(line[key], QLineEdit):
-                line[key].setText("")
+            if isinstance(line.__dict__[key], QLineEdit):
+                line.__dict__[key].setText("")
 
     def get_vertical_line(self, line_id):
         """Get vertical line widget by ID"""
