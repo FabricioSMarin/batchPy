@@ -390,16 +390,15 @@ class BatchScanGui(QMainWindow):
             print("pre-line validation passed")
             limits_passed = self.check_limits(preval)
             if limits_passed:
-                print("limits passed")
+                print("limits passed")   
             else:
                 print("limits not passed")
                 line["line_action"].setText("not ready")
                 self.set_preview([0,1], [0,0])
                 return
 
-        line["line_action"].setText("ready")
         params = self.get_params(line)
-        
+
         # Safely get trajectory
         trajectory_data = params.get("trajectory", [])
         if isinstance(trajectory_data, list) and len(trajectory_data) > 0:
@@ -418,10 +417,7 @@ class BatchScanGui(QMainWindow):
                     self.safe_get_param(params, "l1_center", 0),
                     self.safe_get_param(params, "l2_center", 0),
                     self.safe_get_param(params, "l1_width", 0),
-                    self.safe_get_param(params, "l2_width", 0),
-                    2
-                )
-                self.set_preview(x,y)
+                    self.safe_get_param(params, "l2_width", 0),2)
 
             elif trajectory=="snake":
                 x, y, t = snake(
@@ -430,9 +426,7 @@ class BatchScanGui(QMainWindow):
                     self.safe_get_param(params, "l1_center", 0),
                     self.safe_get_param(params, "l2_center", 0),
                     self.safe_get_param(params, "l1_width", 0),
-                    self.safe_get_param(params, "l2_width", 0)
-                )
-                self.set_preview(x,y)
+                    self.safe_get_param(params, "l2_width", 0))
 
             elif trajectory=="spiral":
                 x, y, t = spiral(
@@ -441,12 +435,10 @@ class BatchScanGui(QMainWindow):
                     self.safe_get_param(params, "tangential_step", 0),
                     self.safe_get_param(params, "l2_center", 0),
                     self.safe_get_param(params, "l2_center", 0),
-                    self.safe_get_param(params, "diameter", 0)
-                )
-                self.set_preview(x,y)
+                    self.safe_get_param(params, "diameter", 0))
 
             elif trajectory=="lissajous":
-                x, y = lissajous(
+                x, y, t = lissajous(
                     self.safe_get_param(params, "dwell_time", 1),
                     self.safe_get_param(params, "tangential_step", 0),
                     self.safe_get_param(params, "l1_center", 0),
@@ -455,18 +447,30 @@ class BatchScanGui(QMainWindow):
                     self.safe_get_param(params, "l2_width", 0),
                     self.safe_get_param(params, "cycles", 0),
                     self.safe_get_param(params, "x_freq", 0),
-                    self.safe_get_param(params, "y_freq", 0)
-                )
-                self.set_preview(x,y)
+                    self.safe_get_param(params, "y_freq", 0))
 
             elif trajectory=="custom":
                 pass
             else:
                 print(f"Warning: Unknown trajectory '{trajectory}', skipping preview")
-                
+              
         except Exception as e:
             print(f"Error generating trajectory preview: {e}")
             self.set_preview([0,1], [0,0])
+
+        eta = self.get_eta(params, x, y, t)
+        if eta is not None:
+            line["eta"].setText(eta)
+            line["line_action"].setText("ready")
+            self.set_preview(x,y)
+        else:
+            line["eta"].setText("--:--:--") 
+            line["line_action"].setText("not ready")
+            self.set_preview([0,1], [0,0])
+        return
+
+
+
 
     def pre_validate(self, line):
         #prevalidate parameters before sending to server
@@ -478,7 +482,7 @@ class BatchScanGui(QMainWindow):
         #check if anylinedit is empty (except for comments)
         for key in linedits.keys(): 
             item = linedits[key]
-            if item.isVisible() and item.text() == "" and key !="comments":
+            if item.isVisible() and item.text() == "" and key not in ["comments", "sample_name"]:
                 return
             
             #check if any are non-numeric value
@@ -1102,9 +1106,13 @@ class BatchScanGui(QMainWindow):
         else:
             return
 
-    def get_eta(self, params):
-        # eta = self.scan.get_scan_eta(params)
-        pass
+    def get_eta(self, params, x, y, t=None):
+        dwell = eval(params["dwell_time"]) #ms
+        eta = (len(x)-len(np.unique(y)))*dwell/1000 #s
+        overhead = len(np.unique(y))*0.5
+        total_eta = eta + overhead
+        formatted_eta = time.strftime("%H:%M:%S", time.gmtime(total_eta))
+        return formatted_eta
 
     def get_lines(self):
         lines = []
@@ -1124,6 +1132,9 @@ class BatchScanGui(QMainWindow):
         keys = list(line.keys())
         params = {}
         for key in keys: 
+            # Exclude settings_dialog and other non-serializable attributes
+            if key in ['settings_dialog', 'id']:
+                continue
             if isinstance(line[key], QPushButton):
                 params[key] = line[key].text()
             elif isinstance(line[key], ComboBoxWithPlaceholder):

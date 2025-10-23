@@ -265,6 +265,9 @@ class VerticalLine(QWidget):
         self.comments.setPlaceholderText("comments")
         self.comments.setFixedSize(size2, height)
         parent_layout.addWidget(self.comments)
+        
+        # Connect all QLineEdit widgets to emit lineditEnterdSig when Enter is pressed
+        self.connect_line_edits()
 
     def create_status_section(self, parent_layout, size5, height):
         """Create status section"""
@@ -431,7 +434,25 @@ class VerticalLine(QWidget):
     def update_width(self):
         """Update width calculation"""
         # Implement width update logic
-        pass
+        # Also emit the signal when editing is finished
+        self.lineditEnterdSig.emit()
+
+    def on_line_edit_entered(self):
+        """Handle when Enter is pressed in any QLineEdit"""
+        self.lineditEnterdSig.emit()
+
+    def connect_line_edits(self):
+        """Connect all QLineEdit widgets to emit lineditEnterdSig when Enter is pressed"""
+        line_edit_widgets = [
+            self.sample_name, self.dwell_time, self.l1_center, self.l1_size, self.l1_width,
+            self.l2_center, self.l2_size, self.l2_width, self.l3_center, self.l3_size, self.l3_width,
+            self.l4_center, self.l4_size, self.l4_width, self.tangential_step, self.radial_step,
+            self.diameter, self.cycles, self.x_freq, self.y_freq, self.comments
+        ]
+        
+        for widget in line_edit_widgets:
+            if widget:  # Make sure the widget exists
+                widget.returnPressed.connect(self.on_line_edit_entered)
 
     def make_pretty(self):
         """Apply styling to the widget - matches original Line widget styling"""
