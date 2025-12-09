@@ -20,7 +20,7 @@
       },
       "trajectory": {
         "checked_names": [
-          "raster"
+          "snake"
         ],
         "checked_indices": [
           1
@@ -43,19 +43,15 @@
         ]
       },
       "loop3": {
-        "checked_names": [
-          "2xfm:m60.VAL"
-        ],
-        "checked_indices": [
-          3
-        ]
+        "checked_names": [],
+        "checked_indices": []
       },
       "loop4": {
         "checked_names": [],
         "checked_indices": []
       },
-      "line_action": "ready",
-      "eta": "02:55:00",
+      "line_action": "not ready",
+      "eta": "--:--:--",
       "sample_name": "",
       "dwell_time": "10",
       "l1_center": "0",

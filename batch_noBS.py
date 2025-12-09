@@ -1062,9 +1062,6 @@ class BatchScanGui(QMainWindow):
         except Exception as e: 
             print(e)
         
-    # def queue_execute_now(self):
-    #     pass
-
     def queue_abort(self):
         pass
 
@@ -1074,7 +1071,7 @@ class BatchScanGui(QMainWindow):
     def queue_pause(self):
         pass
     
-    def queue_start(self):
+    def queue_begin(self):
         #TODO: get queue, get first "ready" line, 
         #TODO: get Settings
 
