@@ -409,6 +409,9 @@ class BatchScanGui(QMainWindow):
             print("Warning: No valid trajectory found, using default 'raster'")
             trajectory = "raster"
         
+        # Initialize trajectory variables
+        x, y, t = None, None, None
+        
         try:
             if trajectory=="raster":
                 x, y, t = raster(
@@ -457,12 +460,19 @@ class BatchScanGui(QMainWindow):
         except Exception as e:
             print(f"Error generating trajectory preview: {e}")
             self.set_preview([0,1], [0,0])
+            x, y, t = None, None, None
 
-        eta = self.get_eta(params, x, y, t)
-        if eta is not None:
-            line["eta"].setText(eta)
-            line["line_action"].setText("ready")
-            self.set_preview(x,y)
+        # Only calculate eta if trajectory was successfully generated
+        if x is not None and y is not None and t is not None:
+            eta = self.get_eta(params, x, y, t)
+            if eta is not None:
+                line["eta"].setText(eta)
+                line["line_action"].setText("ready")
+                self.set_preview(x,y)
+            else:
+                line["eta"].setText("--:--:--") 
+                line["line_action"].setText("not ready")
+                self.set_preview([0,1], [0,0])
         else:
             line["eta"].setText("--:--:--") 
             line["line_action"].setText("not ready")
