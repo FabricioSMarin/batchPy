@@ -1,7 +1,7 @@
 {
   "vertical_scan_type_combo": {
-    "current_text": "fly 3D",
-    "current_index": 2
+    "current_text": "fly 2D",
+    "current_index": 1
   },
   "lines": [
     {
@@ -9,6 +9,10 @@
       "scan_type": {
         "text": "fly",
         "checked": true
+      },
+      "line_action": {
+        "checked_names": [],
+        "checked_indices": []
       },
       "detectors": {
         "checked_names": [
@@ -19,12 +23,8 @@
         ]
       },
       "trajectory": {
-        "checked_names": [
-          "snake"
-        ],
-        "checked_indices": [
-          1
-        ]
+        "checked_names": [],
+        "checked_indices": []
       },
       "loop1": {
         "checked_names": [
@@ -50,12 +50,12 @@
         "checked_names": [],
         "checked_indices": []
       },
-      "line_action": "not ready",
-      "eta": "--:--:--",
+      "line_status": "ready",
+      "eta": "00:02:30",
       "sample_name": "",
       "dwell_time": "10",
       "l1_center": "0",
-      "l1_size": "0.01",
+      "l1_size": "0.1",
       "l1_width": "10",
       "l2_center": "0",
       "l2_size": "0.1",

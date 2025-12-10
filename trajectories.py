@@ -1,9 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-def snake(dwell, step_size, x_center, y_center, x_width, y_width):
-    rows = int(np.ceil(y_width/step_size))
-    cols = int(np.ceil(x_width/step_size))
+def snake(dwell, step_size_x, step_size_y, x_center, y_center, x_width, y_width):
+    rows = int(np.ceil(y_width/step_size_y))
+    cols = int(np.ceil(x_width/step_size_x))
     ypts = np.linspace(y_center-y_width/2,x_center+y_width/2,int(rows+1))
     x,y = [],[]
     for i in range(rows):
@@ -25,9 +25,9 @@ def snake(dwell, step_size, x_center, y_center, x_width, y_width):
     times = np.ones_like(x)*dt
     return x, y, times
 
-def raster(dwell, step_size, x_center, y_center, x_width, y_width, x_return_vel):
-    rows = int(np.ceil(y_width/step_size))
-    cols = int(np.ceil(x_width/step_size))
+def raster(dwell, step_size_x, step_size_y, x_center, y_center, x_width, y_width, x_return_vel):
+    rows = int(np.ceil(y_width/step_size_y))
+    cols = int(np.ceil(x_width/step_size_x))
     ypts = np.linspace(y_center-y_width/2,y_center+y_width/2,int(rows+1))
     x,y = [],[]
     for i in range(rows):

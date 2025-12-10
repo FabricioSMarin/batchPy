@@ -3,6 +3,16 @@ from PyQt5.QtWidgets import QWidget, QLabel, QLineEdit, QVBoxLayout, QHBoxLayout
 from PyQt5.QtCore import pyqtSignal, Qt
 from ComboBoxWithPlaceholder import ComboBoxWithPlaceholder
 
+class StatusLabel(QLabel):
+    """Custom QLabel that emits a signal when text changes"""
+    textChanged = pyqtSignal(str)
+    
+    def setText(self, text):
+        """Override setText to emit signal when text changes"""
+        if self.text() != text:
+            super().setText(text)
+            self.textChanged.emit(text)
+
 class VerticalLine(QWidget):
     sendToQueueSig = pyqtSignal(int)
     trajectoryChangedSig = pyqtSignal()
@@ -54,12 +64,14 @@ class VerticalLine(QWidget):
         self.setStyleSheet("background: white")
         
         # Create sections with horizontal layouts for better organization
+        self.create_line_action_section(main_layout, size2, height)
         self.create_scan_type_section(main_layout, size1, height)
         self.create_detector_section(main_layout, size4, height)
         self.create_trajectory_section(main_layout, size2, height)
         self.create_loop_section(main_layout, size2, height)
         self.create_parameter_section(main_layout, size2, height)
         self.create_status_section(main_layout, size5, height)
+        self.create_send_to_queue_button(main_layout, size2, height)
         
         self.setLayout(main_layout)
         
@@ -69,10 +81,25 @@ class VerticalLine(QWidget):
         # Initialize trajectory-based parameter visibility
         self.trajectory_changed()
 
+    def create_line_action_section(self, parent_layout, size5, height):
+        """Create line action section"""
+        h_layout = QHBoxLayout()
+        self.line_action_label = self._create_label("line action")
+        h_layout.addWidget(self.line_action_label, alignment=Qt.AlignLeft | Qt.AlignVCenter)
+        self.line_action = QComboBox()
+        self.line_action.setToolTip("line_action")
+        # Add items to the combo box
+        line_actions = ["normal", "skip", "pause"]
+        self.line_action.addItems(line_actions)
+        self.line_action.setCurrentText("normal")  # Set default to "normal"
+        self.line_action.setFixedSize(size5, height)
+        h_layout.addWidget(self.line_action)
+        parent_layout.addLayout(h_layout)
+
     def create_scan_type_section(self, parent_layout, size1, height):
         """Create scan type section"""
         h_layout = QHBoxLayout()
-        self.scan_type_label = self._create_label("scan_type")
+        self.scan_type_label = self._create_label("scan type")
         h_layout.addWidget(self.scan_type_label, alignment=Qt.AlignLeft | Qt.AlignVCenter)
         self.scan_type = QPushButton("step", checkable=True)
         self.scan_type.setToolTip("scan_type")
@@ -391,12 +418,14 @@ class VerticalLine(QWidget):
     def create_status_section(self, parent_layout, size5, height):
         """Create status section"""
         h_layout = QHBoxLayout()
-        self.line_action_label = self._create_label("status")
-        h_layout.addWidget(self.line_action_label, alignment=Qt.AlignLeft | Qt.AlignVCenter)
-        self.line_action = QLabel("not ready")
-        self.line_action.setFixedSize(size5, height)
-        self.line_action.setToolTip("line_action")
-        h_layout.addWidget(self.line_action)
+        self.line_status_label = self._create_label("status")
+        h_layout.addWidget(self.line_status_label, alignment=Qt.AlignLeft | Qt.AlignVCenter)
+        self.line_status = StatusLabel("not ready")
+        self.line_status.setFixedSize(size5, height)
+        self.line_status.setToolTip("line_status")
+        # Connect textChanged signal to update button state
+        self.line_status.textChanged.connect(self.update_send_to_queue_button_state)
+        h_layout.addWidget(self.line_status)
         parent_layout.addLayout(h_layout)
         
         h_layout = QHBoxLayout()
@@ -407,6 +436,32 @@ class VerticalLine(QWidget):
         self.eta.setToolTip("eta")
         h_layout.addWidget(self.eta)
         parent_layout.addLayout(h_layout)
+
+    def create_send_to_queue_button(self, parent_layout, size2, height):
+        """Create send to queue button at the bottom of the widget"""
+        h_layout = QHBoxLayout()
+        self.send_to_queue_button = QPushButton("send to queue")
+        self.send_to_queue_button.setToolTip("send to queue")
+        self.send_to_queue_button.setFixedSize(size2, height)
+        self.send_to_queue_button.clicked.connect(lambda: self.sendToQueueSig.emit(self.id))
+        self.send_to_queue_button.setEnabled(False)  # Initially disabled
+        h_layout.addWidget(self.send_to_queue_button, alignment=Qt.AlignCenter)
+        parent_layout.addLayout(h_layout)
+        
+        # Update button state based on initial status
+        self.update_send_to_queue_button_state()
+
+    def update_send_to_queue_button_state(self):
+        """Update the send to queue button enabled state based on status"""
+        if hasattr(self, 'send_to_queue_button') and hasattr(self, 'line_status'):
+            is_ready = self.line_status.text().lower() == "ready"
+            self.send_to_queue_button.setEnabled(is_ready)
+    
+    def set_status(self, status_text):
+        """Set the status text and update the send to queue button state"""
+        if hasattr(self, 'line_status'):
+            self.line_status.setText(status_text)
+            self.update_send_to_queue_button_state()
 
     def get_positioner_options(self):
         """Get positioner options from settings"""
@@ -593,6 +648,11 @@ class VerticalLine(QWidget):
     # Compatibility methods for trajectory and loops to maintain API
     def _add_combo_compatibility_methods(self):
         """Add compatibility methods to QComboBox widgets to match ComboBoxWithPlaceholder API."""
+        # Add methods to line_action
+        self.line_action.check_selected = lambda indices: self._set_combo_selected(self.line_action, indices)
+        self.line_action.checked_names = lambda: self._get_combo_checked_names(self.line_action)
+        self.line_action.checked_indices = lambda: self._get_combo_checked_indices(self.line_action)
+        
         # Add methods to trajectory
         self.trajectory.check_selected = lambda indices: self._set_combo_selected(self.trajectory, indices)
         self.trajectory.checked_names = lambda: self._get_combo_checked_names(self.trajectory)
@@ -637,6 +697,10 @@ class VerticalLine(QWidget):
                 'text': self.scan_type.text(),
                 'checked': self.scan_type.isChecked()
             },
+            'line_action': {
+                'checked_names': self._get_combo_checked_names(self.line_action),
+                'checked_indices': self._get_combo_checked_indices(self.line_action)
+            },
             'detectors': {
                 'checked_names': self.detectors.checked_names(),
                 'checked_indices': self.detectors.checked_indices()
@@ -661,7 +725,7 @@ class VerticalLine(QWidget):
                 'checked_names': self._get_combo_checked_names(self.loop4),
                 'checked_indices': self._get_combo_checked_indices(self.loop4)
             },
-            'line_action': self.line_action.text(),
+            'line_status': self.line_status.text(),
             'eta': self.eta.text(),
             'sample_name': self.sample_name.text(),
             'dwell_time': self.dwell_time.text(),
@@ -697,23 +761,36 @@ class VerticalLine(QWidget):
             self.scan_type.setText(data['scan_type']['text'])
             self.scan_type.setChecked(data['scan_type']['checked'])
         
+        # Restore line_action (QComboBox) - handle both old and new formats
+        if 'line_action' in data:
+            line_action_data = data['line_action']
+            # New format: dictionary with checked_indices
+            if isinstance(line_action_data, dict) and 'checked_indices' in line_action_data:
+                self._set_combo_selected(self.line_action, line_action_data['checked_indices'])
+            # Old format: string (this was the status, ignore it as we now have line_status)
+            # Just skip it - the old line_action string will be handled by line_status restoration below
+        
         # Restore detectors
         if 'detectors' in data:
             self.detectors.check_selected(data['detectors']['checked_indices'])
         
         # Restore trajectory
         if 'trajectory' in data:
-            self._set_combo_selected(self.trajectory, data['trajectory']['checked_indices'])
+            trajectory_data = data['trajectory']
+            if isinstance(trajectory_data, dict) and 'checked_indices' in trajectory_data:
+                self._set_combo_selected(self.trajectory, trajectory_data['checked_indices'])
         
         # Restore loops
         for loop_name in ['loop1', 'loop2', 'loop3', 'loop4']:
             if loop_name in data:
-                loop_widget = getattr(self, loop_name)
-                self._set_combo_selected(loop_widget, data[loop_name]['checked_indices'])
+                loop_data = data[loop_name]
+                if isinstance(loop_data, dict) and 'checked_indices' in loop_data:
+                    loop_widget = getattr(self, loop_name)
+                    self._set_combo_selected(loop_widget, loop_data['checked_indices'])
         
         # Restore text fields
         text_fields = [
-            'line_action', 'eta', 'sample_name', 'dwell_time', 'l1_center', 'l1_size', 'l1_width',
+            'line_status', 'eta', 'sample_name', 'dwell_time', 'l1_center', 'l1_size', 'l1_width',
             'l2_center', 'l2_size', 'l2_width', 'l3_center', 'l3_size', 'l3_width', 'l4_center', 'l4_size', 'l4_width', 
             'tangential_step', 'radial_step', 'diameter', 'cycles', 'x_freq', 'y_freq', 'comments'
         ]
@@ -724,5 +801,11 @@ class VerticalLine(QWidget):
                 if hasattr(widget, 'setText'):
                     widget.setText(data[field])
         
+        # Backward compatibility: if old format has 'line_action' as string (status), map it to line_status
+        if 'line_action' in data and isinstance(data['line_action'], str) and 'line_status' not in data:
+            if hasattr(self, 'line_status'):
+                self.line_status.setText(data['line_action'])
+        
         # Trigger UI updates
         self.trajectory_changed()
+        self.update_send_to_queue_button_state()

@@ -96,7 +96,7 @@ class BatchScanGui(QMainWindow):
         self.controls.abort_btn.clicked.connect(self.queue_abort)
         self.controls.continue_btn.clicked.connect(self.queue_resume)
         self.controls.pause_btn.clicked.connect(self.queue_pause)
-        self.controls.begin_btn.clicked.connect(self.queue_start)
+        self.controls.begin_btn.clicked.connect(self.queue_begin)
         self.controls.visual_box.model().itemChanged.connect(self.view_option_changed)
         #TODO: define positioners some other way ex: get positioners list upon connecting to qserver
 
@@ -290,6 +290,8 @@ class BatchScanGui(QMainWindow):
         try:
             # Populate the next available row in queue_widget with params
             self.populate_next_available_row(self.table_widget, params)
+            # Show columns that have data (in case they were hidden when table was empty)
+            self.show_columns_with_data()
             print("Added to queue widget")
         except Exception as e:
             print(f"Error adding to queue widget: {e}")
@@ -365,6 +367,16 @@ class BatchScanGui(QMainWindow):
                 table_widget.setItem(next_row, column_index, QTableWidgetItem(str(value)))
             else:
                 print(f"Warning: Key '{key}' not found in table headers.")
+    
+    def show_columns_with_data(self):
+        """Show columns that have data in at least one row"""
+        for col in range(self.table_widget.columnCount()):
+            has_data = any(
+                self.table_widget.item(row, col) and self.table_widget.item(row, col).text().strip()
+                for row in range(self.table_widget.rowCount())
+            )
+            if has_data:
+                self.table_widget.setColumnHidden(col, False)
 
     def onUpdateText(self, text):
         try:
@@ -383,7 +395,7 @@ class BatchScanGui(QMainWindow):
         preval = self.pre_validate(line)
         if preval is None: 
             print("validation step failed")
-            line["line_action"].setText("not ready")
+            line["line_status"].setText("not ready")
             self.set_preview([0,1], [0,0])
             return
         else: 
@@ -393,7 +405,7 @@ class BatchScanGui(QMainWindow):
                 print("limits passed")   
             else:
                 print("limits not passed")
-                line["line_action"].setText("not ready")
+                line["line_status"].setText("not ready")
                 self.set_preview([0,1], [0,0])
                 return
 
@@ -417,15 +429,19 @@ class BatchScanGui(QMainWindow):
                 x, y, t = raster(
                     self.safe_get_param(params, "dwell_time", 1),
                     self.safe_get_param(params, "l1_size", 0),
+                    self.safe_get_param(params, "l2_size", 0),
                     self.safe_get_param(params, "l1_center", 0),
                     self.safe_get_param(params, "l2_center", 0),
                     self.safe_get_param(params, "l1_width", 0),
-                    self.safe_get_param(params, "l2_width", 0),2)
+                    self.safe_get_param(params, "l2_width", 0),
+                    2) #return velocity
+                    
 
             elif trajectory=="snake":
                 x, y, t = snake(
                     self.safe_get_param(params, "dwell_time", 1),
                     self.safe_get_param(params, "l1_size", 0),
+                    self.safe_get_param(params, "l2_size", 0),
                     self.safe_get_param(params, "l1_center", 0),
                     self.safe_get_param(params, "l2_center", 0),
                     self.safe_get_param(params, "l1_width", 0),
@@ -467,20 +483,17 @@ class BatchScanGui(QMainWindow):
             eta = self.get_eta(params, x, y, t)
             if eta is not None:
                 line["eta"].setText(eta)
-                line["line_action"].setText("ready")
+                line["line_status"].setText("ready")
                 self.set_preview(x,y)
             else:
                 line["eta"].setText("--:--:--") 
-                line["line_action"].setText("not ready")
+                line["line_status"].setText("not ready")
                 self.set_preview([0,1], [0,0])
         else:
             line["eta"].setText("--:--:--") 
-            line["line_action"].setText("not ready")
+            line["line_status"].setText("not ready")
             self.set_preview([0,1], [0,0])
         return
-
-
-
 
     def pre_validate(self, line):
         #prevalidate parameters before sending to server
@@ -831,7 +844,7 @@ class BatchScanGui(QMainWindow):
 
     def enqueue_line(self, line_id):
         line = self.get_vertical_line(line_id)
-        if line.line_action.text() == "ready":
+        if line.line_status.text() == "ready":
             try:
                 params = self.get_params(line=line.__dict__)
                 params["pi_directory"] = self.controls.pi_dir.text()
@@ -1140,7 +1153,10 @@ class BatchScanGui(QMainWindow):
         params = {}
         for key in keys: 
             # Exclude settings_dialog and other non-serializable attributes
-            if key in ['settings_dialog', 'id']:
+            if key in ['settings_dialog', 'id', 'send_to_queue_button']:
+                continue
+            # Exclude label variables (those ending with _label)
+            if key.endswith('_label'):
                 continue
             if isinstance(line[key], QPushButton):
                 params[key] = line[key].text()
@@ -1155,6 +1171,8 @@ class BatchScanGui(QMainWindow):
                         params[key] = vals
                 except:
                     params[key] = ""
+            elif isinstance(line[key], QComboBox):
+                params[key] = line[key].currentText()
             elif isinstance(line[key], QLabel):
                 params[key] = line[key].text()
             elif isinstance(line[key], QLineEdit):
