@@ -50,8 +50,8 @@
         "checked_names": [],
         "checked_indices": []
       },
-      "line_status": "ready",
-      "eta": "00:02:30",
+      "line_status": "not ready",
+      "eta": "--:--:--",
       "sample_name": "",
       "dwell_time": "10",
       "l1_center": "0",

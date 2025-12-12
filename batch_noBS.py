@@ -47,6 +47,7 @@ class BatchScanGui(QMainWindow):
         self.load_queue_from_json()
         self.load_pi_dir()
         self.show()
+        self.resize(1600, 800)
 
     def initUI(self):
         self.controls = Controls()
@@ -1020,6 +1021,9 @@ class BatchScanGui(QMainWindow):
         # Optional: Add headers (for clarity)
         self.table_widget.setHorizontalHeaderLabels([item for item in header])
         self.table_widget.setVerticalHeaderLabels([f'Row {i+1}' for i in range(num_rows)])
+        
+        # Set default column width
+        self.table_widget.horizontalHeader().setDefaultSectionSize(90)  # Set default width to 100 pixels
         scroll_area.setWidget(self.table_widget)
         layout.addWidget(scroll_area)
         
