@@ -9,8 +9,6 @@ import json
 import trajectories
 import subprocess
 from detectors import *
-#TODO: duplicate calc record functionality to setup dtectors, triggers, etc. 
-#TODO: create an identical funcitonality that does not use scan record plan. 
 
 def before_loop1(params):
     pv_list = [    
@@ -24,6 +22,7 @@ def before_loop1(params):
     return
 
 def before_loop2(params):
+    setup_detectors(params)
     pv_list = [params["positioner2"].VAL, params["l2_center"] - params["l2_width"].VAL/2]
     ready_values = [params["positioner2"].DMOV, 1]
     busy_loop(pv_list, ready_values)

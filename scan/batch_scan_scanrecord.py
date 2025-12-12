@@ -24,6 +24,7 @@ def before_loop1(params):
     return
 
 def before_loop2(params):
+    setup_detectors(params)
     pv_list = [params["positioner2"].VAL, params["l2_center"] - params["l2_width"].VAL/2]
     ready_values = [params["positioner2"].DMOV, 1]
     busy_loop(params, 2, pv_list, ready_values)

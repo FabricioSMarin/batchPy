@@ -1,5 +1,5 @@
 import epics
-
+import numpy as np
 
 def setup_scan_record(params):
     pass
@@ -11,7 +11,17 @@ def setup_hydra_controller(params):
     return
 
 def setup_xmap(params):
-    epics.caput(params["xmap"].Capture.PROC, 1)
+    npts = params["loop1"].NPTS
+    buffs = int(np.ceil((npts-2)/124))
+    scan_number = epics.caget(params["scan_number"])
+    epics.caput(params["xmap"].NumPixelsPerRun, npts-2)
+    epics.caput(params["xmap"].NumCapture, buffs)
+    epics.caput(params["xmap"].Capture, 0)
+    epics.caput(params["xmap"].FWNamePattern, f"%s%s_%d")
+    epics.caput(params["xmap"].FilePath, f"{params['savedatadir']}/flyXRF")
+    epics.caput(params["xmap"].fileName, f"{params['beamline']}_{scan_number}_XMAP")
+    epics.caput(params["xmap"].FileWriteMode, 2)
+    epics.caput(params["xmap"].Acquire.PROC, 1)
     return
 
 def setup_tetramm(params):
