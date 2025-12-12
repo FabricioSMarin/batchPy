@@ -15,12 +15,8 @@
         "checked_indices": []
       },
       "detectors": {
-        "checked_names": [
-          "xmap"
-        ],
-        "checked_indices": [
-          3
-        ]
+        "checked_names": [],
+        "checked_indices": []
       },
       "trajectory": {
         "checked_names": [],
@@ -28,7 +24,7 @@
       },
       "loop1": {
         "checked_names": [
-          "2xfm:m57.VAL"
+          "fsm:m1.VAL"
         ],
         "checked_indices": [
           1
@@ -36,7 +32,7 @@
       },
       "loop2": {
         "checked_names": [
-          "2xfm:m13.VAL"
+          "fsm:m2.VAL"
         ],
         "checked_indices": [
           2

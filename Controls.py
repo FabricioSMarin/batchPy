@@ -5,8 +5,9 @@ from ComboBoxWithPlaceholder import ComboBoxWithPlaceholder
 from ImageView import ImageView
 
 class Controls(QWidget):
-    def __init__(self):
+    def __init__(self, settings_manager=None):
         super(Controls, self).__init__()
+        self.settings_manager = settings_manager
         self.setupUi()
 
     def setupUi(self):
@@ -45,10 +46,38 @@ class Controls(QWidget):
         self.abort_btn.setFixedSize(size2, height)
 
         self.visual_box = ComboBoxWithPlaceholder("view option", exclusive=True)
-        options = ["trajectory preview","position stream","spectra"]
+        # Start with trajectory preview as default
+        options = ["trajectory preview"]
+        
+        # Add CA and PVA options if they are defined in settings
+        if self.settings_manager:
+            ca_fields = {
+                "CA X positioner": "CA X positioner",
+                "CA Y positioner": "CA Y positioner",
+                "CA spectra": "CA spectra",
+                "CA camera": "CA camera"
+            }
+            pva_fields = {
+                "PVA positions": "PVA positions",
+                "PVA spectra": "PVA spectra",
+                "PVA camera": "PVA camera"
+            }
+            
+            # Add CA fields if defined
+            for key, label in ca_fields.items():
+                value = self.settings_manager.get_setting(key)
+                if value and value.strip():
+                    options.append(label)
+            
+            # Add PVA fields if defined
+            for key, label in pva_fields.items():
+                value = self.settings_manager.get_setting(key)
+                if value and value.strip():
+                    options.append(label)
+        
         self.visual_box.addItems(options)
         self.visual_box.setFixedWidth(size3)
-        self.visual_box.check_selected([1])
+        self.visual_box.check_selected([1])  # Select first item (trajectory preview)
 
         c1 = QHBoxLayout()
         c1.addWidget(eta_lbl)
@@ -84,6 +113,66 @@ class Controls(QWidget):
 
         self.make_pretty()
         self.setLayout(combined2)
+    
+    def update_view_options(self):
+        """Update view options dropdown based on CA and PVA settings"""
+        if not self.settings_manager:
+            return
+        
+        # Get current selection to preserve it if possible
+        current_selection = None
+        try:
+            checked_indices = self.visual_box.checked_indices()
+            if checked_indices:
+                current_items = self.visual_box.get_items()
+                if checked_indices[0] <= len(current_items):
+                    current_selection = current_items[checked_indices[0] - 1]
+        except:
+            pass
+        
+        # Clear existing items
+        self.visual_box.clear()
+        
+        # Start with trajectory preview as default
+        options = ["trajectory preview"]
+        
+        # Add CA and PVA options if they are defined in settings
+        ca_fields = {
+            "CA X positioner": "CA X positioner",
+            "CA Y positioner": "CA Y positioner",
+            "CA spectra": "CA spectra",
+            "CA camera": "CA camera"
+        }
+        pva_fields = {
+            "PVA positions": "PVA positions",
+            "PVA spectra": "PVA spectra",
+            "PVA camera": "PVA camera"
+        }
+        
+        # Add CA fields if defined
+        for key, label in ca_fields.items():
+            value = self.settings_manager.get_setting(key)
+            if value and value.strip():
+                options.append(label)
+        
+        # Add PVA fields if defined
+        for key, label in pva_fields.items():
+            value = self.settings_manager.get_setting(key)
+            if value and value.strip():
+                options.append(label)
+        
+        # Add options to dropdown
+        self.visual_box.addItems(options)
+        
+        # Restore previous selection if it still exists, otherwise select trajectory preview
+        if current_selection and current_selection in options:
+            try:
+                index = options.index(current_selection) + 1  # +1 because check_selected uses 1-based indexing
+                self.visual_box.check_selected([index])
+            except:
+                self.visual_box.check_selected([1])  # Default to trajectory preview
+        else:
+            self.visual_box.check_selected([1])  # Default to trajectory preview
 
     def browse_pi_directory(self):
         """Open folder selection dialog for PI directory"""

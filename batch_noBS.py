@@ -46,11 +46,13 @@ class BatchScanGui(QMainWindow):
         self.load_lines_from_json()
         self.load_queue_from_json()
         self.load_pi_dir()
+        # Update detectors after lines are loaded so loaded lines get updated detector list
+        self.get_detectors()
         self.show()
         self.resize(1600, 800)
 
     def initUI(self):
-        self.controls = Controls()
+        self.controls = Controls(settings_manager=self.settings_manager)
         # Settings dialog will be created after UI is fully initialized
         savelog_action = QAction('save terminal log', self)
         savelog_action.triggered.connect(self.save_log)
@@ -343,11 +345,21 @@ class BatchScanGui(QMainWindow):
         
         result = settings_dialog.exec_()
         if result == QDialog.Accepted:
+            # Reload settings in settings manager
+            self.settings_manager.load_settings()
+            
             # Update PI directory if changed in settings
             new_pi_dir = settings_dialog.get_setting("PI Directory")
             if new_pi_dir != self.controls.pi_dir.text():
                 self.controls.pi_dir.setText(new_pi_dir)
                 print(f"PI Directory updated to: {new_pi_dir}")
+            
+            # Refresh detectors dropdown based on updated settings
+            self.get_detectors()
+            
+            # Update view options dropdown based on updated CA/PVA settings
+            self.controls.update_view_options()
+            
             print("Settings saved successfully")
         else:
             print("Settings dialog cancelled")
@@ -996,6 +1008,29 @@ class BatchScanGui(QMainWindow):
         line.sendToQueueSig.connect(self.validate_params)
 
         line.trajectory_changed()
+        
+        # Update detectors for this new line based on settings
+        try:
+            detector_names = []
+            # Get detector file path PVs from settings (Det 1-6)
+            for i in range(1, 7):
+                setting_key = f"Det {i} filePath PV"
+                file_path_pv = self.settings_manager.get_setting(setting_key)
+                
+                # Extract the part before the first colon
+                if file_path_pv and file_path_pv.strip():
+                    # Split by colon and take the first part
+                    detector_name = file_path_pv.split(":")[0].strip()
+                    if detector_name:
+                        detector_names.append(detector_name)
+            
+            # Update detectors dropdown for this line
+            if detector_names:
+                line.detectors.clear()
+                line.detectors.addItems(detector_names)
+        except Exception as e:
+            print(f"Error updating detectors for new line: {e}")
+        
         self.vertical_lines_layout.addWidget(line, alignment=QtCore.Qt.AlignTop)
 
     def make_queue_widget(self):
@@ -1004,8 +1039,15 @@ class BatchScanGui(QMainWindow):
             # Use default headers if no lines available
             line_attributes = ["id", "scan_type", "detectors", "trajectory", "sample_name", "dwell_time", "comments"]
         else:
-            line_attributes = list(lines[0].keys())[1:]
-        header = line_attributes +["item_uid",  "user", "start message",  "finish message", "eta"]
+            # Exclude items with "_label", "send_to_queue_button", "settings_dialog", and "eta" from line attributes
+            # "eta" is excluded here and added at the end to ensure it appears only once
+            excluded_keys = ['send_to_queue_button', 'settings_dialog', 'id', 'eta']
+            line_attributes = [key for key in list(lines[0].keys())[1:] 
+                             if not key.endswith('_label') and key not in excluded_keys]
+        
+        # Additional items to add to header (including "eta" at the end)
+        additional_items = ["item_uid", "user", "start message", "finish message", "eta"]
+        header = line_attributes + additional_items
         num_rows = 0
         queue_widget = QWidget()
         layout = QVBoxLayout()
@@ -1017,6 +1059,7 @@ class BatchScanGui(QMainWindow):
         self.table_widget.setColumnCount(len(header))
         self.table_widget.deleteRowSig.connect(self.queue_delete_item)
         self.table_widget.moveRowSig.connect(self.queue_item_move)
+        self.table_widget.setLineActionSig.connect(self.queue_set_line_action)
         
         # Optional: Add headers (for clarity)
         self.table_widget.setHorizontalHeaderLabels([item for item in header])
@@ -1060,11 +1103,54 @@ class BatchScanGui(QMainWindow):
         except:
             return
 
-    def queue_delete_item(self, row_index):
-            try: 
+    def queue_delete_item(self, row_indices):
+        """Delete one or more rows from the queue table.
+        
+        Args:
+            row_indices: List of row indices to delete (should be sorted in descending order)
+        """
+        try:
+            # row_indices should already be sorted in descending order for safe deletion
+            for row_index in row_indices:
                 self.table_widget.removeRow(row_index)
-            except Exception as e: 
-                print(e)
+            print(f"Deleted {len(row_indices)} row(s) from queue")
+        except Exception as e:
+            print(f"Error deleting row(s): {e}")
+
+    def queue_set_line_action(self, row_indices, action_value):
+        """Set line_action for one or more rows in the queue table.
+        
+        Args:
+            row_indices: List of row indices to update
+            action_value: String value to set ("skip", "pause", or "normal")
+        """
+        try:
+            # Find the column index for "line_action"
+            line_action_col = None
+            for col in range(self.table_widget.columnCount()):
+                header_item = self.table_widget.horizontalHeaderItem(col)
+                if header_item and header_item.text() == "line_action":
+                    line_action_col = col
+                    break
+            
+            if line_action_col is None:
+                print("Warning: 'line_action' column not found in queue table")
+                return
+            
+            # Update line_action for each selected row
+            for row_index in row_indices:
+                if row_index >= 0 and row_index < self.table_widget.rowCount():
+                    # Create or update the item in the line_action column
+                    item = self.table_widget.item(row_index, line_action_col)
+                    if item is None:
+                        item = QTableWidgetItem(action_value)
+                        self.table_widget.setItem(row_index, line_action_col, item)
+                    else:
+                        item.setText(action_value)
+            
+            print(f"Set line_action to '{action_value}' for {len(row_indices)} row(s)")
+        except Exception as e:
+            print(f"Error setting line_action: {e}")
 
     def queue_clear(self):
         try: 
@@ -1117,7 +1203,29 @@ class BatchScanGui(QMainWindow):
         pass
             
     def get_detectors(self):
-        pass
+        """Populate detectors dropdown from detector file path PVs in settings"""
+        try:
+            detector_names = []
+            # Get detector file path PVs from settings (Det 1-6)
+            for i in range(1, 7):
+                setting_key = f"Det {i} filePath PV"
+                file_path_pv = self.settings_manager.get_setting(setting_key)
+                
+                # Extract the part before the first colon
+                if file_path_pv and file_path_pv.strip():
+                    # Split by colon and take the first part
+                    detector_name = file_path_pv.split(":")[0].strip()
+                    if detector_name:
+                        detector_names.append(detector_name)
+            
+            # Update detectors dropdown with extracted names
+            if detector_names:
+                print(f"Found {len(detector_names)} detector(s): {detector_names}")
+                self.update_detectors(detector_names)
+            else:
+                print("No detector file path PVs found in settings")
+        except Exception as e:
+            print(f"Error getting detectors: {e}")
 
     def get_history(self):
         pass

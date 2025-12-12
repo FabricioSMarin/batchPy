@@ -1,10 +1,11 @@
-from PyQt5.QtWidgets import QMenu, QTableWidget, QAction, QLineEdit
+from PyQt5.QtWidgets import QMenu, QTableWidget, QAction, QLineEdit, QTableWidgetItem
 from PyQt5.QtCore import pyqtSignal, Qt, QPoint, QEvent
 
 class TableWidgetWithContextMenu(QTableWidget):
-    deleteRowSig = pyqtSignal(int)
+    deleteRowSig = pyqtSignal(list)  # Changed to emit list of row indices
     moveRowSig = pyqtSignal(list)
     editedSig = pyqtSignal(list)
+    setLineActionSig = pyqtSignal(list, str)  # Emit list of row indices and action value
     
     def __init__(self, *args, **kwargs):
         super(TableWidgetWithContextMenu, self).__init__(*args, **kwargs)
@@ -26,10 +27,46 @@ class TableWidgetWithContextMenu(QTableWidget):
 
         context_menu = QMenu(self)
         
-        if row_index >= 0:  # Ensure a valid row is clicked
-            delete_action = QAction("Delete Row", self)
-            delete_action.triggered.connect(lambda: self.delete_request(row_index))
+        # Get selected rows
+        selected_rows = set()
+        for item in self.selectedItems():
+            selected_rows.add(item.row())
+        
+        # If no rows are selected but we clicked on a valid row, select that row
+        if len(selected_rows) == 0 and row_index >= 0:
+            selected_rows.add(row_index)
+        
+        if len(selected_rows) > 0:  # Ensure at least one row is selected
+            # Determine delete action text based on selection count
+            if len(selected_rows) > 1:
+                delete_text = f"Delete Row(s) ({len(selected_rows)})"
+            else:
+                delete_text = "Delete Row"
+            
+            delete_action = QAction(delete_text, self)
+            # Sort rows in descending order for safe deletion
+            sorted_rows = sorted(selected_rows, reverse=True)
+            delete_action.triggered.connect(lambda: self.delete_request(sorted_rows))
             context_menu.addAction(delete_action)
+            
+            # Add separator before line action options
+            context_menu.addSeparator()
+            
+            # Add line action options
+            sorted_rows_list = sorted(list(selected_rows))
+            skip_action = QAction("Set to Skip", self)
+            skip_action.triggered.connect(lambda: self.set_line_action(sorted_rows_list, "skip"))
+            context_menu.addAction(skip_action)
+            
+            pause_action = QAction("Set to Pause", self)
+            pause_action.triggered.connect(lambda: self.set_line_action(sorted_rows_list, "pause"))
+            context_menu.addAction(pause_action)
+            
+            normal_action = QAction("Set to Normal", self)
+            normal_action.triggered.connect(lambda: self.set_line_action(sorted_rows_list, "normal"))
+            context_menu.addAction(normal_action)
+            
+            context_menu.addSeparator()
         
         # Add "Hide Empty Columns" action to the context menu
         hide_empty_columns_action = QAction("Hide Empty Columns", self)
@@ -58,8 +95,13 @@ class TableWidgetWithContextMenu(QTableWidget):
         for col in range(self.columnCount()):
             self.setColumnHidden(col, False)
 
-    def delete_request(self, row_index):
-        self.deleteRowSig.emit(row_index)
+    def delete_request(self, row_indices):
+        # Emit list of row indices (sorted in descending order for safe deletion)
+        self.deleteRowSig.emit(row_indices)
+    
+    def set_line_action(self, row_indices, action_value):
+        # Emit list of row indices and the action value to set
+        self.setLineActionSig.emit(row_indices, action_value)
 
     def dropEvent(self, event):
         # Get the index of the dragged row
