@@ -1,13 +1,13 @@
 {
-  "Positioner 1 PV": 15.43,
-  "Positioner 1 RBV": 15.43,
+  "Positioner 1 PV": 3.0,
+  "Positioner 1 RBV": 3.0,
   "Positioner 1 HLM": 320.0,
   "Positioner 1 LLM": -320.0,
-  "Positioner 1 VMAX": 5.0,
+  "Positioner 1 VMAX": 10.0,
   "Positioner 1 VBAS": 0.1,
   "Positioner 1 MRES": 0.01,
-  "Positioner 2 PV": -0.2,
-  "Positioner 2 RBV": -0.2,
+  "Positioner 2 PV": 4.0,
+  "Positioner 2 RBV": 4.0,
   "Positioner 2 HLM": 320.0,
   "Positioner 2 LLM": -320.0,
   "Positioner 2 MRES": 0.01,
@@ -25,6 +25,6 @@
   "Positioner 3 VMAX": 0.0,
   "Positioner 3 VBAS": 0.1,
   "Positioner 2 VBAS": 0.1,
-  "_last_updated": "2025-12-12 17:01:27",
+  "_last_updated": "2026-01-05 17:33:29",
   "_version": "1.0"
 }

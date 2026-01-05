@@ -48,6 +48,8 @@ class BatchScanGui(QMainWindow):
         self.load_pi_dir()
         # Update detectors after lines are loaded so loaded lines get updated detector list
         self.get_detectors()
+        # self.validate_params()
+
         self.show()
         self.resize(1600, 800)
 
@@ -403,8 +405,45 @@ class BatchScanGui(QMainWindow):
     def __del__(self):
         sys.stdout = sys.__stdout__
 
+    def validate_row(self, row):
+        if row is None:
+            print("no row data")
+            return
+
+        preval = self.pre_validate(row)
+        if preval is None: 
+            print("validation step failed")
+            row["line_status"]= "not ready"
+            return
+        else: 
+            print("pre-line validation passed")
+            limits_passed = self.check_limits(preval)
+            if limits_passed:
+                print("limits passed")   
+            else:
+                print("limits not passed")
+                row["line_status"]= "not ready"
+                row["line_eta"]= "--:--:--"
+                row["line_action"]= "skip"
+                return
+
+            eta = self.get_eta(row)
+            if eta is not None:
+                row["line_eta"] = eta
+                row["line_status"]= "ready"
+            else:
+                row["line_eta"] = "--:--:--"
+                row["line_status"] = "not ready"
+                row["line_action"] = "skip"
+        return
+
+
     def validate_params(self):
-        line = self.sender().__dict__
+        try:  
+            line = self.sender().__dict__
+        except:
+            line = self.vertical_lines_layout.itemAt(1).widget().__dict__
+
         preval = self.pre_validate(line)
         if preval is None: 
             print("validation step failed")
@@ -1174,7 +1213,66 @@ class BatchScanGui(QMainWindow):
     def queue_pause(self):
         pass
     
+    def get_first_ready_queue_item(self):
+        """Get the first queue item with status 'ready'
+        
+        Returns:
+            tuple: (dict, int) - Dictionary containing all column values for the first ready row, 
+                   and row index. Returns (None, -1) if not found.
+        """
+        try:
+            # Find the column index for "line_status"
+            line_status_col = None
+            for col in range(self.table_widget.columnCount()):
+                header_item = self.table_widget.horizontalHeaderItem(col)
+                if header_item and header_item.text() == "line_status":
+                    line_status_col = col
+                    break
+            
+            if line_status_col is None:
+                print("Warning: 'line_status' column not found in queue table")
+                return None, -1
+            
+            # Iterate through all rows to find the first one with status "ready"
+            for row in range(self.table_widget.rowCount()):
+                status_item = self.table_widget.item(row, line_status_col)
+                if status_item and status_item.text().strip().lower() == "ready":
+                    # Found a ready row, extract all data
+                    row_data = {}
+                    header_labels = [self.table_widget.horizontalHeaderItem(i).text() 
+                                   for i in range(self.table_widget.columnCount())]
+                    
+                    for col in range(self.table_widget.columnCount()):
+                        item = self.table_widget.item(row, col)
+                        if item:
+                            row_data[header_labels[col]] = item.text()
+                        else:
+                            row_data[header_labels[col]] = ""
+                    
+                    print(f"Found first ready queue item at row {row}")
+                    return row_data, row
+            
+            print("No queue item with status 'ready' found")
+            return None, -1
+        except Exception as e:
+            print(f"Error getting first ready queue item: {e}")
+            return None, -1
+
     def queue_begin(self):
+        row_data, row_index = self.get_first_ready_queue_item()
+        if row_data is None:
+            print("No queue item with status 'ready' found")
+            return
+        else:
+            print(f"Found first ready queue item at row {row_index}")
+            self.validate_row(row=row_data)
+
+
+        
+        
+
+
+
         #TODO: get queue, get first "ready" line, 
         #TODO: get Settings
 
@@ -1238,10 +1336,35 @@ class BatchScanGui(QMainWindow):
         else:
             return
 
-    def get_eta(self, params, x, y, t=None):
+    def get_eta(self, params, x=None, y=None, t=None):
         dwell = eval(params["dwell_time"]) #ms
-        eta = (len(x)-len(np.unique(y)))*dwell/1000 #s
-        overhead = len(np.unique(y))*0.5
+        if x is None or y is None:
+            if params["trajectory"]=="raster":
+                eta = (eval(params["l1_size"])*eval(params["l2_size"]))*dwell/1000 #s
+                overhead = (eval(params["l2_width"])*eval(params["l2_size"]))*0.5
+            elif params["trajectory"]=="snake":
+                eta = (eval(params["l1_size"])*eval(params["l2_size"]))*dwell/1000 #s
+                overhead = (eval(params["l2_width"])*eval(params["l2_size"]))*0.5
+            elif params["trajectory"]=="spiral":
+                eta = (eval(params["diameter"])/(eval(params["tangential_step"])*eval(params["radial_step"])))*dwell/1000 #s
+                overhead = 0
+            elif params["trajectory"]=="lissajous":
+                #TODO: figure out eta for lissajous scan
+                eta = (eval(params["cycles"])*(eval(params["x_freq"])+eval(params["y_freq"])))*dwell/1000 #s
+                overhead = 0
+            elif params["trajectory"]=="custom":
+                #TODO: figure out eta for custom scan
+                eta = 0
+                overhead = 0
+            else: 
+                eta = 0
+                overhead = 0
+
+            if params["loop3"] is not None and params["loop3"] != "":
+                eta = eta*(eval(params["loop3_width"])/eval(params["loop3_size"]))
+            if params["loop4"] is not None and params["loop4"] != "":
+                eta = eta*(eval(params["loop4_width"])/eval(params["loop4_size"]))
+
         total_eta = eta + overhead
         formatted_eta = time.strftime("%H:%M:%S", time.gmtime(total_eta))
         return formatted_eta
