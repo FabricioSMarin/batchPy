@@ -15,12 +15,8 @@
         "checked_indices": []
       },
       "detectors": {
-        "checked_names": [
-          "XSP3_1Chan"
-        ],
-        "checked_indices": [
-          1
-        ]
+        "checked_names": [],
+        "checked_indices": []
       },
       "trajectory": {
         "checked_names": [],
@@ -50,8 +46,8 @@
         "checked_names": [],
         "checked_indices": []
       },
-      "line_status": "ready",
-      "eta": "00:02:30",
+      "line_status": "not ready",
+      "eta": "--:--:--",
       "sample_name": "",
       "dwell_time": "10",
       "l1_center": "0",

@@ -1,7 +1,7 @@
 import os
 import json
 import epics
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QGridLayout, QLabel, QLineEdit, QDialogButtonBox, QPushButton, QHBoxLayout
+from PyQt5.QtWidgets import QDialog, QVBoxLayout, QGridLayout, QLabel, QLineEdit, QDialogButtonBox, QPushButton, QHBoxLayout, QComboBox, QFrame
 from PyQt5.QtCore import Qt, QEvent
 from PyQt5.QtGui import QIcon, QKeyEvent
 from PyQt5 import QtCore
@@ -30,33 +30,70 @@ class SettingsDialog(QDialog):
         settings_labels = [
             "Fly Loop 1 PV", "Fly Loop 2 PV", "Fly Loop 3 PV", "Fly Loop 4 PV",
             "Step Loop 1 PV", "Step Loop 2 PV", "Step Loop 3 PV", "Step Loop 4 PV",
-            "saveData mount point", "host mount point", "Det 1 mount point", "Det 1 filePath PV", 
-            "Det 2 mount point", "Det 2 filePath PV", "Det 3 mount point", "Det 3 filePath PV",
-            "Det 4 mount point", "Det 4 filePath PV", "Det 5 mount point", "Det 5 filePath PV",
-            "Det 6 mount point", "Det 6 filePath PV", "PI Directory",
+            "saveData number PV", "saveData mount point", "host mount point", "Det 1 mount point", "Det 1 filePath PV", "Det 1 type",
+            "Det 2 mount point", "Det 2 filePath PV", "Det 2 type",
+            "Det 3 mount point", "Det 3 filePath PV", "Det 3 type",
+            "Det 4 mount point", "Det 4 filePath PV", "Det 4 type",
+            "Det 5 mount point", "Det 5 filePath PV", "Det 5 type",
+            "Det 6 mount point", "Det 6 filePath PV", "Det 6 type",
+            "PI Directory",
             "CA spectra", "CA camera",
             "PVA positions", "PVA spectra", "PVA camera"
         ]
         
+        # Detector type options
+        detector_types = ["None", "xspress3", "xmap", "eiger", "interferometer", "tetramm", "scaler", "struck"]
+        
+        # Track current row for grid layout (will increment for separators)
+        current_row = 0
+        
         # Add main settings to first column
         for i, label_text in enumerate(settings_labels):
+            # Check if we need to add a separator before this detector
+            # Add separator after each detector section (before next detector starts)
+            if label_text.startswith("Det ") and "mount point" in label_text:
+                # Extract detector number
+                det_num = label_text.split()[1]
+                # If this is not Det 1, add a separator before it
+                if det_num != "1":
+                    separator = QFrame()
+                    separator.setFrameShape(QFrame.HLine)
+                    separator.setFrameShadow(QFrame.Sunken)
+                    separator.setStyleSheet("background-color: #cccccc; max-height: 1px;")
+                    grid_layout.addWidget(separator, current_row, 0, 1, 2)  # Span 2 columns
+                    current_row += 1
+            
             # Create label
             label = QLabel(f"{label_text}:")
             label.setMinimumWidth(150)
             
-            # Create line edit
-            line_edit = QLineEdit()
-            line_edit.setPlaceholderText(f"Enter {label_text.lower()}")
-            line_edit.setMinimumWidth(200)
-            # Install event filter to prevent Enter from closing dialog
-            line_edit.installEventFilter(self)
-            
-            # Store reference for later access
-            self.settings_widgets[label_text] = line_edit
-            
-            # Add to grid
-            grid_layout.addWidget(label, i, 0)
-            grid_layout.addWidget(line_edit, i, 1)
+            # Check if this is a detector type field
+            if label_text.endswith(" type") and label_text.startswith("Det "):
+                # Create combo box for detector type
+                combo_box = QComboBox()
+                combo_box.addItems(detector_types)
+                combo_box.setMinimumWidth(200)
+                # Store reference for later access
+                self.settings_widgets[label_text] = combo_box
+                # Add to grid
+                grid_layout.addWidget(label, current_row, 0)
+                grid_layout.addWidget(combo_box, current_row, 1)
+                current_row += 1
+            else:
+                # Create line edit
+                line_edit = QLineEdit()
+                line_edit.setPlaceholderText(f"Enter {label_text.lower()}")
+                line_edit.setMinimumWidth(200)
+                # Install event filter to prevent Enter from closing dialog
+                line_edit.installEventFilter(self)
+                
+                # Store reference for later access
+                self.settings_widgets[label_text] = line_edit
+                
+                # Add to grid
+                grid_layout.addWidget(label, current_row, 0)
+                grid_layout.addWidget(line_edit, current_row, 1)
+                current_row += 1
         
         # Add positioner limits as second column
         self.positioner_limits_widgets = {}
@@ -68,8 +105,25 @@ class SettingsDialog(QDialog):
             "Positioner 4 PV", "Positioner 4 RBV", "Positioner 4 HLM", "Positioner 4 LLM", "Positioner 4 VMAX", "Positioner 4 VBAS", "Positioner 4 MRES", "Positioner 4 EGU"
         ]
         
+        # Track current positioner row (will increment for separators)
+        positioner_row = 0
+        
         # Add positioner limits to second column (starting from column 2)
         for i, limit_name in enumerate(positioner_limits):
+            # Check if we need to add a separator before this positioner
+            # Add separator after each positioner section (before next positioner starts)
+            if limit_name.endswith(" PV"):
+                # Extract positioner number
+                pos_num = limit_name.split()[1]
+                # If this is not Positioner 1, add a separator before it
+                if pos_num != "1":
+                    separator = QFrame()
+                    separator.setFrameShape(QFrame.HLine)
+                    separator.setFrameShadow(QFrame.Sunken)
+                    separator.setStyleSheet("background-color: #cccccc; max-height: 1px;")
+                    grid_layout.addWidget(separator, positioner_row, 2, 1, 4)  # Span 4 columns
+                    positioner_row += 1
+            
             # Create label for limit name
             limit_label = QLabel(f"{limit_name}:")
             limit_label.setMinimumWidth(120)
@@ -105,10 +159,11 @@ class SettingsDialog(QDialog):
                 limit_edit.installEventFilter(self)
             
             # Add to grid (column 2, 3, 4, 5)
-            grid_layout.addWidget(limit_label, i, 2)
-            grid_layout.addWidget(limit_edit, i, 3)
-            grid_layout.addWidget(value_label, i, 4)
-            grid_layout.addWidget(unit_label, i, 5)
+            grid_layout.addWidget(limit_label, positioner_row, 2)
+            grid_layout.addWidget(limit_edit, positioner_row, 3)
+            grid_layout.addWidget(value_label, positioner_row, 4)
+            grid_layout.addWidget(unit_label, positioner_row, 5)
+            positioner_row += 1
         
         # Add some spacing
         grid_layout.setSpacing(10)
@@ -158,7 +213,17 @@ class SettingsDialog(QDialog):
                 # Apply loaded settings to main widgets
                 for key, value in settings_data.items():
                     if key in self.settings_widgets:
-                        self.settings_widgets[key].setText(str(value))
+                        widget = self.settings_widgets[key]
+                        if isinstance(widget, QComboBox):
+                            # For combo boxes, set the current text
+                            index = widget.findText(str(value))
+                            if index >= 0:
+                                widget.setCurrentIndex(index)
+                            else:
+                                widget.setCurrentText(str(value))
+                        else:
+                            # For line edits, set the text
+                            widget.setText(str(value))
                     elif key in self.positioner_limits_widgets:
                         self.positioner_limits_widgets[key].setText(str(value))
         except Exception as e:
@@ -171,7 +236,12 @@ class SettingsDialog(QDialog):
             
             # Save main settings
             for key, widget in self.settings_widgets.items():
-                settings_data[key] = widget.text()
+                if isinstance(widget, QComboBox):
+                    # For combo boxes, get the current text
+                    settings_data[key] = widget.currentText()
+                else:
+                    # For line edits, get the text
+                    settings_data[key] = widget.text()
             
             # Save positioner limits
             for key, widget in self.positioner_limits_widgets.items():
@@ -194,7 +264,11 @@ class SettingsDialog(QDialog):
     def get_setting(self, key):
         """Get a setting value by key"""
         if key in self.settings_widgets:
-            return self.settings_widgets[key].text()
+            widget = self.settings_widgets[key]
+            if isinstance(widget, QComboBox):
+                return widget.currentText()
+            else:
+                return widget.text()
         return ""
     
     def update_positioner_values(self, positioner_limits, is_fallback=False):

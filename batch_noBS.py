@@ -15,7 +15,7 @@ from Stream import Stream
 import threading
 import epics
 from Settings import SettingsDialog, SettingsManager
-
+import scan
 
 
 class BatchScanGui(QMainWindow):
@@ -1260,25 +1260,33 @@ class BatchScanGui(QMainWindow):
 
     def queue_begin(self):
         row_data, row_index = self.get_first_ready_queue_item()
+        settings = self.settings_manager.get_settings_dict()
+        saveDataPV = settings["saveData number PV"]
+        beamline =f"{saveDataPV.split(':')[0]}"
+
         if row_data is None:
             print("No queue item with status 'ready' found")
             return
-        else:
-            print(f"Found first ready queue item at row {row_index}")
-            self.validate_row(row=row_data)
+        self.validate_row(row=row_data)
 
+        #get detector PVs from row data and detector types from settings
+        detector_pvs = row_data["detectors"]
+        detectors = {}
+        for detector_pv in detector_pvs:
+            detector_type = self.settings_manager.get_setting(f"Det {detector_pv} type")
+            detectors[detector_type] = detector_pv
+            scan.detectors.setup_detector(detector_type, params=row_data)   
 
-        
-        
-
-
-
-        #TODO: get queue, get first "ready" line, 
-        #TODO: get Settings
+        scan.detectors.setup_scan_record(params=row_data)
+        scan.detectors.setup_triggers(params=row_data, beamline=beamline)
+        #TODO: execute run_scan in separate thread, 
+        scan.detectors.run_scan(params=row_data)
+        #DONE: get queue, get first "ready" line, 
+        #DONE: get Settings
 
         
         """ minimal setup for fly scans:
-            #TODO: for detector in detectors, setup_detector(dwell, npts, save_path, scan_num), set external
+            #DONE: for detector in detectors, setup_detector(dwell, npts, save_path, scan_num), set external
             #TODO: setup triggers if sis380 or hydra
             #TODO: setup scan record npts, center, width.
             #TODO: change line to "running" 
@@ -1297,6 +1305,9 @@ class BatchScanGui(QMainWindow):
         #TODO: get queue history, parse to csv or something easily readable
         pass
         
+
+
+
     def get_positioners(self):
         pass
             
@@ -1340,11 +1351,11 @@ class BatchScanGui(QMainWindow):
         dwell = eval(params["dwell_time"]) #ms
         if x is None or y is None:
             if params["trajectory"]=="raster":
-                eta = (eval(params["l1_size"])*eval(params["l2_size"]))*dwell/1000 #s
-                overhead = (eval(params["l2_width"])*eval(params["l2_size"]))*0.5
+                eta = (eval(params["l1_width"])/eval(params["l1_size"])*eval(params["l2_width"])/eval(params["l2_size"]))*dwell/1000 #s
+                overhead = (eval(params["l2_width"])/eval(params["l2_size"]))*0.1
             elif params["trajectory"]=="snake":
-                eta = (eval(params["l1_size"])*eval(params["l2_size"]))*dwell/1000 #s
-                overhead = (eval(params["l2_width"])*eval(params["l2_size"]))*0.5
+                eta = (eval(params["l1_width"])/eval(params["l1_size"])*eval(params["l2_width"])/eval(params["l2_size"]))*dwell/1000 #s
+                overhead = (eval(params["l2_width"])/eval(params["l2_size"]))*0.1
             elif params["trajectory"]=="spiral":
                 eta = (eval(params["diameter"])/(eval(params["tangential_step"])*eval(params["radial_step"])))*dwell/1000 #s
                 overhead = 0
