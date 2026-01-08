@@ -15,7 +15,7 @@ from Stream import Stream
 import threading
 import epics
 from Settings import SettingsDialog, SettingsManager
-import scan
+from scan.detectors import setup_detector, setup_scan_record, setup_triggers, run_scan
 
 
 class BatchScanGui(QMainWindow):
@@ -1260,7 +1260,7 @@ class BatchScanGui(QMainWindow):
 
     def queue_begin(self):
         row_data, row_index = self.get_first_ready_queue_item()
-        settings = self.settings_manager.get_settings_dict()
+        settings = self.settings_manager.settings_data
         saveDataPV = settings["saveData number PV"]
         beamline =f"{saveDataPV.split(':')[0]}"
 
@@ -1270,29 +1270,48 @@ class BatchScanGui(QMainWindow):
         self.validate_row(row=row_data)
 
         #get detector PVs from row data and detector types from settings
-        detector_pvs = row_data["detectors"]
+        selected_detectors = row_data["detectors"]
+        selected_detectors = row_data["detectors"].strip("[]'").split(",")
         detectors = {}
-        for detector_pv in detector_pvs:
-            detector_type = self.settings_manager.get_setting(f"Det {detector_pv} type")
-            detectors[detector_type] = detector_pv
-            scan.detectors.setup_detector(detector_type, params=row_data)   
+        for i in range(1,5):
+            detector_type = settings[f"Det {i} type"]
+            detector_filepath_pv = settings[f"Det {i} filePath PV"]
 
-        scan.detectors.setup_scan_record(params=row_data)
-        scan.detectors.setup_triggers(params=row_data, beamline=beamline)
+            if detector_type != "None":
+                if detector_type not in detectors:
+                    detectors[detector_type] = []
+                for detector in selected_detectors:
+                    if detector in detector_filepath_pv:
+                        # Append to list instead of overwriting
+                        detectors[detector_type].append(detector)
+
+        row_data["detectors"] = detectors
+        for detector in detectors:
+                setup_detector(detector, params=row_data)
+
+
+        setup_scan_record(params=row_data)
+        setup_triggers(params=row_data, beamline=beamline)
+
         #TODO: execute run_scan in separate thread, 
-        scan.detectors.run_scan(params=row_data)
+        #TODO: change line to "running" 
+        self.line_color(row_index, color="green")
+        self.set_line_action(row_index, "running")
+        self.disable_line(row_index)
+        
+        run_scan(params=row_data)
+        
         #DONE: get queue, get first "ready" line, 
         #DONE: get Settings
 
         
         """ minimal setup for fly scans:
             #DONE: for detector in detectors, setup_detector(dwell, npts, save_path, scan_num), set external
-            #TODO: setup triggers if sis380 or hydra
-            #TODO: setup scan record npts, center, width.
-            #TODO: change line to "running" 
+            #DONE: setup triggers if sis380 or hydra
+            #DONE: setup scan record npts, center, width.
+            #DONE: change line to "running" 
             #disable running line to prevent editing
             #run monitor function to check for done signal, periodically update plot. 
-            #TODO: if done, change line to "done"
             #TODO: camonitor the scan line change to get more accurate ETA. 
             #TODO: if scan paused, change line to "paused"
             #TODO: if scan aborted, change line to "aborted"

@@ -42,7 +42,7 @@ class SettingsDialog(QDialog):
         ]
         
         # Detector type options
-        detector_types = ["None", "xspress3", "xmap", "eiger", "interferometer", "tetramm", "scaler", "struck"]
+        detector_types = ["None", "xspress3", "xmap", "eiger", "interferometer", "tetramm"]
         
         # Track current row for grid layout (will increment for separators)
         current_row = 0

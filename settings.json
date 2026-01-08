@@ -7,6 +7,7 @@
   "Step Loop 2 PV": "fsm:scan2",
   "Step Loop 3 PV": "",
   "Step Loop 4 PV": "",
+  "saveData number PV": "fsm:saveData_scanNumber",
   "saveData mount point": "//micdata/data1/",
   "host mount point": "/mnt/micdata1/",
   "Det 1 mount point": "/mnt/micdata1/",

@@ -2,52 +2,54 @@ import epics
 import numpy as np
 import time
 
-def setup_scan_record_fly(outer, inner, before_out, before_in, after_out, after_in, npts, num_lines, struck, xmap, xspress3, disable_calcs=[]):
-    for i in range(len(disable_calcs)):
-        epics.caput(f"{disable_calcs[i]}Enable",0, wait=True)
-        epics.caput(f"{disable_calcs[i]}.SCAN",0, wait=True)
+def setup_scan_record_fly(params):
 
-    epics.caput(f"{outer}.BSWAIT",0, wait=True)
-    epics.caput(f"{inner}.BSWAIT",0, wait=True)
-    epics.caput(f"{outer}.ASWAIT",0, wait=True)
-    epics.caput(f"{inner}.ASWAIT",0, wait=True)
-    epics.caput(f"{inner}.NPTS",npts, wait=True)
-    epics.caput(f"{inner}.BSPV",before_in, wait=True)
-    epics.caput(f"{outer}.BSPV",before_out, wait=True)
-    epics.caput(f"{inner}.ASPV",after_in, wait=True)
-    epics.caput(f"{outer}.ASPV",after_out, wait=True)
-    epics.caput(f"{outer}.NPTS",num_lines, wait=True)
-    epics.caput(f"{outer}.R1PV","time", wait=True)
-    epics.caput(f"{inner}.R1PV","time", wait=True)
-    epics.caput(f"{outer}.P1PV","", wait=True)
-    epics.caput(f"{inner}.P1PV","", wait=True)
-    epics.caput(f"{inner}.T1PV","", wait=True)
-    epics.caput(f"{inner}.T2PV","", wait=True)
-    epics.caput(f"{inner}.T3PV","", wait=True)
-    epics.caput(f"{outer}.T3PV","", wait=True)
-    epics.caput(f"{outer}.T4PV",f"{inner}.EXSC", wait=True)
+    # for i in range(len(disable_calcs)):
+    #     epics.caput(f"{disable_calcs[i]}Enable",0, wait=True)
+    #     epics.caput(f"{disable_calcs[i]}.SCAN",0, wait=True)
+    npts_x = int(eval(params["l1_width"])/eval(params["l1_size"])) #number of lines
+    npts_y = int(eval(params["l2_width"])/eval(params["l2_size"])) #number of lines
+    dwell = eval(params["dwell"])
+    epics.caput(f"{params["outer"]}.BSWAIT",0, wait=True)
+    epics.caput(f"{params["inner"]}.BSWAIT",0, wait=True)
+    epics.caput(f"{params["outer"]}.ASWAIT",0, wait=True)
+    epics.caput(f"{params["inner"]}.ASWAIT",0, wait=True)
+    epics.caput(f"{params["inner"]}.NPTS",npts_x, wait=True)
+    epics.caput(f"{params["inner"]}.BSPV",params["before_in"], wait=True)
+    epics.caput(f"{params["outer"]}.BSPV",params["before_out"], wait=True)
+    epics.caput(f"{params["inner"]}.ASPV",params["after_in"], wait=True)
+    epics.caput(f"{params["outer"]}.ASPV",params["after_out"], wait=True)
+    epics.caput(f"{params["outer"]}.NPTS",npts_y, wait=True)
+    epics.caput(f"{params["outer"]}.R1PV",params["loop1"], wait=True)
+    epics.caput(f"{params["inner"]}.R1PV",params["loop2"], wait=True)
+    epics.caput(f"{params["outer"]}.P1PV","", wait=True)
+    epics.caput(f"{params["inner"]}.P1PV","", wait=True)
+    epics.caput(f"{params["inner"]}.T1PV","", wait=True)
+    epics.caput(f"{params["inner"]}.T2PV","", wait=True)
+    epics.caput(f"{params["inner"]}.T3PV","", wait=True)
+    epics.caput(f"{params["outer"]}.T3PV","", wait=True)
+    epics.caput(f"{params["outer"]}.T4PV",f"{params["inner"]}.EXSC", wait=True)
 
-    if struck is not None:
-        epics.caput(f"{inner}.T4PV",f"{struck}:EraseStart", wait=True)
+
+    epics.caput(f"{params["inner"]}.T4PV",f"{params["struck"]}:EraseStart", wait=True)
+
+    if "xmap" in params["detectors"]:
+        epics.caput(f"{params["outer"]}.T1PV",f"{params["xmap"]}:netCDF1:Capture", wait=True)
+        epics.caput(f"{params["outer"]}.T2PV",f"{params["xmap"]}:EraseStart", wait=True)
     else:
-        epics.caput(f"{inner}.T4PV","", wait=True)
-    if xmap is not None:
-        epics.caput(f"{outer}.T1PV",f"{xmap}:netCDF1:Capture", wait=True)
-        epics.caput(f"{outer}.T2PV",f"{xmap}:EraseStart", wait=True)
+        epics.caput(f"{params["inner"]}.T1PV","", wait=True)
+        epics.caput(f"{params["inner"]}.T2PV","", wait=True)
+    if "xspress3" in params["detectors"]:
+        epics.caput(f"{params["xspress3"]}:det1:NumImages",npts_x, wait=True)
+        epics.caput(f"{params["xspress3"]}:det1:TriggerMode", 1, wait=True) #3=TTL Veto Only, 1=Internal Trigger
+        epics.caput(f"{params["xspress3"]}:HDF1:AutoIncrement",1, wait=True)
+        epics.caput(f"{params["xspress3"]}:HDF1:FileNumber",0, wait=True)
+        epics.caput(f"{params["inner"]}.T1PV",f"{params["xspress3"]}:HDF1:Capture", wait=True)
+        epics.caput(f"{params["inner"]}.T2PV",f"{params["xspress3"]}:det1:Acquire", wait=True)
+        epics.caput(f"{params["xspress3"]}:HDF1:FileTemplate", "%s%s_%04d.h5", wait=True)
     else:
-        epics.caput(f"{inner}.T1PV","", wait=True)
-        epics.caput(f"{inner}.T2PV","", wait=True)
-    if xspress3 is not None:
-        epics.caput(f"{xspress3}:det1:NumImages",npts, wait=True)
-        epics.caput(f"{xspress3}:det1:TriggerMode", 1, wait=True) #3=TTL Veto Only, 1=Internal Trigger
-        epics.caput(f"{xspress3}:HDF1:AutoNumber",1, wait=True)
-        epics.caput(f"{xspress3}:HDF1:FileNumber",0, wait=True)
-        epics.caput(f"{inner}.T1PV",f"{xspress3}:HDF1:Capture", wait=True)
-        epics.caput(f"{inner}.T2PV",f"{xspress3}:det1:Acquire", wait=True)
-        epics.caput(f"{xspress3}:HDF1:FileTemplate", "%s%s_%04d.h5", wait=True)
-    else:
-        epics.caput(f"{inner}.T1PV","", wait=True)
-        epics.caput(f"{inner}.T2PV","", wait=True)
+        epics.caput(f"{params["inner"]}.T1PV","", wait=True)
+        epics.caput(f"{params["inner"]}.T2PV","", wait=True)
 
 def setup_scan_record_step(outer, inner, before_out, before_in, after_out, after_in, npts, num_lines, struck, xmap, xspress3, disable_calcs=[]):
     for i in range(len(disable_calcs)):
@@ -78,47 +80,47 @@ def setup_scaler_step(params):
 def setup_tetramm_fly(params):
     pass
 
-def setup_triggers(params):
-    pass
-
 def setup_hydra_controller(params):
     params["hydra_controller"].StartPosition.VAL = params["motors"]["x"].VAL + params["step_size"]
     params["hydra_controller"].EndPosition.VAL = params["motors"]["x"].VAL + params["width"]
     params["hydra_controller"].NumTriggers.VAL = params["loop1"].NPTS - 1
     return
 
-def setup_xmap_fly(params):
+def setup_xmap_fly(params, detector_pv=None):
     npts = params["loop1"].NPTS
     nbuffs = np.ceil((npts)/124)
-    epics.caput(f"{params["xmap"]}:PixelsPerRun",npts, wait=True)
-    epics.caput(f"{params["xmap"]}:netCDF1:NumCapture",nbuffs, wait=True)
-    epics.caput(f"{params["xmap"]}:netCDF1:Capture",0, wait=True)
-    epics.caput(f"{params["xmap"]}:StopAll",1, wait=True)
-    epics.caput(f"{params["xmap"]}:CollectMode", 1, wait=True)
+    epics.caput(f"{detector_pv}:PixelsPerRun",npts, wait=True)
+    epics.caput(f"{detector_pv}:netCDF1:NumCapture",nbuffs, wait=True)
+    epics.caput(f"{detector_pv}:netCDF1:Capture",0, wait=True)
+    epics.caput(f"{detector_pv}:StopAll",1, wait=True)
+    epics.caput(f"{detector_pv}:CollectMode", 1, wait=True)
     return
 
-def setup_xspress3_fly(params):
-    npts = params["loop1"].NPTS
-    epics.caput(f"{params["xspress3"]}:NumImages",npts, wait=True)
-    epics.caput(f"{params["xspress3"]}:det1:TriggerMode", 1, wait=True) #3=TTL Veto Only, 1=Internal Trigger
-    epics.caput(f"{params["xspress3"]}:HDF1:AutoNumber",1, wait=True)
+def setup_xspress3_fly(params, detector_pv=None):
+    npts = int(eval(params["l1_width"])/eval(params["l1_size"]))
+    epics.caput(f"{detector_pv}:det1:NumImages",npts, wait=True)
+    epics.caput(f"{detector_pv}:det1:TriggerMode", 3, wait=True) #3=TTL Veto Only, 1=Internal Trigger
+    epics.caput(f"{detector_pv}:HDF1:AutoIncrement",1, wait=True)
 
-def setup_struck_fly(params):
+def setup_struck_fly(params, detector_pv=None, prescale=1):
     npts = params["loop1"].NPTS
-    epics.caput(f"{params["struck"]}:ChannelAdvance",1, wait=True)
-    epics.caput(f"{params["struck"]}:PresetReal",0.0, wait=True)
-    epics.caput(f"{params["struck"]}:NuseAll",npts-2, wait=True)
-    epics.caput(f"{params["struck"]}:Prescale",1, wait=True)
-    epics.caput(f"{params["struck"]}:EraseAll",1, wait=True)
+    # mres = params['loop1_motor_resolution']
+    #loop1_step_size = params['loop1_step_size']
+    #prescale = np.abs(step_size/motor_resolution) #Note: this value may differ depending on motor pulse source/stepsize
+    epics.caput(f"{detector_pv}:ChannelAdvance",0, wait=True) #0= internal trigger, 1= external trigger
+    epics.caput(f"{detector_pv}:PresetReal",0.0, wait=True)
+    epics.caput(f"{detector_pv}:NuseAll",npts-2, wait=True)
+    epics.caput(f"{detector_pv}:Prescale", prescale, wait=True)
+    epics.caput(f"{detector_pv}:EraseAll",1, wait=True)
     return
 
-def setup_eiger_fly(params):
+def setup_eiger_fly(params, detector_pv=None):
     pass
 
-def setup_interferometer_fly(params):
+def setup_interferometer_fly(params, detector_pv=None):
     pass
 
-def setup_scaler_fly(params):
+def setup_scaler_fly(params, detector_pv=None):
     pass
 
 def before_scan(scanum, filename_PV, dwell_PV, xmap, xspress3, struck, npts):
@@ -220,41 +222,36 @@ def trigger_detectors(params): #for scan-record-less scans
     if "struck" in params["detectors"]:
         epics.caput(params["struck"].EraseStart.PROC, 1)
 
-def setup_detector(detector_type, params=None, **kwargs):
+def setup_detector(detector, params=None):
     # Setup detector based on type
-    if params["scan_type"] == "fly":
-        if detector_type == "xmap":
-            setup_xmap_fly(params)
-        elif detector_type == "tetramm":
-            setup_tetramm_fly(params)
-        elif detector_type == "xspress3":
-            setup_xspress3_fly(params)
-        elif detector_type == "struck":
-            setup_struck_fly(params)
-        elif detector_type == "eiger":
-            setup_eiger_fly(params)
-        elif detector_type == "interferometer":
-            setup_interferometer_fly(params)
-        elif detector_type == "scaler":
-            setup_scaler_fly(params)
-    else:
-        if detector_type == "xmap":
-            setup_xmap_step(params)
-        elif detector_type == "tetramm":
-            setup_tetramm_step(params)
-        elif detector_type == "xspress3":
-            setup_xspress3_step(params)
-        elif detector_type == "struck":
-            setup_struck_step(params)   
-        elif detector_type == "eiger":
-            setup_eiger_step(params)
-        elif detector_type == "interferometer":
-            setup_interferometer_step(params)
-        elif detector_type == "scaler":
-            setup_scaler_step(params)
+    for device in params["detectors"][detector]:
+        if params["scan_type"] == "fly":
+            if detector == "xmap":
+                setup_xmap_fly(params, detector_pv=device)
+            elif detector == "tetramm":
+                setup_tetramm_fly(params, detector_pv=device)
+            elif detector == "xspress3":
+                setup_xspress3_fly(params, detector_pv=device)
+            elif detector == "struck":
+                setup_struck_fly(params, detector_pv=device)
+            elif detector == "eiger":
+                setup_eiger_fly(params, detector_pv=device)
+            elif detector == "interferometer":
+                setup_interferometer_fly(params, detector_pv=device)
         else:
-            print(f"Warning: Unknown detector type '{detector_type}'")
-            return
+            if detector == "xmap":
+                setup_xmap_step(params, detector_pv=device)
+            elif detector == "tetramm":
+                setup_tetramm_step(params, detector_pv=device)
+            elif detector == "xspress3":
+                setup_xspress3_step(params, detector_pv=device)
+            elif detector == "struck":
+                setup_struck_step(params, detector_pv=device)
+            elif detector == "eiger":
+                setup_eiger_step(params, detector_pv=device)
+            elif detector == "interferometer":
+                setup_interferometer_step(params, detector_pv=device)
+
     return
 def setup_triggers(params, beamline):
     if params["scan_type"] == "fly":
